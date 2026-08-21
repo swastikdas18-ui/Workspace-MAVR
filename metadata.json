@@ -1,0 +1,6 @@
+{
+  "name": "Workspace OS",
+  "description": "Comprehensive business operating system featuring role-based portals for Admin, Employee, and Intern roles with Workspace, Project, Task, Doc, CRM, and Analytics management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

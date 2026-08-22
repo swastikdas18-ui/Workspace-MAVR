@@ -8,7 +8,7 @@ export const teamMemberRoleEnum = pgEnum('team_member_role', ['lead', 'member'])
 export const projectStatusEnum = pgEnum('project_status', ['planning', 'in_progress', 'review', 'completed', 'on_hold']);
 export const projectMemberRoleEnum = pgEnum('project_member_role', ['owner', 'contributor', 'viewer']);
 export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'review', 'completed']);
-export const taskPriorityEnum = pgEnum('task_priority', ['low', 'medium', 'high', 'urgent']);
+export const taskPriorityEnum = pgEnum('task_priority', ['low', 'medium', 'high', 'urgent', 'critical']);
 export const documentVisibilityEnum = pgEnum('document_visibility', ['public', 'team', 'private', 'learning']);
 export const crmStatusEnum = pgEnum('crm_status', ['new_lead', 'contacted', 'proposal_sent', 'negotiation', 'won', 'lost']);
 
@@ -146,6 +146,30 @@ export const crmRecords = pgTable('crm_records', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   lastContacted: timestamp('last_contacted').defaultNow().notNull(),
+});
+
+// Workspace Invites table
+export const workspaceInvites = pgTable('workspace_invites', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('employee'), // 'employee' | 'intern'
+  token: text('token').notNull().unique(),
+  invitedBy: text('invited_by').notNull().references(() => users.id),
+  teamId: text('team_id'),
+  expiresAt: timestamp('expires_at').notNull(),
+  acceptedAt: timestamp('accepted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Task Comments table
+export const taskComments = pgTable('task_comments', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Relational Definitions

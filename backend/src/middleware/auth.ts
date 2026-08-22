@@ -15,9 +15,6 @@ export async function authMiddleware(c: Context, next: Next) {
   const customHeader = c.req.header('x-session-token') || c.req.header('X-Session-Token');
   const cookieHeader = c.req.header('cookie') || c.req.header('Cookie');
 
-  console.log('Authorization:', authHeader);
-  console.log('x-session-token:', customHeader);
-
   let token: string | null = null;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {

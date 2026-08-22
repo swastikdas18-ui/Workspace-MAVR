@@ -2,6 +2,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { authRouter } from './routes/auth';
 import { workspaceRouter } from './routes/workspace';
+import { inviteRouter } from './routes/invites';
+import { projectRouter } from './routes/projects';
+import { taskRouter } from './routes/tasks';
+import { teamRouter } from './routes/teams';
+import { documentRouter } from './routes/documents';
+import { analyticsRouter, billingRouter, adminRouter } from './routes/protected-modules';
 import { env } from './config/env';
 
 export const app = new Hono();
@@ -43,14 +49,7 @@ function isOriginAllowed(origin: string): boolean {
   }
 }
 
-// 1. Temporary Debug & Origin Logger Middleware (runs on EVERY request)
-app.use('*', async (c, next) => {
-  const origin = c.req.header('origin') || c.req.header('Origin');
-  console.log('Origin:', origin);
-  await next();
-});
-
-// 2. GLOBAL CORS MIDDLEWARE - Applied to all routes and methods
+// 1. GLOBAL CORS MIDDLEWARE - Applied to all routes and methods
 app.use(
   '*',
   cors({
@@ -81,7 +80,7 @@ app.use(
   })
 );
 
-// 3. Explicit Global OPTIONS Preflight Handler
+// 2. Explicit Global OPTIONS Preflight Handler
 app.options('*', (c) => {
   const origin = c.req.header('Origin') || c.req.header('origin') || '';
 
@@ -96,7 +95,7 @@ app.options('*', (c) => {
   return c.body(null, 204);
 });
 
-// 3. Global Request Logger & Performance Headers
+// 3. Global Request Performance Headers
 app.use('*', async (c, next) => {
   const start = Date.now();
   await next();
@@ -124,12 +123,36 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Mount Routes (supporting both /api/auth and /auth directly as per specs)
+// Mount API routes
 app.route('/api/auth', authRouter);
 app.route('/auth', authRouter);
 
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
+
+app.route('/api/invites', inviteRouter);
+app.route('/invites', inviteRouter);
+
+app.route('/api/projects', projectRouter);
+app.route('/projects', projectRouter);
+
+app.route('/api/tasks', taskRouter);
+app.route('/tasks', taskRouter);
+
+app.route('/api/teams', teamRouter);
+app.route('/teams', teamRouter);
+
+app.route('/api/documents', documentRouter);
+app.route('/documents', documentRouter);
+
+app.route('/api/analytics', analyticsRouter);
+app.route('/analytics', analyticsRouter);
+
+app.route('/api/billing', billingRouter);
+app.route('/billing', billingRouter);
+
+app.route('/api/admin', adminRouter);
+app.route('/admin', adminRouter);
 
 // Global Error Handler
 app.onError((err, c) => {

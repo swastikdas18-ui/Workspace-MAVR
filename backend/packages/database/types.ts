@@ -34,4 +34,10 @@ export type NewDocument = InferInsertModel<typeof schema.documents>;
 export type CrmRecord = InferSelectModel<typeof schema.crmRecords>;
 export type NewCrmRecord = InferInsertModel<typeof schema.crmRecords>;
 
+export type WorkspaceInvite = InferSelectModel<typeof schema.workspaceInvites>;
+export type NewWorkspaceInvite = InferInsertModel<typeof schema.workspaceInvites>;
+
+export type TaskComment = InferSelectModel<typeof schema.taskComments>;
+export type NewTaskComment = InferInsertModel<typeof schema.taskComments>;
+
 export type UserRole = 'admin' | 'employee' | 'intern';

@@ -7,9 +7,6 @@ export const API_BASE_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
   'https://workspace-mavr.onrender.com';
 
-// Console diagnostics for production & runtime verification
-console.log('API_BASE_URL:', API_BASE_URL);
-
 const TOKEN_KEY = 'ws_session_token';
 
 export interface ApiResponse<T> {
@@ -23,9 +20,7 @@ export interface ApiResponse<T> {
 
 export function getStoredSessionToken(): string | null {
   try {
-    const token = localStorage.getItem(TOKEN_KEY);
-    console.log('Stored token:', token);
-    return token;
+    return localStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
@@ -35,10 +30,8 @@ export function setStoredSessionToken(token: string | null) {
   try {
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
-      console.log('Stored token:', token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
-      console.log('Stored token:', null);
     }
   } catch (err) {
     console.error('Failed to store session token:', err);
@@ -141,5 +134,147 @@ export const api = {
       '/api/workspace/members'
     );
   },
+
+  // Invites API
+  async createInvite(data: { email: string; role: 'employee' | 'intern'; teamId?: string }) {
+    return await fetchApi<{ invite: any }>('/api/invites', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getInvites() {
+    return await fetchApi<{ invites: any[] }>('/api/invites');
+  },
+
+  async previewInvite(token: string) {
+    return await fetchApi<{ invite: any; workspace: any }>(`/api/invites/preview/${token}`);
+  },
+
+  async acceptInvite(data: { token: string; name: string; password: string }) {
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/invites/accept',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    if (res.token) {
+      setStoredSessionToken(res.token);
+    }
+    return res;
+  },
+
+  // Projects API
+  async getProjects() {
+    return await fetchApi<{ projects: any[] }>('/api/projects');
+  },
+
+  async createProject(data: any) {
+    return await fetchApi<{ project: any }>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProject(id: string, data: any) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteProject(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/projects/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Tasks API
+  async getTasks() {
+    return await fetchApi<{ tasks: any[] }>('/api/tasks');
+  },
+
+  async createTask(data: any) {
+    return await fetchApi<{ task: any }>('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateTask(id: string, data: any) {
+    return await fetchApi<{ task: any }>(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteTask(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Task Comments API
+  async getTaskComments(taskId: string) {
+    return await fetchApi<{ comments: any[] }>(`/api/tasks/${taskId}/comments`);
+  },
+
+  async addTaskComment(taskId: string, content: string) {
+    return await fetchApi<{ comment: any }>(`/api/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  // Teams API
+  async getTeams() {
+    return await fetchApi<{ teams: any[] }>('/api/teams');
+  },
+
+  async createTeam(data: any) {
+    return await fetchApi<{ team: any }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Documents API
+  async getDocuments() {
+    return await fetchApi<{ documents: any[] }>('/api/documents');
+  },
+
+  async createDocument(data: any) {
+    return await fetchApi<{ document: any }>('/api/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteDocument(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/documents/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async downloadDocument(id: string) {
+    return await fetchApi<{ success: boolean; downloadCount: number }>(`/api/documents/${id}/download`, {
+      method: 'POST',
+    });
+  },
+
+  // Analytics & Billing API
+  async getAnalytics() {
+    return await fetchApi<{ analytics: any }>('/api/analytics');
+  },
+
+  async getBilling() {
+    return await fetchApi<{ billing: any }>('/api/billing');
+  },
+
+  async getAdminTools() {
+    return await fetchApi<any>('/api/admin/tools');
+  },
 };
+
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { LandingPage } from './components/landing/LandingPage';
 import { AppLayout } from './components/layout/AppLayout';
@@ -15,27 +15,124 @@ import { BillingView } from './components/billing/BillingView';
 import { SettingsView } from './components/settings/SettingsView';
 import { AdminToolsView } from './components/admin/AdminToolsView';
 import { WorkspaceView } from './components/workspace/WorkspaceView';
-import { ShieldAlert } from 'lucide-react';
+import { AcceptInviteView } from './components/invites/AcceptInviteView';
+import { RoleGuard } from './components/common/RoleGuard';
+import { RequireRole } from './components/common/RequireRole';
+import { ForbiddenPage } from './components/common/ForbiddenPage';
+
+const pathToTabMap: Record<string, string> = {
+  '/admin': 'admin_tools',
+  '/admin/dashboard': 'dashboard',
+  '/admin/workspace': 'workspace',
+  '/admin/projects': 'projects',
+  '/admin/tasks': 'tasks',
+  '/admin/documents': 'documents',
+  '/admin/crm': 'crm',
+  '/admin/teams': 'teams',
+  '/admin/analytics': 'analytics',
+  '/admin/billing': 'billing',
+  '/admin/settings': 'settings',
+  '/admin/tools': 'admin_tools',
+  '/employee/dashboard': 'dashboard',
+  '/employee/projects': 'projects',
+  '/employee/tasks': 'tasks',
+  '/employee/documents': 'documents',
+  '/employee/crm': 'crm',
+  '/employee/teams': 'teams',
+  '/intern/dashboard': 'dashboard',
+  '/intern/tasks': 'tasks',
+  '/intern/documents': 'documents',
+  '/analytics': 'analytics',
+  '/billing': 'billing',
+  '/settings': 'settings',
+  '/projects': 'projects',
+  '/tasks': 'tasks',
+  '/documents': 'documents',
+  '/crm': 'crm',
+  '/teams': 'teams',
+  '/workspace': 'workspace',
+  '/dashboard': 'dashboard',
+};
+
+const tabToPathMap: Record<string, string> = {
+  admin_tools: '/admin/tools',
+  analytics: '/analytics',
+  billing: '/billing',
+  settings: '/settings',
+  projects: '/projects',
+  tasks: '/tasks',
+  documents: '/documents',
+  crm: '/crm',
+  teams: '/teams',
+  workspace: '/workspace',
+  dashboard: '/dashboard',
+};
 
 const MainAppContent: React.FC = () => {
   const { isLandingPage, currentRole, activeTab, setActiveTab } = useWorkspace();
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
-  // Enforce role area containment and automatic redirection
-  React.useEffect(() => {
-    if (isLandingPage) return;
+  // Check URL on initial load and handle invite tokens or deep paths
+  useEffect(() => {
+    const path = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
 
-    if (currentRole === 'intern') {
-      const allowedInternTabs = ['dashboard', 'tasks', 'documents'];
-      if (!allowedInternTabs.includes(activeTab)) {
-        setActiveTab('dashboard');
-      }
-    } else if (currentRole === 'employee') {
-      const allowedEmployeeTabs = ['dashboard', 'projects', 'tasks', 'documents', 'crm', 'teams'];
-      if (!allowedEmployeeTabs.includes(activeTab)) {
-        setActiveTab('dashboard');
+    // Check for invite token in query or pathname
+    const queryInvite = urlParams.get('invite');
+    if (queryInvite) {
+      setInviteToken(queryInvite);
+      return;
+    }
+
+    if (path.startsWith('/invite/')) {
+      const token = path.replace('/invite/', '').trim();
+      if (token) {
+        setInviteToken(token);
+        return;
       }
     }
-  }, [isLandingPage, currentRole, activeTab, setActiveTab]);
+
+    // Check for deep linking
+    if (pathToTabMap[path]) {
+      setActiveTab(pathToTabMap[path]);
+    }
+
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      if (pathToTabMap[currentPath]) {
+        setActiveTab(pathToTabMap[currentPath]);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [setActiveTab]);
+
+  // Synchronize browser URL with activeTab & role prefix
+  useEffect(() => {
+    if (isLandingPage || inviteToken) return;
+
+    let targetPath = tabToPathMap[activeTab] || `/${currentRole}/dashboard`;
+    if (activeTab === 'dashboard') {
+      targetPath = `/${currentRole}/dashboard`;
+    }
+
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, [activeTab, isLandingPage, inviteToken, currentRole]);
+
+  if (inviteToken) {
+    return (
+      <AcceptInviteView
+        token={inviteToken}
+        onSuccess={() => {
+          setInviteToken(null);
+          window.history.pushState(null, '', '/dashboard');
+        }}
+      />
+    );
+  }
 
   if (isLandingPage) {
     return <LandingPage />;
@@ -49,30 +146,21 @@ const MainAppContent: React.FC = () => {
       return <InternDashboard />;
     }
 
-    // Role-Filtered Module Views
+    // Role-Guarded Views
     switch (activeTab) {
       case 'workspace':
-        return <WorkspaceView />;
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workspace configuration and member management is restricted to Company Administrators." />}>
+            <WorkspaceView />
+          </RequireRole>
+        );
 
       case 'projects':
-        if (currentRole === 'intern') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Restricted Access (Intern Role)</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Intern accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream.
-              </p>
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold"
-              >
-                Go to Assigned Tasks
-              </button>
-            </div>
-          );
-        }
-        return <ProjectsView />;
+        return (
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}>
+            <ProjectsView />
+          </RoleGuard>
+        );
 
       case 'tasks':
         return <TasksView />;
@@ -81,76 +169,46 @@ const MainAppContent: React.FC = () => {
         return <DocumentsView />;
 
       case 'crm':
-        if (currentRole === 'intern') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Restricted Access (Intern Role)</h3>
-              <p className="text-xs text-slate-400 mt-1">CRM pipelines are restricted to Administrative and Account Executive staff.</p>
-            </div>
-          );
-        }
-        return <CrmView />;
+        return (
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="CRM customer pipelines and deal values are restricted to Administrative and Account Executive staff." />}>
+            <CrmView />
+          </RoleGuard>
+        );
 
       case 'teams':
-        if (currentRole === 'intern') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Team Management Restricted</h3>
-              <p className="text-xs text-slate-400 mt-1">Please refer to your mentor or assigned team lead for department inquiries.</p>
-            </div>
-          );
-        }
-        return <TeamsView />;
+        return (
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Department directories and team lead management are restricted to organization staff." />}>
+            <TeamsView />
+          </RoleGuard>
+        );
 
       case 'analytics':
-        if (currentRole !== 'admin') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Admin Privileges Required</h3>
-              <p className="text-xs text-slate-400 mt-1">Organization analytics and revenue performance reports are restricted to Administrators.</p>
-            </div>
-          );
-        }
-        return <AnalyticsView />;
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Organization analytics, velocity charts, and financial KPIs are restricted to Administrators." />}>
+            <AnalyticsView />
+          </RequireRole>
+        );
 
       case 'billing':
-        if (currentRole !== 'admin') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Admin Privileges Required</h3>
-              <p className="text-xs text-slate-400 mt-1">Financial subscriptions and invoice management are restricted to Workspace Administrators.</p>
-            </div>
-          );
-        }
-        return <BillingView />;
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Financial billing, subscription plans, and invoice management are restricted to Company Administrators." />}>
+            <BillingView />
+          </RequireRole>
+        );
 
       case 'settings':
-        if (currentRole !== 'admin') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Admin Privileges Required</h3>
-              <p className="text-xs text-slate-400 mt-1">Workspace configuration and security policies are restricted to Administrators.</p>
-            </div>
-          );
-        }
-        return <SettingsView />;
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workspace settings, OAuth tokens, and audit policies are restricted to Administrators." />}>
+            <SettingsView />
+          </RequireRole>
+        );
 
       case 'admin_tools':
-        if (currentRole !== 'admin') {
-          return (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-              <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-white">Admin Privileges Required</h3>
-              <p className="text-xs text-slate-400 mt-1">System architecture diagnostics and Drizzle ORM schema tools are restricted to Administrators.</p>
-            </div>
-          );
-        }
-        return <AdminToolsView />;
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="System RBAC diagnostics and PostgreSQL Drizzle ORM tools are restricted to Administrators." />}>
+            <AdminToolsView />
+          </RequireRole>
+        );
 
       default:
         return currentRole === 'admin' ? <AdminDashboard /> : currentRole === 'employee' ? <EmployeeDashboard /> : <InternDashboard />;

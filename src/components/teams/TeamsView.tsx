@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserRole } from '../../types';
+import { UserRole, WorkspaceInvite } from '../../types';
 import { 
   Users, Plus, Mail, Shield, Briefcase, GraduationCap, 
-  UserPlus, CheckCircle2, ChevronRight, X
+  UserPlus, CheckCircle2, ChevronRight, X, Copy, Check, Link2, Clock
 } from 'lucide-react';
 import { getRoleBadgeColor } from '../../lib/auth';
 import { UserAvatar } from '../common/UserAvatar';
@@ -11,7 +11,7 @@ import { UserAvatar } from '../common/UserAvatar';
 export const TeamsView: React.FC = () => {
   const { 
     teams, users, currentUser, currentRole, permissions, 
-    createTeam, inviteMember, searchQuery 
+    createTeam, inviteMember, invites, loadInvites, searchQuery, addToast
   } = useWorkspace();
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -21,6 +21,9 @@ export const TeamsView: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('employee');
   const [inviteTeamId, setInviteTeamId] = useState<string>(teams[0]?.id || '');
+  const [generatedInvite, setGeneratedInvite] = useState<WorkspaceInvite | null>(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
 
   // Create Team Form State
   const [teamName, setTeamName] = useState('');
@@ -28,29 +31,45 @@ export const TeamsView: React.FC = () => {
   const [teamColor, setTeamColor] = useState('#3b82f6');
   const [teamLeadId, setTeamLeadId] = useState<string>(currentUser?.id || '');
 
-  // Filter teams for employee (My Team) vs Admin (All Teams)
-  const visibleTeams = teams.filter((t) => {
-    if (currentRole === 'employee' && currentUser.teamId && t.id !== currentUser.teamId) {
-      // In employee mode, can highlight their primary team or show all directories
+  useEffect(() => {
+    if (currentRole === 'admin') {
+      loadInvites();
     }
+  }, [currentRole]);
+
+  // Filter teams
+  const visibleTeams = teams.filter((t) => {
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     return true;
   });
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = inviteMember(inviteEmail, inviteRole, inviteTeamId);
-    if (success) {
-      setIsInviteModalOpen(false);
-      setInviteEmail('');
+    setIsInviting(true);
+    const invite = await inviteMember(inviteEmail, inviteRole, inviteTeamId);
+    setIsInviting(false);
+    if (invite) {
+      setGeneratedInvite(invite);
     }
   };
 
-  const handleCreateTeamSubmit = (e: React.FormEvent) => {
+  const handleCopyLink = (token: string) => {
+    const inviteUrl = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(inviteUrl);
+    setCopiedToken(true);
+    addToast({
+      type: 'success',
+      title: 'Link Copied',
+      message: 'Workspace invitation URL copied to clipboard.',
+    });
+    setTimeout(() => setCopiedToken(false), 3000);
+  };
+
+  const handleCreateTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = createTeam({
+    const success = await createTeam({
       name: teamName,
       description: teamDescription,
       lead_id: teamLeadId,
@@ -78,7 +97,7 @@ export const TeamsView: React.FC = () => {
           </div>
           <p className="text-xs text-slate-400 mt-1">
             {currentRole === 'admin'
-              ? 'Organize departments, assign team leads, and manage member permissions.'
+              ? 'Organize departments, generate invite tokens for new employees and interns, and manage structure.'
               : 'Collaborate with your department peers and project teammates.'}
           </p>
         </div>
@@ -93,7 +112,10 @@ export const TeamsView: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setIsInviteModalOpen(true)}
+              onClick={() => {
+                setGeneratedInvite(null);
+                setIsInviteModalOpen(true);
+              }}
               className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition-colors"
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -172,6 +194,47 @@ export const TeamsView: React.FC = () => {
         )}
       </div>
 
+      {/* Pending Workspace Invites (Admin only) */}
+      {currentRole === 'admin' && invites.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-blue-400" />
+              <h3 className="text-sm font-bold text-white">Active Workspace Invitations</h3>
+            </div>
+            <span className="text-xs text-slate-400 font-mono">{invites.length} Pending Invites</span>
+          </div>
+
+          <div className="divide-y divide-slate-800/60 text-xs">
+            {invites.map((inv) => (
+              <div key={inv.id} className="py-3 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{inv.email}</span>
+                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-slate-800 text-blue-300 font-mono">
+                      {inv.role}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Expires: {new Date(inv.expires_at).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleCopyLink(inv.token)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Copy Invite Link</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Full Members Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl mt-6">
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
@@ -235,69 +298,122 @@ export const TeamsView: React.FC = () => {
       {/* Invite Member Modal */}
       {isInviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white">Invite Team Member</h3>
-              <button onClick={() => setIsInviteModalOpen(false)} className="text-slate-400 hover:text-white">
+              <h3 className="text-base font-bold text-white">Generate Workspace Invitation</h3>
+              <button 
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  setGeneratedInvite(null);
+                }} 
+                className="text-slate-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="colleague@company.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+            {generatedInvite ? (
+              <div className="space-y-4 text-xs">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <h4 className="font-bold text-white text-sm">Invitation Generated!</h4>
+                  <p className="text-slate-300 text-xs mt-1">
+                    An invite token has been created for <span className="text-emerald-400 font-semibold">{generatedInvite.email}</span> as <span className="uppercase font-semibold">{generatedInvite.role}</span>.
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Role Assignment</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as UserRole)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="employee">Employee (Assigned Work)</option>
-                  <option value="intern">Intern (Learning Sandbox)</option>
-                  <option value="admin">Admin (Full Co-Administrator)</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Invite URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${window.location.origin}/invite/${generatedInvite.token}`}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-300 font-mono text-[11px]"
+                    />
+                    <button
+                      onClick={() => handleCopyLink(generatedInvite.token)}
+                      className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center gap-1 shrink-0 transition-colors"
+                    >
+                      {copiedToken ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedToken ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Assign to Team</label>
-                <select
-                  value={inviteTeamId}
-                  onChange={(e) => setInviteTeamId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-blue-500"
-                >
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={() => {
+                      setIsInviteModalOpen(false);
+                      setGeneratedInvite(null);
+                      setInviteEmail('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
+            ) : (
+              <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="colleague@company.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsInviteModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20"
-                >
-                  Send Invitation
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Assigned Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as UserRole)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="employee">Employee (Assigned Work, Projects & Teams)</option>
+                    <option value="intern">Intern (Learning Sandbox, Mentored Tasks)</option>
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Invited accounts join the workspace with pre-assigned permissions.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Assign to Team</label>
+                  <select
+                    value={inviteTeamId}
+                    onChange={(e) => setInviteTeamId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-blue-500"
+                  >
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsInviteModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isInviting}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20 disabled:opacity-50"
+                  >
+                    {isInviting ? 'Generating...' : 'Generate Invite Link'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -305,7 +421,7 @@ export const TeamsView: React.FC = () => {
       {/* Create Team Modal */}
       {isCreateTeamModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
               <h3 className="text-base font-bold text-white">Create New Department Team</h3>
               <button onClick={() => setIsCreateTeamModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -322,7 +438,7 @@ export const TeamsView: React.FC = () => {
                   placeholder="e.g. Infrastructure & DevOps"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -334,7 +450,7 @@ export const TeamsView: React.FC = () => {
                   placeholder="Core domain responsibilities..."
                   value={teamDescription}
                   onChange={(e) => setTeamDescription(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -345,7 +461,7 @@ export const TeamsView: React.FC = () => {
                     type="color"
                     value={teamColor}
                     onChange={(e) => setTeamColor(e.target.value)}
-                    className="w-full h-9 bg-slate-950 border border-slate-800 rounded-lg p-1 cursor-pointer"
+                    className="w-full h-10 bg-slate-950 border border-slate-800 rounded-xl p-1 cursor-pointer"
                   />
                 </div>
                 <div>
@@ -353,7 +469,7 @@ export const TeamsView: React.FC = () => {
                   <select
                     value={teamLeadId}
                     onChange={(e) => setTeamLeadId(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-blue-500"
                   >
                     {users.map((u) => (
                       <option key={u.id} value={u.id}>{u.name}</option>
@@ -366,13 +482,13 @@ export const TeamsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsCreateTeamModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20"
                 >
                   Create Team
                 </button>

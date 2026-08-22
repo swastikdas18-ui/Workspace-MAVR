@@ -16,8 +16,16 @@ async function startServer() {
   const honoListener = getRequestListener(honoApp.fetch);
 
   // 1. Mount Backend API Routes & Health Check (Hono Engine)
-  app.all(['/api', '/api/*', '/auth', '/auth/*', '/workspace', '/workspace/*', '/health'], (req, res) => {
-    return honoListener(req, res);
+  app.use((req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/auth') ||
+      req.path.startsWith('/workspace') ||
+      req.path === '/health'
+    ) {
+      return honoListener(req, res);
+    }
+    next();
   });
 
   // 2. Vite middleware for development / Static files for production

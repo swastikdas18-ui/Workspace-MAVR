@@ -1,7 +1,14 @@
 /**
- * Workspace OS - Backend API Client
- * Connects frontend state and authentication directly to Hono backend and Drizzle ORM.
+ * Workspace OS - Centralized Backend API Client
+ * Connects frontend state and authentication directly to Render backend & PostgreSQL.
  */
+
+export const API_BASE_URL: string =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://workspace-mavr.onrender.com';
+
+// Console diagnostics for production & runtime verification
+console.log('API_BASE_URL:', API_BASE_URL);
 
 const TOKEN_KEY = 'ws_session_token';
 
@@ -46,7 +53,10 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
     headers['x-session-token'] = token;
   }
 
-  const response = await fetch(path, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const fullUrl = `${API_BASE_URL}${normalizedPath}`;
+
+  const response = await fetch(fullUrl, {
     ...options,
     headers,
   });
@@ -67,10 +77,13 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
 export const api = {
   // Auth API
   async register(data: { name: string; email: string; password: string; workspaceName?: string; workspaceId?: string; role?: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
     if (res.token) {
       setStoredSessionToken(res.token);
     }
@@ -78,10 +91,13 @@ export const api = {
   },
 
   async login(credentials: { email: string; password: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      }
+    );
     if (res.token) {
       setStoredSessionToken(res.token);
     }
@@ -100,7 +116,9 @@ export const api = {
     const token = getStoredSessionToken();
     if (!token) return null;
     try {
-      const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/session');
+      const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+        '/api/auth/session'
+      );
       return res;
     } catch {
       setStoredSessionToken(null);
@@ -110,7 +128,9 @@ export const api = {
 
   async getDemoProfiles() {
     try {
-      const res = await fetchApi<{ profiles: Array<{ role: string; name: string; email: string; title: string }> }>('/api/auth/demo-profiles');
+      const res = await fetchApi<{ profiles: Array<{ role: string; name: string; email: string; title: string }> }>(
+        '/api/auth/demo-profiles'
+      );
       return res.profiles;
     } catch {
       return [];
@@ -124,6 +144,9 @@ export const api = {
   },
 
   async getWorkspaceMembers() {
-    return await fetchApi<{ members: Array<{ member: any; role: string; joinedAt: string }> }>('/api/workspace/members');
+    return await fetchApi<{ members: Array<{ member: any; role: string; joinedAt: string }> }>(
+      '/api/workspace/members'
+    );
   },
 };
+

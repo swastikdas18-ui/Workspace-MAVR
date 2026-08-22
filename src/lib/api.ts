@@ -23,7 +23,9 @@ export interface ApiResponse<T> {
 
 export function getStoredSessionToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    console.log('Stored token:', token);
+    return token;
   } catch {
     return null;
   }
@@ -33,8 +35,10 @@ export function setStoredSessionToken(token: string | null) {
   try {
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
+      console.log('Stored token:', token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
+      console.log('Stored token:', null);
     }
   } catch (err) {
     console.error('Failed to store session token:', err);

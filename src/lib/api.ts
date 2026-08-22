@@ -126,17 +126,6 @@ export const api = {
     }
   },
 
-  async getDemoProfiles() {
-    try {
-      const res = await fetchApi<{ profiles: Array<{ role: string; name: string; email: string; title: string }> }>(
-        '/api/auth/demo-profiles'
-      );
-      return res.profiles;
-    } catch {
-      return [];
-    }
-  },
-
   // Workspace API
   async getWorkspace(workspaceId?: string) {
     const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';

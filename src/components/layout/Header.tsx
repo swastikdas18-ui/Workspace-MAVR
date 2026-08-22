@@ -1,27 +1,19 @@
 import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserRole } from '../../types';
 import { 
-  Search, Bell, Shield, Briefcase, GraduationCap, ChevronDown, 
-  Layers, ExternalLink, LogOut, Check
+  Search, Bell, Shield, Briefcase, GraduationCap, LogOut 
 } from 'lucide-react';
 import { getRoleBadgeColor } from '../../lib/auth';
 
 export const Header: React.FC = () => {
   const { 
-    currentUser, currentRole, switchRole, searchQuery, setSearchQuery, 
-    setIsLandingPage, activeTab, systemLogs, addToast 
+    currentUser, currentRole, searchQuery, setSearchQuery, 
+    activeTab, systemLogs, logout 
   } = useWorkspace();
-  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const handleRoleSelect = (role: UserRole) => {
-    switchRole(role);
-    setShowRoleDropdown(false);
-  };
-
   return (
-    <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-7 z-30 text-slate-200">
+    <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 text-slate-200">
       {/* Search Input */}
       <div className="flex items-center gap-2 max-w-md w-full">
         <div className="relative w-full">
@@ -38,67 +30,12 @@ export const Header: React.FC = () => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-        {/* Role Switcher Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${getRoleBadgeColor(currentRole)}`}
-          >
-            {currentRole === 'admin' && <Shield className="w-3.5 h-3.5" />}
-            {currentRole === 'employee' && <Briefcase className="w-3.5 h-3.5" />}
-            {currentRole === 'intern' && <GraduationCap className="w-3.5 h-3.5" />}
-            <span className="capitalize">{currentRole} App</span>
-            <ChevronDown className="w-3 h-3 opacity-60" />
-          </button>
-
-          {showRoleDropdown && (
-            <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in">
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                Switch Portal Perspective
-              </div>
-              <button
-                onClick={() => handleRoleSelect('admin')}
-                className="w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors text-slate-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-purple-400" />
-                  <div>
-                    <p className="font-semibold">Admin</p>
-                    <p className="text-[10px] text-slate-400">Full Access & Oversight</p>
-                  </div>
-                </div>
-                {currentRole === 'admin' && <Check className="w-3.5 h-3.5 text-purple-400" />}
-              </button>
-
-              <button
-                onClick={() => handleRoleSelect('employee')}
-                className="w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors text-slate-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-blue-400" />
-                  <div>
-                    <p className="font-semibold">Employee</p>
-                    <p className="text-[10px] text-slate-400">Assigned Deliverables Scope</p>
-                  </div>
-                </div>
-                {currentRole === 'employee' && <Check className="w-3.5 h-3.5 text-blue-400" />}
-              </button>
-
-              <button
-                onClick={() => handleRoleSelect('intern')}
-                className="w-full px-3 py-2 text-left text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors text-slate-200"
-              >
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-emerald-400" />
-                  <div>
-                    <p className="font-semibold">Intern</p>
-                    <p className="text-[10px] text-slate-400">Restricted Learning Sandbox</p>
-                  </div>
-                </div>
-                {currentRole === 'intern' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-              </button>
-            </div>
-          )}
+        {/* Read-Only Role Badge Indicator (No Switcher Controls) */}
+        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold select-none ${getRoleBadgeColor(currentRole)}`}>
+          {currentRole === 'admin' && <Shield className="w-3.5 h-3.5" />}
+          {currentRole === 'employee' && <Briefcase className="w-3.5 h-3.5" />}
+          {currentRole === 'intern' && <GraduationCap className="w-3.5 h-3.5" />}
+          <span className="capitalize">{currentRole} App</span>
         </div>
 
         {/* Notifications Popover */}
@@ -106,6 +43,7 @@ export const Header: React.FC = () => {
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            title="Notifications"
           >
             <Bell className="w-4 h-4" />
             {systemLogs.length > 0 && (
@@ -140,17 +78,14 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        {/* Exit to Landing Website */}
+        {/* Sign Out Button */}
         <button
-          onClick={() => {
-            setIsLandingPage(true);
-            addToast({ type: 'info', title: 'Navigation', message: 'Switched to Public Landing Page.' });
-          }}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-          title="Return to Public Landing Page"
+          onClick={logout}
+          className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 px-2.5 py-1.5 rounded-lg hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-colors"
+          title="Sign out of current session"
         >
           <LogOut className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Landing</span>
+          <span className="hidden sm:inline font-medium">Sign Out</span>
         </button>
       </div>
     </header>

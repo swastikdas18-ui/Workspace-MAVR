@@ -1,26 +1,18 @@
 import React, { useState } from 'react';
-import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserRole } from '../../types';
 import { 
-  Shield, Briefcase, GraduationCap, ArrowRight, CheckCircle2, Layers, Database, 
+  Shield, Briefcase, GraduationCap, ArrowRight, CheckCircle2, Layers, 
   Lock, Check, Sparkles, FolderKanban, CheckSquare, FileText, Users, DollarSign, 
-  BarChart3, Settings, Server, ChevronRight, Zap
+  BarChart3, LogIn
 } from 'lucide-react';
 import { AuthModal } from '../auth/AuthModal';
 
 export const LandingPage: React.FC = () => {
-  const { switchRole, setIsLandingPage } = useWorkspace();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authDefaultRole, setAuthDefaultRole] = useState<UserRole>('admin');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  const handleOpenAuth = (role: UserRole = 'admin') => {
-    setAuthDefaultRole(role);
+  const handleOpenAuth = (mode: 'login' | 'register' = 'login') => {
+    setAuthMode(mode);
     setIsAuthOpen(true);
-  };
-
-  const handleLaunchApp = (role: UserRole) => {
-    switchRole(role);
-    setIsLandingPage(false);
   };
 
   return (
@@ -37,7 +29,7 @@ export const LandingPage: React.FC = () => {
                 Workspace OS
               </span>
               <span className="ml-2 text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                v2.4 Enterprise
+                Enterprise
               </span>
             </div>
           </div>
@@ -51,16 +43,17 @@ export const LandingPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleOpenAuth('admin')}
-              className="text-xs font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+              onClick={() => handleOpenAuth('login')}
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1.5"
             >
-              Sign In
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
             </button>
             <button
-              onClick={() => handleLaunchApp('admin')}
+              onClick={() => handleOpenAuth('register')}
               className="text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-lg shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 group"
             >
-              <span>Launch App</span>
+              <span>Get Started</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
@@ -89,33 +82,22 @@ export const LandingPage: React.FC = () => {
               <strong> Admins</strong>, high-velocity workflows for <strong>Employees</strong>, and guided onboarding for <strong>Interns</strong>.
             </p>
 
-            {/* Role Launch Buttons */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {/* Authentication Entry CTAs */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <button
-                onClick={() => handleLaunchApp('admin')}
-                className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2"
+                onClick={() => handleOpenAuth('register')}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 group"
               >
-                <Shield className="w-4 h-4 text-purple-200" />
-                <span>Admin App</span>
-                <span className="text-xs bg-purple-900/60 px-2 py-0.5 rounded-full">Full Control</span>
+                <span>Create Workspace Account</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </button>
 
               <button
-                onClick={() => handleLaunchApp('employee')}
-                className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+                onClick={() => handleOpenAuth('login')}
+                className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-sm transition-all flex items-center gap-2"
               >
-                <Briefcase className="w-4 h-4 text-blue-200" />
-                <span>Employee App</span>
-                <span className="text-xs bg-blue-900/60 px-2 py-0.5 rounded-full">Assigned Tasks</span>
-              </button>
-
-              <button
-                onClick={() => handleLaunchApp('intern')}
-                className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2"
-              >
-                <GraduationCap className="w-4 h-4 text-emerald-200" />
-                <span>Intern App</span>
-                <span className="text-xs bg-emerald-900/60 px-2 py-0.5 rounded-full">Learning Mode</span>
+                <Lock className="w-4 h-4 text-slate-400" />
+                <span>Sign In to Existing Account</span>
               </button>
             </div>
           </div>
@@ -130,7 +112,7 @@ export const LandingPage: React.FC = () => {
                 <span className="text-xs text-slate-500 ml-2 font-mono">https://workspace-os.internal/dashboard</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">RBAC Active</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">Server RBAC Enforced</span>
               </div>
             </div>
 
@@ -357,7 +339,7 @@ export const LandingPage: React.FC = () => {
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Shared document vault</li>
               </ul>
               <button
-                onClick={() => handleLaunchApp('employee')}
+                onClick={() => handleOpenAuth('register')}
                 className="w-full py-2.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-colors"
               >
                 Start Free
@@ -381,7 +363,7 @@ export const LandingPage: React.FC = () => {
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> Advanced Analytics</li>
               </ul>
               <button
-                onClick={() => handleLaunchApp('admin')}
+                onClick={() => handleOpenAuth('register')}
                 className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 transition-colors"
               >
                 Launch Pro Workspace
@@ -402,7 +384,7 @@ export const LandingPage: React.FC = () => {
                 <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-400" /> 24/7 Priority SLA</li>
               </ul>
               <button
-                onClick={() => handleLaunchApp('admin')}
+                onClick={() => handleOpenAuth('register')}
                 className="w-full py-2.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-colors"
               >
                 Contact Sales
@@ -421,9 +403,8 @@ export const LandingPage: React.FC = () => {
             <span>&copy; {new Date().getFullYear()} Acme Global Technologies. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={() => handleLaunchApp('admin')} className="hover:text-slate-300">Admin Portal</button>
-            <button onClick={() => handleLaunchApp('employee')} className="hover:text-slate-300">Employee View</button>
-            <button onClick={() => handleLaunchApp('intern')} className="hover:text-slate-300">Intern Sandbox</button>
+            <button onClick={() => handleOpenAuth('login')} className="hover:text-slate-300">Sign In</button>
+            <button onClick={() => handleOpenAuth('register')} className="hover:text-slate-300">Register Organization</button>
           </div>
         </div>
       </footer>
@@ -432,7 +413,7 @@ export const LandingPage: React.FC = () => {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        defaultRole={authDefaultRole}
+        initialMode={authMode}
       />
     </div>
   );

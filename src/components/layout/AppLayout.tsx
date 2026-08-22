@@ -1,7 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { RoleSwitcherBar } from '../common/RoleSwitcherBar';
 import { ToastContainer } from '../common/ToastContainer';
 
 interface AppLayoutProps {
@@ -11,9 +10,6 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col font-sans text-slate-100 selection:bg-blue-600 selection:text-white">
-      {/* Top Floating Master Role & Sandbox Bar */}
-      <RoleSwitcherBar />
-
       <div className="flex flex-1 overflow-hidden">
         {/* Role-Specific Sidebar */}
         <Sidebar />

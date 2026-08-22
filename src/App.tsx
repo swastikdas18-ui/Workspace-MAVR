@@ -20,6 +20,23 @@ import { ShieldAlert } from 'lucide-react';
 const MainAppContent: React.FC = () => {
   const { isLandingPage, currentRole, activeTab, setActiveTab } = useWorkspace();
 
+  // Enforce role area containment and automatic redirection
+  React.useEffect(() => {
+    if (isLandingPage) return;
+
+    if (currentRole === 'intern') {
+      const allowedInternTabs = ['dashboard', 'tasks', 'documents'];
+      if (!allowedInternTabs.includes(activeTab)) {
+        setActiveTab('dashboard');
+      }
+    } else if (currentRole === 'employee') {
+      const allowedEmployeeTabs = ['dashboard', 'projects', 'tasks', 'documents', 'crm', 'teams'];
+      if (!allowedEmployeeTabs.includes(activeTab)) {
+        setActiveTab('dashboard');
+      }
+    }
+  }, [isLandingPage, currentRole, activeTab, setActiveTab]);
+
   if (isLandingPage) {
     return <LandingPage />;
   }

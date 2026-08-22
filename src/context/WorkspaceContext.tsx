@@ -35,8 +35,8 @@ interface WorkspaceContextType {
   toasts: ToastMessage[];
   
   // Actions
-  switchRole: (role: UserRole) => Promise<void>;
-  setUser: (userId: string) => void;
+  setAuthUser: (user: User, workspace?: Partial<Workspace>) => void;
+  logout: () => Promise<void>;
   setActiveTab: (tab: string) => void;
   setIsLandingPage: (isLanding: boolean) => void;
   setSearchQuery: (query: string) => void;
@@ -118,7 +118,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   const [invoices] = useState<Invoice[]>(INITIAL_INVOICES);
   
-  const [isLandingPage, setIsLandingPage] = useState<boolean>(false);
+  const [isLandingPage, setIsLandingPage] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -140,9 +140,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               plan: session.workspace.plan,
             }));
           }
+          setIsLandingPage(false);
+        } else {
+          setIsLandingPage(true);
         }
       } catch (err) {
         console.warn('[Workspace OS] Session bootstrap note:', err);
+        setIsLandingPage(true);
       }
     }
     loadBackendSession();
@@ -202,35 +206,35 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const currentRole = currentUser.role;
   const permissions = ROLE_PERMISSIONS[currentRole];
 
-  const switchRole = async (role: UserRole) => {
-    // Find matching user in workspace or update active role context
-    const userForRole = users.find((u) => u.role === role);
-    if (userForRole) {
-      setCurrentUser(userForRole);
-    } else {
-      setCurrentUser((prev) => ({
+  const setAuthUser = (user: User, workspace?: Partial<Workspace>) => {
+    setCurrentUser(user);
+    if (workspace) {
+      setCurrentWorkspace((prev) => ({
         ...prev,
-        role,
-        title: role === 'admin' ? 'Organization Administrator' : role === 'employee' ? 'Team Member' : 'Intern',
+        ...workspace,
+        name: workspace.name || prev.name,
+        id: workspace.id || prev.id,
       }));
     }
-    setActiveTab('dashboard');
     setIsLandingPage(false);
-    addToast({
-      type: 'info',
-      title: `Switched to ${role.toUpperCase()} Perspective`,
-      message: `Role-based view and permissions updated.`
-    });
-    logAction(`Switched session perspective to role [${role.toUpperCase()}]`, 'AUTH');
+    setActiveTab('dashboard');
+    logAction(`User logged in with role [${user.role.toUpperCase()}]`, 'AUTH');
   };
 
-  const setUser = (userId: string) => {
-    const found = users.find((u) => u.id === userId);
-    if (found) {
-      setCurrentUser(found);
-      setActiveTab('dashboard');
-      setIsLandingPage(false);
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch (err) {
+      console.warn('[Workspace OS] Logout notification note:', err);
     }
+    setIsLandingPage(true);
+    setActiveTab('dashboard');
+    addToast({
+      type: 'info',
+      title: 'Signed Out',
+      message: 'You have been safely signed out from the workspace session.',
+    });
+    logAction(`User signed out from active session`, 'AUTH');
   };
 
   // Projects Actions
@@ -490,8 +494,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isLandingPage,
         searchQuery,
         toasts,
-        switchRole,
-        setUser,
+        setAuthUser,
+        logout,
         setActiveTab,
         setIsLandingPage,
         setSearchQuery,

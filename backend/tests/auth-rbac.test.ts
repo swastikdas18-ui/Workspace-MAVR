@@ -286,6 +286,37 @@ export async function runAllTests() {
     );
   }
 
+  // TEST 16: Vercel Preview Domain CORS Preflight (OPTIONS)
+  {
+    const vercelOrigin = 'https://workspace-mavr-qq0whm00k-swastikdas18-1844s-projects.vercel.app';
+    const preflightReq = new Request('http://localhost:3000/api/auth/register', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: vercelOrigin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type, authorization, x-session-token',
+      },
+    });
+
+    const res = await app.fetch(preflightReq);
+    assert(
+      res.status === 204 || res.status === 200,
+      '16. CORS preflight OPTIONS returns 204 No Content or 200 OK'
+    );
+    assert(
+      res.headers.get('access-control-allow-origin') === vercelOrigin,
+      '16. Access-Control-Allow-Origin dynamically reflects Vercel preview origin'
+    );
+    assert(
+      res.headers.get('access-control-allow-credentials') === 'true',
+      '16. Access-Control-Allow-Credentials is true'
+    );
+    assert(
+      res.headers.get('access-control-allow-methods')?.includes('POST') === true,
+      '16. Access-Control-Allow-Methods includes POST'
+    );
+  }
+
   console.log('\n==================================================');
   console.log(` TEST RUN COMPLETE: ${passCount} PASSED, ${failCount} FAILED`);
   console.log('==================================================\n');

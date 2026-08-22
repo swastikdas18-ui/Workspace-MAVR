@@ -69,7 +69,7 @@ const tabToPathMap: Record<string, string> = {
 };
 
 const MainAppContent: React.FC = () => {
-  const { isLandingPage, currentRole, activeTab, setActiveTab } = useWorkspace();
+  const { isLandingPage, isAuthBootstrapping, currentRole, activeTab, setActiveTab } = useWorkspace();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   // Check URL on initial load and handle invite tokens or deep paths
@@ -110,7 +110,7 @@ const MainAppContent: React.FC = () => {
 
   // Synchronize browser URL with activeTab & role prefix
   useEffect(() => {
-    if (isLandingPage || inviteToken) return;
+    if (isLandingPage || isAuthBootstrapping || inviteToken) return;
 
     let targetPath = tabToPathMap[activeTab] || `/${currentRole}/dashboard`;
     if (activeTab === 'dashboard') {
@@ -120,7 +120,23 @@ const MainAppContent: React.FC = () => {
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, '', targetPath);
     }
-  }, [activeTab, isLandingPage, inviteToken, currentRole]);
+  }, [activeTab, isLandingPage, isAuthBootstrapping, inviteToken, currentRole]);
+
+  if (isAuthBootstrapping) {
+    return (
+      <div className="min-h-screen bg-[#020617] text-white flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] p-0.5 shadow-xl shadow-purple-600/30 flex items-center justify-center animate-pulse">
+          <div className="w-full h-full bg-[#020617] rounded-2xl flex items-center justify-center font-bold text-lg text-purple-400">
+            W
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-sm font-semibold text-slate-200 tracking-wide">WORKSPACE OS</p>
+          <p className="text-xs text-slate-500 font-mono">Restoring secure session verification...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (inviteToken) {
     return (

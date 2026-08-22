@@ -9,9 +9,9 @@ export const crmRouter = new Hono();
 crmRouter.use('*', authMiddleware);
 
 /**
- * GET /api/crm/leads - List CRM records (Admin sees all; Employee sees owned; Intern blocked with 403)
+ * GET /api/crm and /api/crm/leads - List CRM records
  */
-crmRouter.get('/leads', requirePermission('crm:read'), async (c) => {
+const getLeadsHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -29,12 +29,15 @@ crmRouter.get('/leads', requirePermission('crm:read'), async (c) => {
       status
     );
   }
-});
+};
+
+crmRouter.get('/', requirePermission('crm:read'), getLeadsHandler);
+crmRouter.get('/leads', requirePermission('crm:read'), getLeadsHandler);
 
 /**
- * POST /api/crm/leads - Create new CRM lead (Admin & Employee only)
+ * POST /api/crm and /api/crm/leads - Create new CRM lead
  */
-crmRouter.post('/leads', requirePermission('crm:create'), async (c) => {
+const createLeadHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -68,12 +71,15 @@ crmRouter.post('/leads', requirePermission('crm:create'), async (c) => {
       status
     );
   }
-});
+};
+
+crmRouter.post('/', requirePermission('crm:create'), createLeadHandler);
+crmRouter.post('/leads', requirePermission('crm:create'), createLeadHandler);
 
 /**
- * PATCH /api/crm/leads/:id - Update CRM lead
+ * PATCH /api/crm/:id and /api/crm/leads/:id - Update CRM lead
  */
-crmRouter.patch('/leads/:id', async (c) => {
+const updateLeadHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -107,12 +113,15 @@ crmRouter.patch('/leads/:id', async (c) => {
       status
     );
   }
-});
+};
+
+crmRouter.patch('/:id', updateLeadHandler);
+crmRouter.patch('/leads/:id', updateLeadHandler);
 
 /**
- * DELETE /api/crm/leads/:id - Delete CRM lead (Admin only)
+ * DELETE /api/crm/:id and /api/crm/leads/:id - Delete CRM lead (Admin only)
  */
-crmRouter.delete('/leads/:id', requirePermission('crm:delete'), async (c) => {
+const deleteLeadHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -132,4 +141,7 @@ crmRouter.delete('/leads/:id', requirePermission('crm:delete'), async (c) => {
       status
     );
   }
-});
+};
+
+crmRouter.delete('/:id', requirePermission('crm:delete'), deleteLeadHandler);
+crmRouter.delete('/leads/:id', requirePermission('crm:delete'), deleteLeadHandler);

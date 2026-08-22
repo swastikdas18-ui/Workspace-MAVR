@@ -329,6 +329,202 @@ export async function runAllTests() {
     );
   }
 
+  // 9. PHASE 2: Unique Email Enforcement (409 Conflict)
+  {
+    const duplicateRes = await testApi('POST', '/api/auth/register', {
+      name: 'Sarah Duplicate',
+      email: 'sarah@cyberdyne.io', // Already registered in step 1
+      password: 'AnotherPassword123!',
+      workspaceName: 'Cyberdyne Clone',
+    });
+
+    assert(duplicateRes.status === 409, '9. Duplicate email registration returns HTTP 409 Conflict');
+    assert(
+      duplicateRes.data.error?.code === 'EMAIL_EXISTS',
+      '9. Error response contains code EMAIL_EXISTS'
+    );
+  }
+
+  // 10. PHASE 1: Employee Assignment Scoping & Mutation Isolation
+  {
+    // Admin creates an unassigned project not involving John Reese
+    const unassignedProjRes = await testApi('POST', '/api/projects', {
+      title: 'Skynet Defense Perimeter (Admin Only)',
+      description: 'Restricted to top-level command.',
+      status: 'planning',
+      memberIds: [adminUserId],
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(unassignedProjRes.status === 201, '10. Admin creates restricted project');
+    const restrictedProjId = unassignedProjRes.data.project.id;
+
+    // Admin creates an unassigned task assigned to admin
+    const unassignedTaskRes = await testApi('POST', '/api/tasks', {
+      title: 'Classified Core Directive',
+      description: 'Admin restricted task',
+      status: 'todo',
+      priority: 'high',
+      assignedTo: adminUserId,
+      projectId: restrictedProjId,
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(unassignedTaskRes.status === 201, '10. Admin creates restricted task');
+    const restrictedTaskId = unassignedTaskRes.data.task.id;
+
+    // Employee GET /api/projects -> MUST NOT contain restricted project
+    const empProjectsRes = await testApi('GET', '/api/projects', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    const containsRestrictedProject = empProjectsRes.data.projects.some(
+      (p: any) => p.id === restrictedProjId
+    );
+    assert(!containsRestrictedProject, '10. Employee GET /api/projects does NOT return unassigned projects');
+
+    // Employee GET /api/tasks -> MUST NOT contain restricted task
+    const empTasksRes = await testApi('GET', '/api/tasks', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    const containsRestrictedTask = empTasksRes.data.tasks.some(
+      (t: any) => t.id === restrictedTaskId
+    );
+    assert(!containsRestrictedTask, '10. Employee GET /api/tasks does NOT return unassigned tasks');
+
+    // Employee PATCH /api/tasks/:id on unassigned task -> MUST return 403 Forbidden
+    const mutateRestrictedTask = await testApi('PATCH', `/api/tasks/${restrictedTaskId}`, {
+      status: 'completed',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(mutateRestrictedTask.status === 403, '10. Employee cannot mutate unassigned task (403 Forbidden)');
+
+    // Employee PATCH /api/tasks/:id on assigned task -> MUST succeed (200 OK)
+    const mutateAssignedTask = await testApi('PATCH', `/api/tasks/${taskId}`, {
+      status: 'in_progress',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(mutateAssignedTask.status === 200, '10. Employee can mutate assigned task (200 OK)');
+  }
+
+  // 11. PHASE 4: Intern Visibility Hardening (Member Directory & CRM blocked)
+  {
+    // Intern attempts to access workspace member directory -> 403 Forbidden
+    const internMembersRes = await testApi('GET', '/api/workspace/members', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internMembersRes.status === 403, '11. Intern is blocked from workspace members directory (403)');
+
+    // Intern attempts to access CRM -> 403 Forbidden
+    const internCrmRes = await testApi('GET', '/api/crm', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internCrmRes.status === 403, '11. Intern is blocked from CRM endpoints (403)');
+  }
+
+  // 12. PHASE 3: CRM Source of Truth & CRUD Operations
+  let crmLeadId = '';
+  {
+    // Admin creates CRM lead assigned to employee
+    const createLeadRes = await testApi('POST', '/api/crm', {
+      customerName: 'Marcus Wright',
+      company: 'Resistance Technologies',
+      email: 'marcus@resistance.org',
+      phone: '+1 555-0199',
+      dealValue: 125000,
+      status: 'new_lead',
+      ownerId: employeeUserId,
+      notes: 'Initial enterprise architecture briefing.',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(createLeadRes.status === 201, '12. Admin creates CRM lead via backend API');
+    assert(createLeadRes.data.lead.customer_name === 'Marcus Wright', '12. CRM lead name verified');
+    crmLeadId = createLeadRes.data.lead.id;
+
+    // Employee can view CRM leads assigned to them
+    const empCrmList = await testApi('GET', '/api/crm', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empCrmList.status === 200, '12. Employee can list CRM leads');
+    assert(empCrmList.data.leads.some((l: any) => l.id === crmLeadId), '12. CRM lead visible to Employee');
+
+    // Employee can update CRM lead status
+    const updateLeadRes = await testApi('PATCH', `/api/crm/${crmLeadId}`, {
+      status: 'contacted',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(updateLeadRes.status === 200, '12. Employee can update CRM lead stage');
+    assert(updateLeadRes.data.lead.status === 'contacted', '12. Lead status updated to contacted');
+
+    // Employee cannot delete CRM lead (Admin only)
+    const empDeleteLead = await testApi('DELETE', `/api/crm/${crmLeadId}`, undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empDeleteLead.status === 403, '12. Employee cannot delete CRM lead (403 Forbidden)');
+
+    // Admin can delete CRM lead
+    const adminDeleteLead = await testApi('DELETE', `/api/crm/${crmLeadId}`, undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminDeleteLead.status === 200, '12. Admin can delete CRM lead');
+  }
+
+  // 13. PHASE 5: Session Restoration Verification
+  {
+    const sessionRes = await testApi('GET', '/api/auth/session', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(sessionRes.status === 200, '13. GET /api/auth/session restores active session');
+    assert(sessionRes.data.user.id === employeeUserId, '13. Session user ID verified');
+    assert(sessionRes.data.workspace.id === workspaceId, '13. Session workspace verified');
+  }
+
+  // 14. PHASE 7: Document Download Telemetry & Access Control
+  {
+    // Admin creates public learning document
+    const learningDocRes = await testApi('POST', '/api/documents', {
+      title: 'Neural Core Onboarding Manual',
+      visibility: 'learning',
+      category: 'Onboarding',
+      fileType: 'pdf',
+      fileSize: '3.4 MB',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(learningDocRes.status === 201, '14. Admin creates learning document');
+    const learningDocId = learningDocRes.data.document.id;
+
+    // Admin creates private document
+    const privateDocRes = await testApi('POST', '/api/documents', {
+      title: 'Executive Financial Projections 2027',
+      visibility: 'private',
+      category: 'Policy',
+      fileType: 'sheet',
+      fileSize: '5.1 MB',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(privateDocRes.status === 201, '14. Admin creates private document');
+    const privateDocId = privateDocRes.data.document.id;
+
+    // Intern downloads learning document -> Success & increment download count
+    const internDownload = await testApi('POST', `/api/documents/${learningDocId}/download`, undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internDownload.status === 200, '14. Intern can download learning document');
+    assert(internDownload.data.downloadCount >= 1, '14. Document download count incremented');
+    assert(!!internDownload.data.downloadUrl, '14. Download payload contains downloadUrl');
+
+    // Intern attempts to download private document -> 403 Forbidden
+    const internPrivateDownload = await testApi('POST', `/api/documents/${privateDocId}/download`, undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internPrivateDownload.status === 403, '14. Intern cannot download private document (403 Forbidden)');
+  }
+
   console.log('\n==================================================');
   console.log(` TEST RUN COMPLETE: ${passCount} PASSED, ${failCount} FAILED`);
   console.log('==================================================\n');

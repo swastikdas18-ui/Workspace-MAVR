@@ -82,9 +82,19 @@ export function can(
       // Tasks: can read, create, update, and comment. Cannot delete
       case 'tasks:read':
       case 'tasks:create':
+      case 'tasks:comment':
+        return true;
       case 'tasks:update':
       case 'tasks:updateStatus':
-      case 'tasks:comment':
+        if (resource && context?.userId) {
+          const assignee = resource.assigned_to || resource.assignedTo;
+          const creator = resource.created_by || resource.createdBy;
+          const isAssigned = assignee === context.userId;
+          const isCreator = creator === context.userId;
+          const projectMembers = resource.projectMemberIds || resource.project_member_ids || [];
+          const isProjectOwner = resource.projectOwnerId === context.userId || resource.project_owner_id === context.userId;
+          return isAssigned || isCreator || isProjectOwner || projectMembers.includes(context.userId);
+        }
         return true;
       case 'tasks:delete':
         return false;

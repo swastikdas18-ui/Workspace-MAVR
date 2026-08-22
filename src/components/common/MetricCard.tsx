@@ -1,0 +1,142 @@
+import React from 'react';
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { motion } from 'motion/react';
+
+interface MetricCardProps {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  trend?: {
+    value: string;
+    direction: 'up' | 'down' | 'neutral';
+    label?: string;
+  };
+  subtitle?: string;
+  sparklineData?: number[];
+  color?: 'purple' | 'blue' | 'emerald' | 'amber' | 'rose' | 'slate';
+  onClick?: () => void;
+}
+
+export const MetricCard: React.FC<MetricCardProps> = ({
+  label,
+  value,
+  icon: Icon,
+  trend,
+  subtitle,
+  sparklineData = [35, 45, 30, 60, 75, 65, 85, 95],
+  color = 'purple',
+  onClick,
+}) => {
+  const colorMap = {
+    purple: {
+      border: 'hover:border-purple-500/30',
+      iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(124,58,237,0.2)]',
+      sparkline: '#A855F7',
+    },
+    blue: {
+      border: 'hover:border-blue-500/30',
+      iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(59,130,246,0.2)]',
+      sparkline: '#3B82F6',
+    },
+    emerald: {
+      border: 'hover:border-emerald-500/30',
+      iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.2)]',
+      sparkline: '#10B981',
+    },
+    amber: {
+      border: 'hover:border-amber-500/30',
+      iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(245,158,11,0.2)]',
+      sparkline: '#F59E0B',
+    },
+    rose: {
+      border: 'hover:border-rose-500/30',
+      iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(244,63,94,0.2)]',
+      sparkline: '#F43F5E',
+    },
+    slate: {
+      border: 'hover:border-slate-500/30',
+      iconBg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+      glow: 'group-hover:shadow-[0_0_25px_-5px_rgba(100,116,139,0.2)]',
+      sparkline: '#94A3B8',
+    },
+  };
+
+  const currentTheme = colorMap[color];
+
+  // Generate SVG path for mini sparkline
+  const minVal = Math.min(...sparklineData, 0);
+  const maxVal = Math.max(...sparklineData, 100);
+  const width = 80;
+  const height = 28;
+  const points = sparklineData
+    .map((val, i) => {
+      const x = (i / (sparklineData.length - 1)) * width;
+      const y = height - ((val - minVal) / (maxVal - minVal || 1)) * (height - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClick}
+      className={`group relative bg-[#111827] border border-white/[0.08] ${currentTheme.border} ${currentTheme.glow} rounded-xl p-5 transition-all cursor-pointer overflow-hidden`}
+    >
+      <div className="flex items-start justify-between">
+        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</span>
+        <div className={`p-2 rounded-lg border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-baseline justify-between">
+        <span className="text-2xl font-bold text-white tracking-tight">{value}</span>
+
+        {/* Mini Sparkline Chart */}
+        <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+          <svg width={width} height={height} className="overflow-visible">
+            <polyline
+              fill="none"
+              stroke={currentTheme.sparkline}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={points}
+            />
+          </svg>
+        </div>
+      </div>
+
+      {/* Trend & Subtitle */}
+      <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-white/[0.04]">
+        {trend ? (
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                trend.direction === 'up'
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : trend.direction === 'down'
+                  ? 'bg-rose-500/10 text-rose-400'
+                  : 'bg-slate-500/10 text-slate-400'
+              }`}
+            >
+              {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}
+              {trend.direction === 'down' && <TrendingDown className="w-3 h-3" />}
+              {trend.direction === 'neutral' && <Minus className="w-3 h-3" />}
+              {trend.value}
+            </span>
+            <span className="text-slate-400 text-[11px]">{trend.label || 'vs last month'}</span>
+          </div>
+        ) : (
+          <span className="text-slate-400 text-[11px]">{subtitle || 'Live telemetry'}</span>
+        )}
+      </div>
+    </motion.div>
+  );
+};

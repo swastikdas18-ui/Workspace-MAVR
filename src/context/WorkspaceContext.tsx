@@ -32,6 +32,7 @@ interface WorkspaceContextType {
   currentRole: UserRole;
   activeTab: string;
   isLandingPage: boolean;
+  isAuthBootstrapping: boolean;
   searchQuery: string;
   toasts: ToastMessage[];
   
@@ -95,6 +96,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
   
   const [isLandingPage, setIsLandingPage] = useState<boolean>(true);
+  const [isAuthBootstrapping, setIsAuthBootstrapping] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -191,6 +193,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch (err) {
         console.warn('[Workspace OS] Session bootstrap note:', err);
         setIsLandingPage(true);
+      } finally {
+        setIsAuthBootstrapping(false);
       }
     }
     loadBackendSession();
@@ -466,15 +470,30 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const incrementDocDownload = async (id: string) => {
     try {
       const res = await api.downloadDocument(id);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, download_count: res.downloadCount } : d))
-      );
-    } catch (err) {
+      if (res && res.downloadCount !== undefined) {
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === id ? { ...d, download_count: res.downloadCount } : d))
+        );
+      }
+      const target = documents.find((d) => d.id === id);
+      // Trigger client file download
+      const content = `# ${target?.title || 'Workspace Document'}\n\nCategory: ${target?.category || 'General'}\nVisibility: ${target?.visibility || 'team'}\nFile Size: ${target?.file_size || '1.2 MB'}\n\nDownloaded from Workspace OS Document Vault.\nTimestamp: ${new Date().toISOString()}`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(target?.title || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      addToast({ type: 'success', title: 'Download Complete', message: `Downloaded "${target?.title || 'file'}"` });
+      logAction(`Downloaded document ${id}`, 'DOCS');
+    } catch (err: any) {
       console.warn('Increment download note:', err);
+      addToast({ type: 'error', title: 'Download Error', message: err.message || 'Failed to download document.' });
     }
-    const target = documents.find((d) => d.id === id);
-    addToast({ type: 'success', title: 'Download Ready', message: `Downloaded "${target?.title || 'file'}"` });
-    logAction(`Downloaded document ${id}`, 'DOCS');
   };
 
   // CRM Actions
@@ -653,6 +672,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentRole,
         activeTab,
         isLandingPage,
+        isAuthBootstrapping,
         searchQuery,
         toasts,
         setAuthUser,

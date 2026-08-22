@@ -90,24 +90,29 @@ documentRouter.delete('/:id', async (c) => {
 });
 
 /**
- * POST /api/documents/:id/download - Track download count
+ * GET and POST /api/documents/:id/download - Track download and return download payload
  */
-documentRouter.post('/:id/download', requirePermission('documents:download'), async (c) => {
+const downloadHandler = async (c: any) => {
   try {
+    const user = c.get('user');
     const workspace = c.get('workspace');
     if (!workspace) {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
     const docId = c.req.param('id');
-    const downloadCount = await DocumentService.incrementDownload(workspace.id, docId);
+    const role = normalizeRole(workspace.roleInWorkspace || user?.role);
+    const result = await DocumentService.incrementDownload(workspace.id, docId, user?.id, role);
 
-    return c.json({ success: true, downloadCount }, 200);
+    return c.json({ success: true, ...result }, 200);
   } catch (err: any) {
-    const status = err.status || 400;
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'DOCUMENT_NOT_FOUND' ? 404 : 400);
     return c.json(
-      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to increment download.' } },
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to download document.' } },
       status
     );
   }
-});
+};
+
+documentRouter.get('/:id/download', requirePermission('documents:download'), downloadHandler);
+documentRouter.post('/:id/download', requirePermission('documents:download'), downloadHandler);

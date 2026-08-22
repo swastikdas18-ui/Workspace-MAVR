@@ -24,6 +24,35 @@ export class TaskService {
     // Intern: strictly only see assigned tasks
     if (role === 'intern') {
       allTasks = allTasks.filter((t) => t.assignedTo === userId);
+    } else if (role === 'employee') {
+      // Employee: assigned tasks, created tasks, team tasks, or project tasks
+      const userProjectIds = new Set(
+        Array.from(inMemoryDb.projectMembers.values())
+          .filter((pm) => pm.userId === userId)
+          .map((pm) => pm.projectId)
+      );
+      Array.from(inMemoryDb.projects.values()).forEach((p) => {
+        if (p.workspaceId === workspaceId && p.createdBy === userId) {
+          userProjectIds.add(p.id);
+        }
+      });
+
+      const userTeamIds = new Set(
+        Array.from(inMemoryDb.teamMembers.values())
+          .filter((tm) => tm.userId === userId)
+          .map((tm) => tm.teamId)
+      );
+      Array.from(inMemoryDb.teams.values()).forEach((t) => {
+        if (t.leadId === userId) userTeamIds.add(t.id);
+      });
+
+      allTasks = allTasks.filter((t) => {
+        const isAssigned = t.assignedTo === userId;
+        const isCreator = (t as any).createdBy === userId;
+        const isProjectMember = t.projectId ? userProjectIds.has(t.projectId) : false;
+        const isTeamTask = (t as any).teamId ? userTeamIds.has((t as any).teamId) : false;
+        return isAssigned || isCreator || isProjectMember || isTeamTask;
+      });
     }
 
     return allTasks.map((t) => {
@@ -145,8 +174,21 @@ export class TaskService {
         throw error;
       }
     } else if (role === 'employee') {
-      if (!can(role, 'tasks:update', existing, { userId, workspaceId })) {
-        const error: any = new Error('Unauthorized task update.');
+      const project = existing.projectId ? inMemoryDb.projects.get(existing.projectId) : null;
+      const projectMembers = existing.projectId
+        ? Array.from(inMemoryDb.projectMembers.values())
+            .filter((pm) => pm.projectId === existing.projectId)
+            .map((pm) => pm.userId)
+        : [];
+
+      const enrichedTask = {
+        ...existing,
+        projectOwnerId: project?.createdBy,
+        projectMemberIds: projectMembers,
+      };
+
+      if (!can(role, 'tasks:update', enrichedTask, { userId, workspaceId })) {
+        const error: any = new Error('Employees are only permitted to mutate tasks assigned to them, created by them, or within their project scope.');
         error.code = 'FORBIDDEN';
         error.status = 403;
         throw error;

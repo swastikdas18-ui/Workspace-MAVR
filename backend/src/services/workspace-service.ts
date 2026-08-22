@@ -64,6 +64,18 @@ export class WorkspaceService {
     userId: string,
     workspaceId: string
   ): Promise<{ member: SafeUser; role: UserRole; joinedAt: string }[]> {
+    const user = inMemoryDb.users.get(userId);
+    if (!user) {
+      throw new Error('USER_NOT_FOUND');
+    }
+
+    if (user.role === 'intern') {
+      const error: any = new Error('Interns do not have access to the workspace member directory.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
     // 1. Verify caller has access to this workspace
     await this.getWorkspace(userId, workspaceId);
 

@@ -32,11 +32,11 @@ authRouter.post('/register', async (c) => {
       );
     }
   } catch (err: any) {
-    if (err.message === 'USER_EXISTS') {
+    if (err.message === 'USER_EXISTS' || err.code === 'EMAIL_EXISTS') {
       return c.json(
         {
           error: {
-            code: 'CONFLICT',
+            code: 'EMAIL_EXISTS',
             message: 'An account with this email address already exists.',
           },
         },

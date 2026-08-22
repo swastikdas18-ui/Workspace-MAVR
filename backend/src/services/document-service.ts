@@ -115,7 +115,12 @@ export class DocumentService {
     return true;
   }
 
-  static async incrementDownload(workspaceId: string, documentId: string): Promise<number> {
+  static async incrementDownload(
+    workspaceId: string,
+    documentId: string,
+    userId?: string,
+    rawRole?: UserRole | string
+  ): Promise<{ downloadCount: number; downloadUrl: string; title: string; fileType: string }> {
     const existing = inMemoryDb.documents.get(documentId);
     if (!existing || existing.workspaceId !== workspaceId) {
       const error: any = new Error('Document not found in active workspace.');
@@ -124,8 +129,29 @@ export class DocumentService {
       throw error;
     }
 
+    if (rawRole) {
+      const role = normalizeRole(rawRole);
+      if (role === 'intern' && existing.visibility !== 'public' && existing.visibility !== 'learning') {
+        const error: any = new Error('Interns are not authorized to download restricted documents.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+      if (role === 'employee' && existing.visibility === 'private' && existing.ownerId !== userId) {
+        const error: any = new Error('Unauthorized to download private document.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
     existing.downloadCount = (existing.downloadCount || 0) + 1;
     inMemoryDb.documents.set(documentId, existing);
-    return existing.downloadCount;
+    return {
+      downloadCount: existing.downloadCount,
+      downloadUrl: existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
+      title: existing.title,
+      fileType: existing.fileType || 'pdf',
+    };
   }
 }

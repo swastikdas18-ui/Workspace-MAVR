@@ -24,9 +24,43 @@ export class ProjectService {
       throw error;
     }
 
-    const allProjects = Array.from(inMemoryDb.projects.values()).filter(
+    let allProjects = Array.from(inMemoryDb.projects.values()).filter(
       (p) => p.workspaceId === workspaceId
     );
+
+    // If caller is Employee: return ONLY assigned projects, owned/created projects, or team projects
+    if (role === 'employee') {
+      // Find all project memberships for this user
+      const userProjectIds = new Set(
+        Array.from(inMemoryDb.projectMembers.values())
+          .filter((pm) => pm.userId === userId)
+          .map((pm) => pm.projectId)
+      );
+
+      // Find all projects where user has assigned or created tasks
+      Array.from(inMemoryDb.tasks.values()).forEach((task) => {
+        if (task.workspaceId === workspaceId && (task.assignedTo === userId || task.createdBy === userId)) {
+          userProjectIds.add(task.projectId);
+        }
+      });
+
+      // Find teams the user belongs to
+      const userTeamIds = new Set(
+        Array.from(inMemoryDb.teamMembers.values())
+          .filter((tm) => tm.userId === userId)
+          .map((tm) => tm.teamId)
+      );
+      Array.from(inMemoryDb.teams.values()).forEach((t) => {
+        if (t.leadId === userId) userTeamIds.add(t.id);
+      });
+
+      allProjects = allProjects.filter((p) => {
+        const isOwner = p.createdBy === userId;
+        const isMember = userProjectIds.has(p.id);
+        const isTeam = (p as any).teamId ? userTeamIds.has((p as any).teamId) : false;
+        return isOwner || isMember || isTeam;
+      });
+    }
 
     return allProjects.map((p) => {
       const members = Array.from(inMemoryDb.projectMembers.values())

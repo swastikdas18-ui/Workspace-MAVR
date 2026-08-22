@@ -1,5 +1,6 @@
 import { inMemoryDb } from '../../packages/database';
 import { UserRole } from '../types';
+import { can, normalizeRole } from '../lib/permissions';
 
 export interface CreateDocumentInput {
   title: string;
@@ -11,13 +12,14 @@ export interface CreateDocumentInput {
 }
 
 export class DocumentService {
-  static async getDocuments(workspaceId: string, userId: string, role: UserRole): Promise<any[]> {
+  static async getDocuments(workspaceId: string, userId: string, rawRole: UserRole | string): Promise<any[]> {
+    const role = normalizeRole(rawRole);
     let docs = Array.from(inMemoryDb.documents.values()).filter(
       (d) => d.workspaceId === workspaceId
     );
 
     if (role === 'intern') {
-      // Intern: only public or learning documents
+      // Intern: strictly public or learning documents
       docs = docs.filter((d) => d.visibility === 'public' || d.visibility === 'learning');
     } else if (role === 'employee') {
       // Employee: public, team, learning, or private owned by user
@@ -43,11 +45,15 @@ export class DocumentService {
   static async createDocument(
     workspaceId: string,
     userId: string,
-    role: UserRole,
+    rawRole: UserRole | string,
     input: CreateDocumentInput
   ): Promise<any> {
-    if (role === 'intern') {
-      throw new Error('INTERN_CANNOT_CREATE_DOCUMENT');
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'documents:createOrg', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from uploading organization documents.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
     }
 
     const docId = 'doc-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -87,19 +93,22 @@ export class DocumentService {
     workspaceId: string,
     documentId: string,
     userId: string,
-    role: UserRole
+    rawRole: UserRole | string
   ): Promise<boolean> {
+    const role = normalizeRole(rawRole);
     const existing = inMemoryDb.documents.get(documentId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('DOCUMENT_NOT_FOUND');
+      const error: any = new Error('Document not found in active workspace.');
+      error.code = 'DOCUMENT_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
-    if (role === 'intern') {
-      throw new Error('INTERN_CANNOT_DELETE_DOCUMENT');
-    }
-
-    if (role === 'employee' && existing.ownerId !== userId) {
-      throw new Error('EMPLOYEE_CANNOT_DELETE_NON_OWNED_DOCUMENT');
+    if (!can(role, 'documents:delete', existing, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] cannot delete this document.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
     }
 
     inMemoryDb.documents.delete(documentId);
@@ -109,7 +118,10 @@ export class DocumentService {
   static async incrementDownload(workspaceId: string, documentId: string): Promise<number> {
     const existing = inMemoryDb.documents.get(documentId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('DOCUMENT_NOT_FOUND');
+      const error: any = new Error('Document not found in active workspace.');
+      error.code = 'DOCUMENT_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
     existing.downloadCount = (existing.downloadCount || 0) + 1;

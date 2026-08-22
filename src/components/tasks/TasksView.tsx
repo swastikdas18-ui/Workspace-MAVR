@@ -35,6 +35,28 @@ export const TasksView: React.FC = () => {
   const [isLearningTask, setIsLearningTask] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  const resetCreateForm = () => {
+    setTitle('');
+    setDescription('');
+    setPriority('medium');
+    const defaultAssignee = currentUser?.id || users[0]?.id || '';
+    setAssignedTo(defaultAssignee);
+    setProjectId(projects[0]?.id || '');
+    setDueDate('');
+    const targetUser = users.find(u => u.id === defaultAssignee);
+    setIsLearningTask(targetUser?.role === 'intern');
+  };
+
+  const handleOpenCreateModal = () => {
+    resetCreateForm();
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    resetCreateForm();
+  };
+
   // Load comments when selectedTask changes
   useEffect(() => {
     if (selectedTask) {
@@ -176,7 +198,7 @@ export const TasksView: React.FC = () => {
 
           {permissions.tasks.create && (
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={handleOpenCreateModal}
               className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -545,7 +567,7 @@ export const TasksView: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
               <h3 className="text-base font-bold text-white">Create New Task</h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button onClick={handleCloseCreateModal} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -611,7 +633,14 @@ export const TasksView: React.FC = () => {
                     <label className="block text-slate-300 font-medium mb-1">Assign User</label>
                     <select
                       value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
+                      onChange={(e) => {
+                        const newAssignee = e.target.value;
+                        setAssignedTo(newAssignee);
+                        const targetUser = users.find((u) => u.id === newAssignee);
+                        if (targetUser?.role === 'intern') {
+                          setIsLearningTask(true);
+                        }
+                      }}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-blue-500"
                     >
                       {users.map((u) => (
@@ -649,7 +678,7 @@ export const TasksView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  onClick={handleCloseCreateModal}
                   className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
                 >
                   Cancel

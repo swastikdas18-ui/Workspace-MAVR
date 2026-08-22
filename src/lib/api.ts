@@ -1,11 +1,10 @@
 /**
  * Workspace OS - Centralized Backend API Client
- * Connects frontend state and authentication directly to Render backend & PostgreSQL.
+ * Connects frontend state and authentication directly to backend & PostgreSQL.
  */
 
 export const API_BASE_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://workspace-mavr.onrender.com';
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
 
 const TOKEN_KEY = 'ws_session_token';
 
@@ -263,6 +262,31 @@ export const api = {
     });
   },
 
+  // CRM API
+  async getCrmLeads() {
+    return await fetchApi<{ leads: any[] }>('/api/crm');
+  },
+
+  async createCrmLead(data: any) {
+    return await fetchApi<{ lead: any }>('/api/crm', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateCrmLead(id: string, data: any) {
+    return await fetchApi<{ lead: any }>(`/api/crm/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCrmLead(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/crm/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Analytics & Billing API
   async getAnalytics() {
     return await fetchApi<{ analytics: any }>('/api/analytics');
@@ -276,5 +300,3 @@ export const api = {
     return await fetchApi<any>('/api/admin/tools');
   },
 };
-
-

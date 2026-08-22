@@ -1,5 +1,7 @@
 import { inMemoryDb } from '../../packages/database';
 import { UserRole } from '../types';
+import { WorkspaceBoundaryValidator } from '../lib/validation';
+import { can, normalizeRole } from '../lib/permissions';
 
 export interface CreateTaskInput {
   title: string;
@@ -13,12 +15,13 @@ export interface CreateTaskInput {
 }
 
 export class TaskService {
-  static async getTasks(workspaceId: string, userId: string, role: UserRole): Promise<any[]> {
+  static async getTasks(workspaceId: string, userId: string, rawRole: UserRole | string): Promise<any[]> {
+    const role = normalizeRole(rawRole);
     let allTasks = Array.from(inMemoryDb.tasks.values()).filter(
       (t) => t.workspaceId === workspaceId
     );
 
-    // Intern: only see assigned tasks
+    // Intern: strictly only see assigned tasks
     if (role === 'intern') {
       allTasks = allTasks.filter((t) => t.assignedTo === userId);
     }
@@ -48,9 +51,26 @@ export class TaskService {
   static async createTask(
     workspaceId: string,
     userId: string,
-    role: UserRole,
+    rawRole: UserRole | string,
     input: CreateTaskInput
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
+
+    if (!can(role, 'tasks:create', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating tasks.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    // Cross-Workspace Boundary Validation
+    if (input.projectId) {
+      WorkspaceBoundaryValidator.validateProject(workspaceId, input.projectId);
+    }
+    if (input.assignedTo) {
+      WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, input.assignedTo);
+    }
+
     const taskId = 'task-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const now = new Date();
 
@@ -91,12 +111,54 @@ export class TaskService {
 
   static async updateTask(
     workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
     taskId: string,
     updates: Partial<CreateTaskInput & { status?: string }>
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     const existing = inMemoryDb.tasks.get(taskId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('TASK_NOT_FOUND');
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    // Check permissions
+    if (role === 'intern') {
+      // Interns can only update status of tasks assigned to them
+      if (existing.assignedTo !== userId) {
+        const error: any = new Error('Interns cannot modify tasks assigned to other members.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+      // If intern tries to change anything other than status, reject
+      const allowedKeys = ['status'];
+      const attemptedKeys = Object.keys(updates);
+      const isOnlyStatus = attemptedKeys.every((k) => allowedKeys.includes(k));
+      if (!isOnlyStatus) {
+        const error: any = new Error('Interns are only permitted to update task status.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    } else if (role === 'employee') {
+      if (!can(role, 'tasks:update', existing, { userId, workspaceId })) {
+        const error: any = new Error('Unauthorized task update.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
+    // Cross-Workspace Boundary Validation on updates
+    if (updates.projectId) {
+      WorkspaceBoundaryValidator.validateProject(workspaceId, updates.projectId);
+    }
+    if (updates.assignedTo) {
+      WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, updates.assignedTo);
     }
 
     const updated = {
@@ -127,14 +189,29 @@ export class TaskService {
     };
   }
 
-  static async deleteTask(workspaceId: string, taskId: string): Promise<boolean> {
+  static async deleteTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string
+  ): Promise<boolean> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'tasks:delete', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from deleting tasks.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
     const existing = inMemoryDb.tasks.get(taskId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('TASK_NOT_FOUND');
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
     inMemoryDb.tasks.delete(taskId);
-    // Also remove comments
     Array.from(inMemoryDb.taskComments.entries()).forEach(([id, c]) => {
       if (c.taskId === taskId) inMemoryDb.taskComments.delete(id);
     });
@@ -145,7 +222,10 @@ export class TaskService {
   static async getComments(workspaceId: string, taskId: string): Promise<any[]> {
     const task = inMemoryDb.tasks.get(taskId);
     if (!task || task.workspaceId !== workspaceId) {
-      throw new Error('TASK_NOT_FOUND');
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
     const comments = Array.from(inMemoryDb.taskComments.values()).filter(
@@ -175,7 +255,10 @@ export class TaskService {
   ): Promise<any> {
     const task = inMemoryDb.tasks.get(taskId);
     if (!task || task.workspaceId !== workspaceId) {
-      throw new Error('TASK_NOT_FOUND');
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
     const commentId = 'comment-' + Date.now() + '-' + Math.floor(Math.random() * 1000);

@@ -216,7 +216,12 @@ export const TeamsView: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Expires: {new Date(inv.expires_at).toLocaleDateString()}
+                    Expires: {(() => {
+                      const dateStr = inv.expires_at || (inv as any).expiresAt;
+                      if (!dateStr) return 'In 7 days';
+                      const parsed = new Date(dateStr);
+                      return isNaN(parsed.getTime()) ? 'In 7 days' : parsed.toLocaleDateString();
+                    })()}
                   </p>
                 </div>
 

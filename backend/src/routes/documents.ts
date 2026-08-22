@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requirePermission } from '../middleware/rbac';
 import { DocumentService } from '../services/document-service';
-import { UserRole } from '../types';
+import { normalizeRole } from '../lib/permissions';
 
 export const documentRouter = new Hono();
 
@@ -11,7 +11,7 @@ documentRouter.use('*', authMiddleware);
 /**
  * GET /api/documents - List documents in workspace
  */
-documentRouter.get('/', async (c) => {
+documentRouter.get('/', requirePermission('documents:read'), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -20,14 +20,15 @@ documentRouter.get('/', async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const role = (workspace.roleInWorkspace || user.role) as UserRole;
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const documents = await DocumentService.getDocuments(workspace.id, user.id, role);
 
     return c.json({ documents }, 200);
   } catch (err: any) {
+    const status = err.status || 500;
     return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get documents.' } },
-      500
+      { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get documents.' } },
+      status
     );
   }
 });
@@ -35,7 +36,7 @@ documentRouter.get('/', async (c) => {
 /**
  * POST /api/documents - Upload document (Admin, Employee only; Intern blocked)
  */
-documentRouter.post('/', requireRole(['admin', 'employee']), async (c) => {
+documentRouter.post('/', requirePermission('documents:createOrg'), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -44,19 +45,20 @@ documentRouter.post('/', requireRole(['admin', 'employee']), async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const role = (workspace.roleInWorkspace || user.role) as UserRole;
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
 
-    if (!body.title) {
+    if (!body.title || !body.title.trim()) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Document title is required.' } }, 400);
     }
 
     const document = await DocumentService.createDocument(workspace.id, user.id, role, body);
     return c.json({ document }, 201);
   } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 400);
     return c.json(
-      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to create document.' } },
-      400
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to create document.' } },
+      status
     );
   }
 });
@@ -74,14 +76,14 @@ documentRouter.delete('/:id', async (c) => {
     }
 
     const docId = c.req.param('id');
-    const role = (workspace.roleInWorkspace || user.role) as UserRole;
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
 
     await DocumentService.deleteDocument(workspace.id, docId, user.id, role);
     return c.json({ success: true, message: 'Document deleted successfully.' }, 200);
   } catch (err: any) {
-    const status = err.message.includes('CANNOT_DELETE') ? 403 : 400;
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'DOCUMENT_NOT_FOUND' ? 404 : 400);
     return c.json(
-      { error: { code: status === 403 ? 'FORBIDDEN' : 'BAD_REQUEST', message: err.message } },
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message } },
       status
     );
   }
@@ -90,7 +92,7 @@ documentRouter.delete('/:id', async (c) => {
 /**
  * POST /api/documents/:id/download - Track download count
  */
-documentRouter.post('/:id/download', async (c) => {
+documentRouter.post('/:id/download', requirePermission('documents:download'), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -102,9 +104,10 @@ documentRouter.post('/:id/download', async (c) => {
 
     return c.json({ success: true, downloadCount }, 200);
   } catch (err: any) {
+    const status = err.status || 400;
     return c.json(
-      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to increment download.' } },
-      400
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to increment download.' } },
+      status
     );
   }
 });

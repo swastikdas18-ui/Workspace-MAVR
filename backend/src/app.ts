@@ -7,6 +7,7 @@ import { projectRouter } from './routes/projects';
 import { taskRouter } from './routes/tasks';
 import { teamRouter } from './routes/teams';
 import { documentRouter } from './routes/documents';
+import { crmRouter } from './routes/crm';
 import { analyticsRouter, billingRouter, adminRouter } from './routes/protected-modules';
 import { env } from './config/env';
 
@@ -144,6 +145,9 @@ app.route('/teams', teamRouter);
 
 app.route('/api/documents', documentRouter);
 app.route('/documents', documentRouter);
+
+app.route('/api/crm', crmRouter);
+app.route('/crm', crmRouter);
 
 app.route('/api/analytics', analyticsRouter);
 app.route('/analytics', analyticsRouter);

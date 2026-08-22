@@ -128,12 +128,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Centralized backend data fetching
   const refreshWorkspaceData = useCallback(async () => {
     try {
-      const [projectsRes, tasksRes, teamsRes, docsRes, membersRes] = await Promise.allSettled([
+      const [projectsRes, tasksRes, teamsRes, docsRes, membersRes, crmRes] = await Promise.allSettled([
         api.getProjects(),
         api.getTasks(),
         api.getTeams(),
         api.getDocuments(),
         api.getWorkspaceMembers(),
+        api.getCrmLeads(),
       ]);
 
       if (projectsRes.status === 'fulfilled' && projectsRes.value?.projects) {
@@ -147,6 +148,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       if (docsRes.status === 'fulfilled' && docsRes.value?.documents) {
         setDocuments(docsRes.value.documents);
+      }
+      if (crmRes.status === 'fulfilled' && crmRes.value?.leads) {
+        setCrmRecords(crmRes.value.leads);
       }
       if (membersRes.status === 'fulfilled' && membersRes.value?.members) {
         const fetchedUsers = membersRes.value.members.map((m: any) => ({
@@ -480,9 +484,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       logAction('Unauthorized CRM record creation', 'CRM', 'denied');
       return false;
     }
+    const tempId = 'crm-' + Date.now();
     const newRecord: CrmRecord = {
       ...record,
-      id: 'crm-' + Date.now(),
+      id: tempId,
       created_at: new Date().toISOString().substring(0, 10),
       last_contacted: new Date().toISOString().substring(0, 10),
       owner_id: currentUser.id
@@ -490,6 +495,24 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setCrmRecords((prev) => [newRecord, ...prev]);
     addToast({ type: 'success', title: 'Lead Added', message: `"${newRecord.customer_name}" registered.` });
     logAction(`Created CRM record "${newRecord.customer_name}"`, 'CRM');
+
+    // Async persist to backend API
+    api.createCrmLead({
+      customerName: record.customer_name,
+      company: record.company,
+      email: record.email,
+      phone: record.phone,
+      dealValue: record.deal_value,
+      status: record.status,
+      notes: record.notes,
+    }).then((res) => {
+      if (res?.lead) {
+        setCrmRecords((prev) => prev.map((r) => r.id === tempId ? res.lead : r));
+      }
+    }).catch((err) => {
+      console.warn('Failed to persist CRM lead:', err);
+    });
+
     return true;
   };
 
@@ -501,6 +524,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setCrmRecords((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates, last_contacted: new Date().toISOString().substring(0, 10) } : r)));
     addToast({ type: 'success', title: 'CRM Updated', message: 'Client record saved.' });
     logAction(`Updated CRM record ${id}`, 'CRM');
+
+    // Async persist update
+    api.updateCrmLead(id, {
+      customerName: updates.customer_name,
+      company: updates.company,
+      email: updates.email,
+      phone: updates.phone,
+      dealValue: updates.deal_value,
+      status: updates.status,
+      notes: updates.notes,
+    }).catch((err) => {
+      console.warn('Failed to persist CRM update:', err);
+    });
+
     return true;
   };
 
@@ -513,6 +550,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setCrmRecords((prev) => prev.filter((r) => r.id !== id));
     addToast({ type: 'info', title: 'Lead Removed', message: 'CRM record purged.' });
     logAction(`Deleted CRM record ${id}`, 'CRM', 'warning');
+
+    api.deleteCrmLead(id).catch((err) => {
+      console.warn('Failed to persist CRM deletion:', err);
+    });
+
     return true;
   };
 

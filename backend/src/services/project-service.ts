@@ -1,5 +1,7 @@
-import { inMemoryDb, Project, ProjectMember } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database';
 import { UserRole } from '../types';
+import { WorkspaceBoundaryValidator } from '../lib/validation';
+import { can, normalizeRole } from '../lib/permissions';
 
 export interface CreateProjectInput {
   title: string;
@@ -13,9 +15,13 @@ export interface CreateProjectInput {
 }
 
 export class ProjectService {
-  static async getProjects(workspaceId: string, userId: string, role: UserRole): Promise<any[]> {
-    if (role === 'intern') {
-      return []; // Interns have zero access to project roadmaps
+  static async getProjects(workspaceId: string, userId: string, rawRole: UserRole | string): Promise<any[]> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'projects:read', undefined, { userId, workspaceId })) {
+      const error: any = new Error('Interns do not have access to organization project roadmaps.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
     }
 
     const allProjects = Array.from(inMemoryDb.projects.values()).filter(
@@ -47,8 +53,22 @@ export class ProjectService {
   static async createProject(
     workspaceId: string,
     userId: string,
+    rawRole: UserRole | string,
     input: CreateProjectInput
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'projects:create', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating projects.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    // Validate cross-workspace boundaries for memberIds
+    if (input.memberIds && input.memberIds.length > 0) {
+      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, input.memberIds);
+    }
+
     const projectId = 'proj-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const now = new Date();
 
@@ -71,7 +91,7 @@ export class ProjectService {
 
     if (input.memberIds && input.memberIds.length > 0) {
       for (const memberId of input.memberIds) {
-        const pmId = crypto.randomUUID();
+        const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
         inMemoryDb.projectMembers.set(pmId, {
           id: pmId,
           projectId,
@@ -80,7 +100,7 @@ export class ProjectService {
         });
       }
     } else {
-      const pmId = crypto.randomUUID();
+      const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       inMemoryDb.projectMembers.set(pmId, {
         id: pmId,
         projectId,
@@ -107,12 +127,38 @@ export class ProjectService {
 
   static async updateProject(
     workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
     projectId: string,
     updates: Partial<CreateProjectInput & { progress?: number; status?: string }>
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     const existing = inMemoryDb.projects.get(projectId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('PROJECT_NOT_FOUND');
+      const error: any = new Error('Project not found in active workspace.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const currentMembers = Array.from(inMemoryDb.projectMembers.values())
+      .filter((pm) => pm.projectId === projectId)
+      .map((pm) => pm.userId);
+
+    const resourceWithMembers = {
+      ...existing,
+      member_ids: currentMembers,
+    };
+
+    if (!can(role, 'projects:update', resourceWithMembers, { userId, workspaceId })) {
+      const error: any = new Error(`Unauthorized project modification.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (updates.memberIds && updates.memberIds.length > 0) {
+      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, updates.memberIds);
     }
 
     const updated = {
@@ -123,16 +169,66 @@ export class ProjectService {
     };
 
     inMemoryDb.projects.set(projectId, updated);
-    return updated;
+
+    // Update project members if provided
+    if (updates.memberIds) {
+      // Remove old
+      Array.from(inMemoryDb.projectMembers.entries()).forEach(([id, pm]) => {
+        if (pm.projectId === projectId) inMemoryDb.projectMembers.delete(id);
+      });
+      for (const memberId of updates.memberIds) {
+        const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        inMemoryDb.projectMembers.set(pmId, {
+          id: pmId,
+          projectId,
+          userId: memberId,
+          role: memberId === userId ? 'owner' : 'contributor',
+        });
+      }
+    }
+
+    return {
+      id: updated.id,
+      title: updated.title,
+      description: updated.description,
+      workspace_id: updated.workspaceId,
+      created_by: updated.createdBy,
+      status: updated.status,
+      progress: updated.progress,
+      start_date: updated.startDate ? new Date(updated.startDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      due_date: updated.dueDate ? new Date(updated.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      budget: updated.budget,
+      member_ids: updates.memberIds || currentMembers,
+      tags: updated.tags,
+    };
   }
 
-  static async deleteProject(workspaceId: string, projectId: string): Promise<boolean> {
+  static async deleteProject(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string
+  ): Promise<boolean> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'projects:delete', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from deleting projects.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
     const existing = inMemoryDb.projects.get(projectId);
     if (!existing || existing.workspaceId !== workspaceId) {
-      throw new Error('PROJECT_NOT_FOUND');
+      const error: any = new Error('Project not found in active workspace.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
     }
 
     inMemoryDb.projects.delete(projectId);
+    Array.from(inMemoryDb.projectMembers.entries()).forEach(([id, pm]) => {
+      if (pm.projectId === projectId) inMemoryDb.projectMembers.delete(id);
+    });
     return true;
   }
 }

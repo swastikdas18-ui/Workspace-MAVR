@@ -287,6 +287,32 @@ export const api = {
     });
   },
 
+  // Presence & Real-Time API
+  async getPresence() {
+    return await fetchApi<{ data: any[]; meta: any }>('/api/presence');
+  },
+
+  async updatePresenceStatus(status: 'online' | 'away' | 'offline') {
+    return await fetchApi<{ data: any; message: string }>('/api/presence/status', {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async sendPresenceHeartbeat() {
+    return await fetchApi<{ data: any; message: string }>('/api/presence/heartbeat', {
+      method: 'POST',
+    });
+  },
+
+  async getRealtimeStats() {
+    return await fetchApi<{ data: any; timestamp: string }>('/api/presence/stats');
+  },
+
+  async getRealtimeEvents(limit = 30) {
+    return await fetchApi<{ data: any[]; meta: any }>(`/api/presence/events?limit=${limit}`);
+  },
+
   // Analytics & Billing API
   async getAnalytics() {
     return await fetchApi<{ analytics: any }>('/api/analytics');

@@ -40,4 +40,25 @@ export type NewWorkspaceInvite = InferInsertModel<typeof schema.workspaceInvites
 export type TaskComment = InferSelectModel<typeof schema.taskComments>;
 export type NewTaskComment = InferInsertModel<typeof schema.taskComments>;
 
+export type Notification = InferSelectModel<typeof schema.notifications>;
+export type NewNotification = InferInsertModel<typeof schema.notifications>;
+
+export type ActivityLog = InferSelectModel<typeof schema.activityLogs>;
+export type NewActivityLog = InferInsertModel<typeof schema.activityLogs>;
+
+export type AuditLog = InferSelectModel<typeof schema.auditLogs>;
+export type NewAuditLog = InferInsertModel<typeof schema.auditLogs>;
+
+export type AutomationRule = InferSelectModel<typeof schema.automationRules>;
+export type NewAutomationRule = InferInsertModel<typeof schema.automationRules>;
+
+export type AutomationAction = InferSelectModel<typeof schema.automationActions>;
+export type NewAutomationAction = InferInsertModel<typeof schema.automationActions>;
+
+export type AutomationExecution = InferSelectModel<typeof schema.automationExecutions>;
+export type NewAutomationExecution = InferInsertModel<typeof schema.automationExecutions>;
+
+export type UserPresence = InferSelectModel<typeof schema.userPresence>;
+export type NewUserPresence = InferInsertModel<typeof schema.userPresence>;
+
 export type UserRole = 'admin' | 'employee' | 'intern';

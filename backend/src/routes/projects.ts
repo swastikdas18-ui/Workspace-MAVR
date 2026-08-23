@@ -25,9 +25,35 @@ projectRouter.get('/', requirePermission('projects:read'), async (c) => {
 
     return c.json({ projects }, 200);
   } catch (err: any) {
-    const status = err.status || 500;
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 500);
     return c.json(
       { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get projects.' } },
+      status
+    );
+  }
+});
+
+/**
+ * GET /api/projects/:id - Get single project by ID with workspace isolation checks
+ */
+projectRouter.get('/:id', requirePermission('projects:read'), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const project = await ProjectService.getProjectById(workspace.id, user.id, role, projectId);
+    return c.json({ project }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch project.' } },
       status
     );
   }
@@ -65,28 +91,39 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
 /**
  * PATCH /api/projects/:id - Update project (Admin & Assigned Employee only)
  */
-projectRouter.patch('/:id', async (c) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-    if (!workspace) {
-      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+projectRouter.patch(
+  '/:id',
+  requirePermission('projects:update'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const workspace = c.get('workspace');
+
+      if (!workspace) {
+        return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+      }
+
+      const projectId = c.req.param('id');
+      const body = await c.req.json();
+
+      const result = await ProjectService.updateProject(
+        workspace.id,
+        user.id,
+        user.role,
+        projectId,
+        body
+      );
+
+      return c.json(result);
+    } catch (err: any) {
+      const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+      return c.json(
+        { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update project.' } },
+        status
+      );
     }
-
-    const role = normalizeRole(workspace.roleInWorkspace || user.role);
-    const projectId = c.req.param('id');
-    const body = await c.req.json();
-
-    const project = await ProjectService.updateProject(workspace.id, user.id, role, projectId, body);
-    return c.json({ project }, 200);
-  } catch (err: any) {
-    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
-    return c.json(
-      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update project.' } },
-      status
-    );
   }
-});
+);
 
 /**
  * DELETE /api/projects/:id - Delete project (Admin only)

@@ -35,7 +35,7 @@ taskRouter.get('/', async (c) => {
 });
 
 /**
- * POST /api/tasks - Create new task (Admin & Employee only; Intern blocked)
+ * POST /api/tasks - Create new task (Admin only; Employee & Intern blocked)
  */
 taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
   try {
@@ -65,9 +65,35 @@ taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
 });
 
 /**
- * PATCH /api/tasks/:id - Update task status or properties
+ * GET /api/tasks/:id - Get single task by ID with workspace isolation checks
  */
-taskRouter.patch('/:id', async (c) => {
+taskRouter.get('/:id', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const task = await TaskService.getTaskById(workspace.id, user.id, role, taskId);
+    return c.json({ task }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch task.' } },
+      status
+    );
+  }
+});
+
+/**
+ * PUT & PATCH /api/tasks/:id - Update task status or properties
+ */
+const updateTaskHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -89,7 +115,10 @@ taskRouter.patch('/:id', async (c) => {
       status
     );
   }
-});
+};
+
+taskRouter.patch('/:id', updateTaskHandler);
+taskRouter.put('/:id', updateTaskHandler);
 
 /**
  * DELETE /api/tasks/:id - Delete task (Admin only)
@@ -153,12 +182,13 @@ taskRouter.post('/:id/comments', async (c) => {
 
     const taskId = c.req.param('id');
     const body = await c.req.json();
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
 
     if (!body.content || !body.content.trim()) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Comment content cannot be empty.' } }, 400);
     }
 
-    const comment = await TaskService.addComment(workspace.id, taskId, user.id, body.content);
+    const comment = await TaskService.addComment(workspace.id, taskId, user.id, body.content, role);
     return c.json({ comment }, 201);
   } catch (err: any) {
     const status = err.status || 400;

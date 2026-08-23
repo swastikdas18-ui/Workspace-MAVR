@@ -25,9 +25,35 @@ documentRouter.get('/', requirePermission('documents:read'), async (c) => {
 
     return c.json({ documents }, 200);
   } catch (err: any) {
-    const status = err.status || 500;
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 500);
     return c.json(
       { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get documents.' } },
+      status
+    );
+  }
+});
+
+/**
+ * GET /api/documents/:id - Get single document with workspace isolation checks
+ */
+documentRouter.get('/:id', requirePermission('documents:read'), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const docId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const document = await DocumentService.getDocumentById(workspace.id, docId, user.id, role);
+    return c.json({ document }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'DOCUMENT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch document.' } },
       status
     );
   }

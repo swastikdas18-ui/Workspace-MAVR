@@ -196,6 +196,30 @@ export async function runAllTests() {
       Authorization: `Bearer ${employeeToken}`,
     });
     assert(empListProj.status === 200, '4. Employee can list projects (200)');
+
+    // Intern attempts PATCH /api/projects/:id -> 403 Forbidden
+    const internPatchProj = await testApi('PATCH', `/api/projects/${projectId}`, {
+      status: 'planning',
+    }, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internPatchProj.status === 403, '4. Intern cannot update projects (403)');
+
+    // Admin updates project -> 200 OK
+    const adminPatchProj = await testApi('PATCH', `/api/projects/${projectId}`, {
+      status: 'completed',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminPatchProj.status === 200, '4. Admin can update projects (200)');
+
+    // Validation check: empty title fails with 400
+    const invalidTitlePatch = await testApi('PATCH', `/api/projects/${projectId}`, {
+      title: '   ',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(invalidTitlePatch.status === 400, '4. Empty project title rejected (400)');
   }
 
   // 5. PHASE 4: Tasks, CRITICAL Priority & Task Comments
@@ -523,6 +547,48 @@ export async function runAllTests() {
       Authorization: `Bearer ${internToken}`,
     });
     assert(internPrivateDownload.status === 403, '14. Intern cannot download private document (403 Forbidden)');
+
+    // ----------------------------------------------------
+    // PHASE 5A: Notification, Activity, and Audit Platform
+    // ----------------------------------------------------
+
+    // 15. Employee fetches own notifications
+    const empNotifs = await testApi('GET', '/api/notifications', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empNotifs.status === 200, '15. Employee can fetch notifications (200 OK)');
+    assert(Array.isArray(empNotifs.data.notifications), '15. Notifications response is an array');
+
+    // 16. Employee marks all notifications as read
+    const markAllRead = await testApi('PATCH', '/api/notifications/read-all', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(markAllRead.status === 200, '16. Employee mark-all-as-read (200 OK)');
+
+    // 17. Workspace Activity Feed (Workspace scoped)
+    const activityFeed = await testApi('GET', '/api/activity', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(activityFeed.status === 200, '17. Employee can fetch workspace activity feed (200 OK)');
+    assert(Array.isArray(activityFeed.data.activities), '17. Activity feed response is an array');
+
+    // 18. Audit Logs (ADMIN ONLY)
+    const adminAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminAudit.status === 200, '18. Admin can access audit logs (200 OK)');
+    assert(Array.isArray(adminAudit.data.auditLogs), '18. Audit logs response is an array');
+
+    // 19. Employee & Intern blocked from Audit Logs (403 Forbidden)
+    const empAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empAudit.status === 403, '19. Employee is blocked from audit logs (403 Forbidden)');
+
+    const internAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internAudit.status === 403, '19. Intern is blocked from audit logs (403 Forbidden)');
   }
 
   console.log('\n==================================================');

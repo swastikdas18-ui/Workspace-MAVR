@@ -1,7 +1,8 @@
-import { inMemoryDb } from '../../packages/database';
+import { CRMRepository, CrmRecordEntity } from '../repositories/crm-repository';
 import { UserRole } from '../types';
 import { WorkspaceBoundaryValidator } from '../lib/validation';
 import { can, normalizeRole } from '../lib/permissions';
+import { EventService } from './event-service';
 
 export interface CreateCrmRecordInput {
   customerName: string;
@@ -28,14 +29,8 @@ export class CrmService {
       throw error;
     }
 
-    let records = Array.from(inMemoryDb.crmRecords.values()).filter(
-      (r) => r.workspaceId === workspaceId
-    );
-
-    // Employees strictly only see their assigned CRM records
-    if (role === 'employee') {
-      records = records.filter((r) => r.ownerId === userId);
-    }
+    const options = role === 'employee' ? { ownerId: userId } : undefined;
+    const records = await CRMRepository.listRecords(workspaceId, options);
 
     return records.map((r) => ({
       id: r.id,
@@ -51,6 +46,58 @@ export class CrmService {
       created_at: r.createdAt ? new Date(r.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       last_contacted: r.lastContacted ? new Date(r.lastContacted).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
     }));
+  }
+
+  static async getCrmRecordById(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    recordId: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'crm:read', undefined, { userId, workspaceId })) {
+      const error: any = new Error('Interns do not have access to Enterprise CRM records.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await CRMRepository.getRecordById(workspaceId, recordId);
+    if (!existing) {
+      const error: any = new Error('CRM record not found.');
+      error.code = 'CRM_RECORD_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: CRM record belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'employee' && existing.ownerId !== userId) {
+      const error: any = new Error('Employees can only access their own assigned CRM records.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    return {
+      id: existing.id,
+      customer_name: existing.customerName,
+      company: existing.company,
+      email: existing.email,
+      phone: existing.phone,
+      deal_value: existing.dealValue || 0,
+      status: existing.status || 'new_lead',
+      owner_id: existing.ownerId,
+      workspace_id: existing.workspaceId,
+      notes: existing.notes || '',
+      created_at: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      last_contacted: existing.lastContacted ? new Date(existing.lastContacted).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+    };
   }
 
   static async createCrmRecord(
@@ -70,11 +117,7 @@ export class CrmService {
     const assignedOwner = input.ownerId || userId;
     WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, assignedOwner);
 
-    const recordId = 'crm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const now = new Date();
-
-    const newRecord = {
-      id: recordId,
+    const newRecord = await CRMRepository.createRecord({
       customerName: input.customerName.trim(),
       company: input.company.trim(),
       email: input.email.trim(),
@@ -84,11 +127,7 @@ export class CrmService {
       ownerId: assignedOwner,
       workspaceId,
       notes: input.notes?.trim() || '',
-      createdAt: now,
-      lastContacted: now,
-    };
-
-    inMemoryDb.crmRecords.set(recordId, newRecord);
+    });
 
     return {
       id: newRecord.id,
@@ -114,11 +153,18 @@ export class CrmService {
     updates: Partial<CreateCrmRecordInput>
   ): Promise<any> {
     const role = normalizeRole(rawRole);
-    const existing = inMemoryDb.crmRecords.get(recordId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('CRM record not found in active workspace.');
+    const existing = await CRMRepository.getRecordById(workspaceId, recordId);
+    if (!existing) {
+      const error: any = new Error('CRM record not found.');
       error.code = 'CRM_RECORD_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: CRM record belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
       throw error;
     }
 
@@ -133,20 +179,39 @@ export class CrmService {
       WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, updates.ownerId);
     }
 
-    const updated = {
-      ...existing,
-      ...updates,
-      customerName: updates.customerName !== undefined ? updates.customerName.trim() : existing.customerName,
-      company: updates.company !== undefined ? updates.company.trim() : existing.company,
-      email: updates.email !== undefined ? updates.email.trim() : existing.email,
-      phone: updates.phone !== undefined ? updates.phone.trim() : existing.phone,
-      dealValue: updates.dealValue !== undefined ? Number(updates.dealValue) : existing.dealValue,
-      status: updates.status || existing.status,
-      notes: updates.notes !== undefined ? updates.notes : existing.notes,
-      lastContacted: new Date(),
-    };
+    const updated = await CRMRepository.updateRecord(workspaceId, recordId, {
+      customerName: updates.customerName !== undefined ? updates.customerName.trim() : undefined,
+      company: updates.company !== undefined ? updates.company.trim() : undefined,
+      email: updates.email !== undefined ? updates.email.trim() : undefined,
+      phone: updates.phone !== undefined ? updates.phone.trim() : undefined,
+      dealValue: updates.dealValue !== undefined ? Number(updates.dealValue) : undefined,
+      status: updates.status,
+      ownerId: updates.ownerId,
+      notes: updates.notes,
+    });
 
-    inMemoryDb.crmRecords.set(recordId, updated);
+    if (!updated) {
+      const error: any = new Error('CRM record update failed.');
+      error.code = 'CRM_RECORD_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    // Emit event: CRM Status / Stage Changed
+    if (updates.status && updates.status !== existing.status) {
+      await EventService.emitCrmStageChanged(
+        { workspaceId, actorId: userId },
+        {
+          id: updated.id,
+          customerName: updated.customerName,
+          company: updated.company,
+          previousStatus: existing.status,
+          newStatus: updated.status,
+          dealValue: updated.dealValue,
+          ownerId: updated.ownerId,
+        }
+      );
+    }
 
     return {
       id: updated.id,
@@ -178,15 +243,21 @@ export class CrmService {
       throw error;
     }
 
-    const existing = inMemoryDb.crmRecords.get(recordId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('CRM record not found in active workspace.');
+    const existing = await CRMRepository.getRecordById(workspaceId, recordId);
+    if (!existing) {
+      const error: any = new Error('CRM record not found.');
       error.code = 'CRM_RECORD_NOT_FOUND';
       error.status = 404;
       throw error;
     }
 
-    inMemoryDb.crmRecords.delete(recordId);
-    return true;
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: CRM record belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    return await CRMRepository.deleteRecord(workspaceId, recordId);
   }
 }

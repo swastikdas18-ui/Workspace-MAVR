@@ -1,7 +1,8 @@
-import { inMemoryDb } from '../../packages/database';
 import { UserRole } from '../types';
-import { WorkspaceBoundaryValidator } from '../lib/validation';
 import { can, normalizeRole } from '../lib/permissions';
+import { TaskRepository, TaskEntity, TaskCommentEntity } from '../repositories/task-repository';
+import { ProjectRepository } from '../repositories/project-repository';
+import { EventService } from './event-service';
 
 export interface CreateTaskInput {
   title: string;
@@ -9,74 +10,56 @@ export interface CreateTaskInput {
   status?: 'todo' | 'in_progress' | 'review' | 'completed';
   priority?: 'low' | 'medium' | 'high' | 'urgent' | 'critical';
   assignedTo: string;
+  projectId: string;
+  dueDate?: string;
+  isLearningTask?: boolean;
+}
+
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string;
+  status?: 'todo' | 'in_progress' | 'review' | 'completed';
+  priority?: 'low' | 'medium' | 'high' | 'urgent' | 'critical';
+  assignedTo?: string;
   projectId?: string;
-  dueDate: string;
+  dueDate?: string;
   isLearningTask?: boolean;
 }
 
 export class TaskService {
-  static async getTasks(workspaceId: string, userId: string, rawRole: UserRole | string): Promise<any[]> {
+  /**
+   * List tasks for the active workspace, filtered by user role
+   */
+  static async getTasks(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string
+  ): Promise<any[]> {
     const role = normalizeRole(rawRole);
-    let allTasks = Array.from(inMemoryDb.tasks.values()).filter(
-      (t) => t.workspaceId === workspaceId
-    );
-
-    // Intern: strictly only see assigned tasks
-    if (role === 'intern') {
-      allTasks = allTasks.filter((t) => t.assignedTo === userId);
-    } else if (role === 'employee') {
-      // Employee: assigned tasks, created tasks, team tasks, or project tasks
-      const userProjectIds = new Set(
-        Array.from(inMemoryDb.projectMembers.values())
-          .filter((pm) => pm.userId === userId)
-          .map((pm) => pm.projectId)
-      );
-      Array.from(inMemoryDb.projects.values()).forEach((p) => {
-        if (p.workspaceId === workspaceId && p.createdBy === userId) {
-          userProjectIds.add(p.id);
-        }
-      });
-
-      const userTeamIds = new Set(
-        Array.from(inMemoryDb.teamMembers.values())
-          .filter((tm) => tm.userId === userId)
-          .map((tm) => tm.teamId)
-      );
-      Array.from(inMemoryDb.teams.values()).forEach((t) => {
-        if (t.leadId === userId) userTeamIds.add(t.id);
-      });
-
-      allTasks = allTasks.filter((t) => {
-        const isAssigned = t.assignedTo === userId;
-        const isCreator = (t as any).createdBy === userId;
-        const isProjectMember = t.projectId ? userProjectIds.has(t.projectId) : false;
-        const isTeamTask = (t as any).teamId ? userTeamIds.has((t as any).teamId) : false;
-        return isAssigned || isCreator || isProjectMember || isTeamTask;
-      });
-    }
-
-    return allTasks.map((t) => {
-      const commentsCount = Array.from(inMemoryDb.taskComments.values()).filter(
-        (c) => c.taskId === t.id
-      ).length;
-
-      return {
-        id: t.id,
-        title: t.title,
-        description: t.description || '',
-        status: t.status || 'todo',
-        priority: t.priority || 'medium',
-        assigned_to: t.assignedTo,
-        project_id: t.projectId || '',
-        workspace_id: t.workspaceId,
-        due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-        created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-        is_learning_task: t.isLearningTask || false,
-        comments_count: commentsCount,
-      };
+    const tasks = await TaskRepository.listTasks(workspaceId, {
+      userId,
+      role,
     });
+
+    return tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      status: t.status || 'todo',
+      priority: t.priority || 'medium',
+      assigned_to: t.assignedTo,
+      project_id: t.projectId || '',
+      workspace_id: t.workspaceId,
+      due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      is_learning_task: t.isLearningTask || false,
+      comments_count: t.commentsCount || 0,
+    }));
   }
 
+  /**
+   * Create a new task within a workspace
+   */
   static async createTask(
     workspaceId: string,
     userId: string,
@@ -85,109 +68,202 @@ export class TaskService {
   ): Promise<any> {
     const role = normalizeRole(rawRole);
 
-    if (!can(role, 'tasks:create', undefined, { userId, workspaceId })) {
+    // RBAC check: Interns forbidden from creating tasks
+    if (role === 'intern' || !can(role, 'tasks:create', undefined, { userId, workspaceId })) {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating tasks.`);
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
     }
 
-    // Cross-Workspace Boundary Validation
-    if (input.projectId) {
-      WorkspaceBoundaryValidator.validateProject(workspaceId, input.projectId);
+    // Validation: title required
+    if (!input.title || !input.title.trim()) {
+      const error: any = new Error('Task title is required.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
     }
-    if (input.assignedTo) {
-      WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, input.assignedTo);
+
+    // Validation: projectId required
+    if (!input.projectId || !input.projectId.trim()) {
+      const error: any = new Error('Project ID is required.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
     }
 
-    const taskId = 'task-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const now = new Date();
+    // Cross-Workspace Project Validation
+    const project = await ProjectRepository.getProjectById(workspaceId, input.projectId);
+    if (!project) {
+      const error: any = new Error('Referenced project does not belong to the active workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
 
-    const assignedUser = inMemoryDb.users.get(input.assignedTo);
-    const isLearning = input.isLearningTask ?? (assignedUser?.role === 'intern');
+    const dueDate = input.dueDate ? new Date(input.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const newTask = {
-      id: taskId,
+    const task = await TaskRepository.createTask(workspaceId, userId, {
       title: input.title.trim(),
       description: input.description?.trim() || '',
       status: input.status || 'todo',
       priority: input.priority || 'medium',
       assignedTo: input.assignedTo,
-      projectId: input.projectId || null,
-      workspaceId,
-      dueDate: input.dueDate ? new Date(input.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      isLearningTask: isLearning,
-      createdAt: now,
-    };
+      projectId: input.projectId,
+      dueDate,
+      isLearningTask: input.isLearningTask || false,
+    });
 
-    inMemoryDb.tasks.set(taskId, newTask);
+    // Emit event: Task Created & Assigned
+    await EventService.emitTaskCreated(
+      { workspaceId, actorId: userId },
+      {
+        id: task.id,
+        title: task.title,
+        projectId: task.projectId,
+        assignedTo: task.assignedTo,
+        isLearningTask: task.isLearningTask,
+      }
+    );
 
     return {
-      id: newTask.id,
-      title: newTask.title,
-      description: newTask.description,
-      status: newTask.status,
-      priority: newTask.priority,
-      assigned_to: newTask.assignedTo,
-      project_id: newTask.projectId,
-      workspace_id: newTask.workspaceId,
-      due_date: newTask.dueDate.toISOString().substring(0, 10),
-      created_at: newTask.createdAt.toISOString().substring(0, 10),
-      is_learning_task: newTask.isLearningTask,
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: task.priority,
+      assigned_to: task.assignedTo,
+      project_id: task.projectId,
+      workspace_id: task.workspaceId,
+      due_date: task.dueDate.toISOString().substring(0, 10),
+      created_at: task.createdAt.toISOString().substring(0, 10),
+      is_learning_task: task.isLearningTask || false,
       comments_count: 0,
     };
   }
 
-  static async updateTask(
+  /**
+   * Get single task by ID with workspace isolation checks
+   */
+  static async getTaskById(
     workspaceId: string,
     userId: string,
     rawRole: UserRole | string,
-    taskId: string,
-    updates: Partial<CreateTaskInput & { status?: string }>
+    taskId: string
   ): Promise<any> {
     const role = normalizeRole(rawRole);
-    const existing = inMemoryDb.tasks.get(taskId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('Task not found in active workspace.');
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+
+    if (!existing) {
+      const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
       throw error;
     }
 
-    // Check permissions
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: task belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'intern' && existing.assignedTo !== userId) {
+      const error: any = new Error('Interns are not authorized to view unassigned tasks.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'employee') {
+      const project = existing.projectId
+        ? await ProjectRepository.getProjectById(workspaceId, existing.projectId)
+        : null;
+
+      const isAssigned = existing.assignedTo === userId;
+      const isCreator = existing.createdBy === userId;
+      const isProjectMember = project ? project.memberIds.includes(userId) : false;
+      const isProjectOwner = project ? project.createdBy === userId : false;
+
+      if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner) {
+        const error: any = new Error('Unauthorized to view unassigned task.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
+    return {
+      id: existing.id,
+      title: existing.title,
+      description: existing.description || '',
+      status: existing.status || 'todo',
+      priority: existing.priority || 'medium',
+      assigned_to: existing.assignedTo,
+      project_id: existing.projectId || '',
+      workspace_id: existing.workspaceId,
+      due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      created_at: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      is_learning_task: existing.isLearningTask || false,
+      comments_count: existing.commentsCount || 0,
+    };
+  }
+
+  /**
+   * Update task details or status with strict role checks
+   */
+  static async updateTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    updates: UpdateTaskInput
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: task belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    // Validation: if title is supplied, must not be empty/whitespace
+    if (updates.title !== undefined && !updates.title.trim()) {
+      const error: any = new Error('Task title cannot be empty.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    // RBAC: Interns forbidden from modifying tasks
     if (role === 'intern') {
-      // Interns can only update status of tasks assigned to them
-      if (existing.assignedTo !== userId) {
-        const error: any = new Error('Interns cannot modify tasks assigned to other members.');
-        error.code = 'FORBIDDEN';
-        error.status = 403;
-        throw error;
-      }
-      // If intern tries to change anything other than status, reject
-      const allowedKeys = ['status'];
-      const attemptedKeys = Object.keys(updates);
-      const isOnlyStatus = attemptedKeys.every((k) => allowedKeys.includes(k));
-      if (!isOnlyStatus) {
-        const error: any = new Error('Interns are only permitted to update task status.');
-        error.code = 'FORBIDDEN';
-        error.status = 403;
-        throw error;
-      }
-    } else if (role === 'employee') {
-      const project = existing.projectId ? inMemoryDb.projects.get(existing.projectId) : null;
-      const projectMembers = existing.projectId
-        ? Array.from(inMemoryDb.projectMembers.values())
-            .filter((pm) => pm.projectId === existing.projectId)
-            .map((pm) => pm.userId)
-        : [];
+      const error: any = new Error('Interns are forbidden from updating tasks.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
 
-      const enrichedTask = {
-        ...existing,
-        projectOwnerId: project?.createdBy,
-        projectMemberIds: projectMembers,
-      };
+    // RBAC: Employee checks
+    if (role === 'employee') {
+      const project = existing.projectId
+        ? await ProjectRepository.getProjectById(workspaceId, existing.projectId)
+        : null;
 
-      if (!can(role, 'tasks:update', enrichedTask, { userId, workspaceId })) {
+      const isAssigned = existing.assignedTo === userId;
+      const isCreator = existing.createdBy === userId;
+      const isProjectMember = project ? project.memberIds.includes(userId) : false;
+      const isProjectOwner = project ? project.createdBy === userId : false;
+
+      if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner) {
         const error: any = new Error('Employees are only permitted to mutate tasks assigned to them, created by them, or within their project scope.');
         error.code = 'FORBIDDEN';
         error.status = 403;
@@ -195,42 +271,78 @@ export class TaskService {
       }
     }
 
-    // Cross-Workspace Boundary Validation on updates
+    // Cross-Workspace Project Validation if updating projectId
     if (updates.projectId) {
-      WorkspaceBoundaryValidator.validateProject(workspaceId, updates.projectId);
-    }
-    if (updates.assignedTo) {
-      WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, updates.assignedTo);
+      const proj = await ProjectRepository.getProjectById(workspaceId, updates.projectId);
+      if (!proj) {
+        const error: any = new Error('Referenced project does not belong to the active workspace.');
+        error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+        error.status = 403;
+        throw error;
+      }
     }
 
-    const updated = {
-      ...existing,
+    const updatedTask = await TaskRepository.updateTask(workspaceId, taskId, {
       ...updates,
-      dueDate: updates.dueDate ? new Date(updates.dueDate) : existing.dueDate,
-    };
+      title: updates.title !== undefined ? updates.title.trim() : undefined,
+      description: updates.description !== undefined ? updates.description.trim() : undefined,
+      dueDate: updates.dueDate ? new Date(updates.dueDate) : undefined,
+    });
 
-    inMemoryDb.tasks.set(taskId, updated);
+    if (!updatedTask) {
+      const error: any = new Error('Task not found or update failed.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
 
-    const commentsCount = Array.from(inMemoryDb.taskComments.values()).filter(
-      (c) => c.taskId === taskId
-    ).length;
+    // Emit event: Task Reassigned
+    if (updates.assignedTo && updates.assignedTo !== existing.assignedTo) {
+      await EventService.emitTaskAssigned(
+        { workspaceId, actorId: userId },
+        {
+          id: updatedTask.id,
+          title: updatedTask.title,
+          projectId: updatedTask.projectId,
+          previousAssignee: existing.assignedTo,
+          newAssignee: updates.assignedTo,
+        }
+      );
+    }
+
+    // Emit event: Task Completed
+    if (updates.status === 'completed' && existing.status !== 'completed') {
+      await EventService.emitTaskCompleted(
+        { workspaceId, actorId: userId },
+        {
+          id: updatedTask.id,
+          title: updatedTask.title,
+          projectId: updatedTask.projectId,
+          creatorId: existing.createdBy,
+          assignedTo: updatedTask.assignedTo,
+        }
+      );
+    }
 
     return {
-      id: updated.id,
-      title: updated.title,
-      description: updated.description,
-      status: updated.status,
-      priority: updated.priority,
-      assigned_to: updated.assignedTo,
-      project_id: updated.projectId,
-      workspace_id: updated.workspaceId,
-      due_date: updated.dueDate ? new Date(updated.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      created_at: updated.createdAt ? new Date(updated.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      is_learning_task: updated.isLearningTask,
-      comments_count: commentsCount,
+      id: updatedTask.id,
+      title: updatedTask.title,
+      description: updatedTask.description || '',
+      status: updatedTask.status,
+      priority: updatedTask.priority,
+      assigned_to: updatedTask.assignedTo,
+      project_id: updatedTask.projectId,
+      workspace_id: updatedTask.workspaceId,
+      due_date: updatedTask.dueDate ? new Date(updatedTask.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      created_at: updatedTask.createdAt ? new Date(updatedTask.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      is_learning_task: updatedTask.isLearningTask || false,
+      comments_count: updatedTask.commentsCount || 0,
     };
   }
 
+  /**
+   * Delete task
+   */
   static async deleteTask(
     workspaceId: string,
     userId: string,
@@ -245,24 +357,40 @@ export class TaskService {
       throw error;
     }
 
-    const existing = inMemoryDb.tasks.get(taskId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('Task not found in active workspace.');
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
       throw error;
     }
 
-    inMemoryDb.tasks.delete(taskId);
-    Array.from(inMemoryDb.taskComments.entries()).forEach(([id, c]) => {
-      if (c.taskId === taskId) inMemoryDb.taskComments.delete(id);
-    });
-    return true;
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: task belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    // If employee, can only delete tasks created by them
+    if (role === 'employee' && existing.createdBy !== userId) {
+      const error: any = new Error('Employees may only delete tasks created by them.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    return await TaskRepository.deleteTask(workspaceId, taskId);
   }
 
-  // Task Comments
-  static async getComments(workspaceId: string, taskId: string): Promise<any[]> {
-    const task = inMemoryDb.tasks.get(taskId);
+  /**
+   * Get task comments
+   */
+  static async getComments(
+    workspaceId: string,
+    taskId: string
+  ): Promise<any[]> {
+    const task = await TaskRepository.getTaskById(workspaceId, taskId);
     if (!task || task.workspaceId !== workspaceId) {
       const error: any = new Error('Task not found in active workspace.');
       error.code = 'TASK_NOT_FOUND';
@@ -270,32 +398,41 @@ export class TaskService {
       throw error;
     }
 
-    const comments = Array.from(inMemoryDb.taskComments.values()).filter(
-      (c) => c.taskId === taskId && c.workspaceId === workspaceId
-    );
+    const comments = await TaskRepository.getComments(taskId, workspaceId);
 
-    return comments.map((c) => {
-      const author = inMemoryDb.users.get(c.userId);
-      return {
-        id: c.id,
-        task_id: c.taskId,
-        user_id: c.userId,
-        user_name: author?.name || 'Workspace Member',
-        user_avatar: author?.avatar || null,
-        user_role: author?.role || 'employee',
-        content: c.content,
-        created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
-      };
-    });
+    return comments.map((c: TaskCommentEntity) => ({
+      id: c.id,
+      task_id: c.taskId,
+      user_id: c.userId,
+      user_name: c.userName,
+      user_avatar: c.userAvatar,
+      user_role: c.userRole,
+      content: c.content,
+      created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
+    }));
   }
 
+  /**
+   * Add comment to task
+   */
   static async addComment(
     workspaceId: string,
     taskId: string,
     userId: string,
-    content: string
+    content: string,
+    rawRole?: UserRole | string
   ): Promise<any> {
-    const task = inMemoryDb.tasks.get(taskId);
+    const role = rawRole ? normalizeRole(rawRole) : 'employee';
+
+    // Interns are forbidden from commenting
+    if (role === 'intern') {
+      const error: any = new Error('Interns are forbidden from posting comments.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const task = await TaskRepository.getTaskById(workspaceId, taskId);
     if (!task || task.workspaceId !== workspaceId) {
       const error: any = new Error('Task not found in active workspace.');
       error.code = 'TASK_NOT_FOUND';
@@ -303,31 +440,24 @@ export class TaskService {
       throw error;
     }
 
-    const commentId = 'comment-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const now = new Date();
+    if (!content || !content.trim()) {
+      const error: any = new Error('Comment content cannot be empty.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
 
-    const newComment = {
-      id: commentId,
-      taskId,
-      workspaceId,
-      userId,
-      content: content.trim(),
-      createdAt: now,
-    };
-
-    inMemoryDb.taskComments.set(commentId, newComment);
-
-    const author = inMemoryDb.users.get(userId);
+    const comment = await TaskRepository.addComment(taskId, userId, content.trim(), workspaceId);
 
     return {
-      id: newComment.id,
-      task_id: newComment.taskId,
-      user_id: newComment.userId,
-      user_name: author?.name || 'Workspace Member',
-      user_avatar: author?.avatar || null,
-      user_role: author?.role || 'employee',
-      content: newComment.content,
-      created_at: newComment.createdAt.toISOString(),
+      id: comment.id,
+      task_id: comment.taskId,
+      user_id: comment.userId,
+      user_name: comment.userName,
+      user_avatar: comment.userAvatar,
+      user_role: comment.userRole,
+      content: comment.content,
+      created_at: comment.createdAt.toISOString(),
     };
   }
 }

@@ -8,10 +8,25 @@ import { taskRouter } from './routes/tasks';
 import { teamRouter } from './routes/teams';
 import { documentRouter } from './routes/documents';
 import { crmRouter } from './routes/crm';
+import { notificationRouter } from './routes/notifications';
+import { activityRouter } from './routes/activity';
+import { searchRouter } from './routes/search';
+import { automationRouter } from './routes/automations';
+import { presenceRouter } from './routes/presence';
 import { analyticsRouter, billingRouter, adminRouter } from './routes/protected-modules';
 import { env } from './config/env';
+import { requestLogger } from './middleware/logger';
+import {
+  authRateLimiter,
+  inviteRateLimiter,
+  workspaceRateLimiter,
+  apiRateLimiter,
+} from './middleware/rate-limiter';
 
 export const app = new Hono();
+
+// Structured Request & Error Logging
+app.use('*', requestLogger);
 
 // Helper to validate allowed origins: *.vercel.app, render, localhost, reject unknown
 function isOriginAllowed(origin: string): boolean {
@@ -124,15 +139,23 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Mount API routes
+// Mount API routes with Rate Limiting
+app.use('/api/auth/*', authRateLimiter);
+app.use('/auth/*', authRateLimiter);
 app.route('/api/auth', authRouter);
 app.route('/auth', authRouter);
 
+app.use('/api/invites/*', inviteRateLimiter);
+app.use('/invites/*', inviteRateLimiter);
+app.route('/api/invites', inviteRouter);
+app.route('/invites', inviteRouter);
+
+app.use('/api/workspace/*', workspaceRateLimiter);
+app.use('/workspace/*', workspaceRateLimiter);
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
 
-app.route('/api/invites', inviteRouter);
-app.route('/invites', inviteRouter);
+app.use('/api/*', apiRateLimiter);
 
 app.route('/api/projects', projectRouter);
 app.route('/projects', projectRouter);
@@ -148,6 +171,21 @@ app.route('/documents', documentRouter);
 
 app.route('/api/crm', crmRouter);
 app.route('/crm', crmRouter);
+
+app.route('/api/notifications', notificationRouter);
+app.route('/notifications', notificationRouter);
+
+app.route('/api/activity', activityRouter);
+app.route('/activity', activityRouter);
+
+app.route('/api/search', searchRouter);
+app.route('/search', searchRouter);
+
+app.route('/api/automations', automationRouter);
+app.route('/automations', automationRouter);
+
+app.route('/api/presence', presenceRouter);
+app.route('/presence', presenceRouter);
 
 app.route('/api/analytics', analyticsRouter);
 app.route('/analytics', analyticsRouter);

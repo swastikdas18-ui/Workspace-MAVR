@@ -34,6 +34,30 @@ const getLeadsHandler = async (c: any) => {
 crmRouter.get('/', requirePermission('crm:read'), getLeadsHandler);
 crmRouter.get('/leads', requirePermission('crm:read'), getLeadsHandler);
 
+const getSingleLeadHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const leadId = c.req.param('id');
+    const lead = await CrmService.getCrmRecordById(workspace.id, user.id, role, leadId);
+    return c.json({ lead }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'CRM_RECORD_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch CRM lead.' } },
+      status
+    );
+  }
+};
+
+crmRouter.get('/:id', requirePermission('crm:read'), getSingleLeadHandler);
+crmRouter.get('/leads/:id', requirePermission('crm:read'), getSingleLeadHandler);
+
 /**
  * POST /api/crm and /api/crm/leads - Create new CRM lead
  */
@@ -117,6 +141,8 @@ const updateLeadHandler = async (c: any) => {
 
 crmRouter.patch('/:id', updateLeadHandler);
 crmRouter.patch('/leads/:id', updateLeadHandler);
+crmRouter.put('/:id', updateLeadHandler);
+crmRouter.put('/leads/:id', updateLeadHandler);
 
 /**
  * DELETE /api/crm/:id and /api/crm/leads/:id - Delete CRM lead (Admin only)

@@ -1,6 +1,7 @@
-import { inMemoryDb } from '../../packages/database';
 import { UserRole } from '../types';
 import { can, normalizeRole } from '../lib/permissions';
+import { DocumentRepository } from '../repositories/document-repository';
+import { EventService } from './event-service';
 
 export interface CreateDocumentInput {
   title: string;
@@ -12,11 +13,16 @@ export interface CreateDocumentInput {
 }
 
 export class DocumentService {
-  static async getDocuments(workspaceId: string, userId: string, rawRole: UserRole | string): Promise<any[]> {
+  /**
+   * List documents in workspace filtered by role visibility rules
+   */
+  static async getDocuments(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string
+  ): Promise<any[]> {
     const role = normalizeRole(rawRole);
-    let docs = Array.from(inMemoryDb.documents.values()).filter(
-      (d) => d.workspaceId === workspaceId
-    );
+    let docs = await DocumentRepository.listDocuments(workspaceId);
 
     if (role === 'intern') {
       // Intern: strictly public or learning documents
@@ -42,6 +48,9 @@ export class DocumentService {
     }));
   }
 
+  /**
+   * Create / upload organization document
+   */
   static async createDocument(
     workspaceId: string,
     userId: string,
@@ -56,11 +65,21 @@ export class DocumentService {
       throw error;
     }
 
-    const docId = 'doc-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const now = new Date();
+    if (!workspaceId || !workspaceId.trim()) {
+      const error: any = new Error('Workspace ID is required.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
 
-    const newDoc = {
-      id: docId,
+    if (!input.title || !input.title.trim()) {
+      const error: any = new Error('Document title is required.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    const newDoc = await DocumentRepository.createDocument({
       title: input.title.trim(),
       fileUrl: input.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       fileType: input.fileType || 'pdf',
@@ -69,11 +88,19 @@ export class DocumentService {
       workspaceId,
       visibility: input.visibility || 'team',
       category: input.category || 'General',
-      downloadCount: 0,
-      createdAt: now,
-    };
+    });
 
-    inMemoryDb.documents.set(docId, newDoc);
+    // Emit event: Document Uploaded
+    await EventService.emitDocumentUploaded(
+      { workspaceId, actorId: userId },
+      {
+        id: newDoc.id,
+        title: newDoc.title,
+        fileType: newDoc.fileType,
+        visibility: newDoc.visibility,
+        category: newDoc.category,
+      }
+    );
 
     return {
       id: newDoc.id,
@@ -89,6 +116,63 @@ export class DocumentService {
     };
   }
 
+  /**
+   * Get single document by ID with workspace isolation & visibility checks
+   */
+  static async getDocumentById(
+    workspaceId: string,
+    documentId: string,
+    userId: string,
+    rawRole: UserRole | string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    const existing = await DocumentRepository.getDocumentById(workspaceId, documentId);
+
+    if (!existing) {
+      const error: any = new Error('Document not found.');
+      error.code = 'DOCUMENT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: document belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'intern' && existing.visibility !== 'public' && existing.visibility !== 'learning') {
+      const error: any = new Error('Interns are not authorized to view restricted documents.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'employee' && existing.visibility === 'private' && existing.ownerId !== userId) {
+      const error: any = new Error('Unauthorized to view private document.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    return {
+      id: existing.id,
+      title: existing.title,
+      file_url: existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
+      file_type: existing.fileType || 'pdf',
+      file_size: existing.fileSize || '1.2 MB',
+      owner_id: existing.ownerId,
+      visibility: existing.visibility || 'team',
+      category: existing.category || 'General',
+      created_at: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      download_count: existing.downloadCount || 0,
+    };
+  }
+
+  /**
+   * Delete document
+   */
   static async deleteDocument(
     workspaceId: string,
     documentId: string,
@@ -96,11 +180,19 @@ export class DocumentService {
     rawRole: UserRole | string
   ): Promise<boolean> {
     const role = normalizeRole(rawRole);
-    const existing = inMemoryDb.documents.get(documentId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('Document not found in active workspace.');
+    const existing = await DocumentRepository.getDocumentById(workspaceId, documentId);
+
+    if (!existing) {
+      const error: any = new Error('Document not found.');
       error.code = 'DOCUMENT_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: document belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
       throw error;
     }
 
@@ -111,21 +203,31 @@ export class DocumentService {
       throw error;
     }
 
-    inMemoryDb.documents.delete(documentId);
-    return true;
+    return await DocumentRepository.deleteDocument(workspaceId, documentId);
   }
 
+  /**
+   * Increment download count for document and return download payload
+   */
   static async incrementDownload(
     workspaceId: string,
     documentId: string,
     userId?: string,
     rawRole?: UserRole | string
   ): Promise<{ downloadCount: number; downloadUrl: string; title: string; fileType: string }> {
-    const existing = inMemoryDb.documents.get(documentId);
-    if (!existing || existing.workspaceId !== workspaceId) {
-      const error: any = new Error('Document not found in active workspace.');
+    const existing = await DocumentRepository.getDocumentById(workspaceId, documentId);
+
+    if (!existing) {
+      const error: any = new Error('Document not found.');
       error.code = 'DOCUMENT_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (existing.workspaceId !== workspaceId) {
+      const error: any = new Error('Workspace boundary violation: document belongs to another workspace.');
+      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
+      error.status = 403;
       throw error;
     }
 
@@ -145,10 +247,10 @@ export class DocumentService {
       }
     }
 
-    existing.downloadCount = (existing.downloadCount || 0) + 1;
-    inMemoryDb.documents.set(documentId, existing);
+    const updated = await DocumentRepository.incrementDownload(workspaceId, documentId);
+
     return {
-      downloadCount: existing.downloadCount,
+      downloadCount: updated ? updated.downloadCount : (existing.downloadCount || 0) + 1,
       downloadUrl: existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       title: existing.title,
       fileType: existing.fileType || 'pdf',

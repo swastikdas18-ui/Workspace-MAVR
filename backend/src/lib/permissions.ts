@@ -79,11 +79,13 @@ export function can(
         }
         return true;
 
-      // Tasks: can read, create, update, and comment. Cannot delete
+      // Tasks: can read, update assigned, and comment. Cannot create or delete organization resources
       case 'tasks:read':
-      case 'tasks:create':
       case 'tasks:comment':
         return true;
+      case 'tasks:create':
+      case 'tasks:delete':
+        return false;
       case 'tasks:update':
       case 'tasks:updateStatus':
         if (resource && context?.userId) {
@@ -96,8 +98,6 @@ export function can(
           return isAssigned || isCreator || isProjectOwner || projectMembers.includes(context.userId);
         }
         return true;
-      case 'tasks:delete':
-        return false;
 
       // Teams: can read directory, cannot create or manage teams or invite members
       case 'teams:read':
@@ -112,12 +112,13 @@ export function can(
       case 'workspace:delete':
         return false;
 
-      // Documents: can read public/team/learning docs, upload, download. Can delete ONLY owned docs
+      // Documents: can read public/team/learning docs, download. Cannot upload org docs without explicit permission. Can delete ONLY owned docs
       case 'documents:read':
-      case 'documents:createPersonal':
-      case 'documents:createOrg':
       case 'documents:download':
         return true;
+      case 'documents:createPersonal':
+      case 'documents:createOrg':
+        return false;
       case 'documents:delete':
         if (resource && context?.userId) {
           const ownerId = resource.owner_id || resource.ownerId;
@@ -125,19 +126,19 @@ export function can(
         }
         return true;
 
-      // CRM: can read and update assigned leads, create leads. Cannot delete leads
+      // CRM: can read and update assigned leads. Cannot create or delete leads
       case 'crm:read':
-      case 'crm:create':
       case 'crm:editNotes':
         return true;
+      case 'crm:create':
+      case 'crm:delete':
+        return false;
       case 'crm:update':
         if (resource && context?.userId) {
           const ownerId = resource.owner_id || resource.ownerId;
           return ownerId === context.userId;
         }
         return true;
-      case 'crm:delete':
-        return false;
 
       // Protected modules strictly forbidden for employees
       case 'billing:read':

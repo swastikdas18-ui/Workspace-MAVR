@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
-import { inMemoryDb } from '../../packages/database';
+import { AnalyticsRepository } from '../repositories/analytics-repository';
+import { AuditRepository } from '../repositories/audit-repository';
 
 export const analyticsRouter = new Hono();
 export const billingRouter = new Hono();
@@ -11,27 +12,25 @@ export const adminRouter = new Hono();
 analyticsRouter.use('*', authMiddleware, requireRole(['admin']));
 analyticsRouter.get('/', async (c) => {
   const workspace = c.get('workspace');
+  const metrics = await AnalyticsRepository.getWorkspaceMetrics(workspace?.id || '');
   return c.json({
-    analytics: {
-      activeMembers: inMemoryDb.workspaceMembers.size,
-      totalProjects: inMemoryDb.projects.size,
-      totalTasks: inMemoryDb.tasks.size,
-      completionRate: 88.5,
-      mrr: '$12,450',
-    },
+    analytics: metrics,
   });
 });
 
 analyticsRouter.get('/metrics', async (c) => {
   const workspace = c.get('workspace');
+  const metrics = await AnalyticsRepository.getWorkspaceMetrics(workspace?.id || '');
   return c.json({
-    metrics: {
-      activeMembers: inMemoryDb.workspaceMembers.size,
-      totalProjects: inMemoryDb.projects.size,
-      totalTasks: inMemoryDb.tasks.size,
-      completionRate: 88.5,
-      mrr: '$12,450',
-    },
+    metrics,
+  });
+});
+
+analyticsRouter.get('/search-metrics', async (c) => {
+  const workspace = c.get('workspace');
+  const searchMetrics = await AnalyticsRepository.getSearchMetrics(workspace?.id || '');
+  return c.json({
+    searchMetrics,
   });
 });
 
@@ -65,7 +64,18 @@ adminRouter.get('/', async (c) => {
   return c.json({
     status: 'healthy',
     database: 'connected',
-    tables: ['users', 'workspaces', 'workspace_members', 'projects', 'tasks', 'teams', 'documents', 'workspace_invites', 'task_comments'],
+    tables: [
+      'users',
+      'workspaces',
+      'workspace_members',
+      'projects',
+      'tasks',
+      'teams',
+      'documents',
+      'crm_records',
+      'workspace_invites',
+      'task_comments',
+    ],
   });
 });
 
@@ -73,6 +83,49 @@ adminRouter.get('/tools', async (c) => {
   return c.json({
     status: 'healthy',
     database: 'connected',
-    tables: ['users', 'workspaces', 'workspace_members', 'projects', 'tasks', 'teams', 'documents', 'workspace_invites', 'task_comments'],
+    tables: [
+      'users',
+      'workspaces',
+      'workspace_members',
+      'projects',
+      'tasks',
+      'teams',
+      'documents',
+      'crm_records',
+      'workspace_invites',
+      'task_comments',
+      'notifications',
+      'activity_logs',
+      'audit_logs',
+    ],
   });
+});
+
+/**
+ * GET /api/admin/audit - Access audit trail (ADMIN ONLY)
+ */
+adminRouter.get('/audit', async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 100;
+    const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0;
+    const resource = c.req.query('resource');
+
+    const logs = await AuditRepository.getAuditLogs(workspace.id, {
+      limit,
+      offset,
+      resource,
+    });
+
+    return c.json({ auditLogs: logs }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to fetch audit logs.' } },
+      500
+    );
+  }
 });

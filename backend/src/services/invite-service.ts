@@ -2,6 +2,7 @@ import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember
 import { hashPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
 import { sanitizeUser, sanitizeWorkspace } from './auth-service';
+import { EventService } from './event-service';
 
 export interface CreateInviteInput {
   workspaceId: string;
@@ -253,6 +254,18 @@ export class InviteService {
       inMemoryDb.workspaceInvites.set(rawInvite.id, rawInvite);
       inMemoryDb.workspaceInvites.set(token, rawInvite);
     }
+
+    // Emit event: Invite Accepted
+    await EventService.emitInviteAccepted(
+      { workspaceId: invite.workspace_id, actorId: userId },
+      {
+        id: invite.id,
+        email: invite.email,
+        role: assignedRole,
+        invitedBy: invite.invited_by,
+        teamId: invite.team_id,
+      }
+    );
 
     // Create session token
     const sessionToken = generateSessionToken();

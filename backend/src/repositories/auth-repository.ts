@@ -85,7 +85,7 @@ export const AuthRepository = {
   async deleteSession(token: string): Promise<boolean> {
     const db = getDb();
     if (!db) throw new Error('DB_NOT_INITIALIZED');
-    const { affected } = await db.delete(sessions).where(eq(sessions.token, token));
-    return affected > 0;
+    await db.delete(sessions).where(eq(sessions.token, token));
+    return true;
   },
 };

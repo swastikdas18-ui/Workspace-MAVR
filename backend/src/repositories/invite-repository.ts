@@ -1,8 +1,8 @@
 // Invite Repository (Drizzle ORM)
 import { eq } from 'drizzle-orm';
-import { getDb } from '../packages/database/connection';
-import { workspaceInvites } from '../packages/database/schema';
-import { WorkspaceInvite } from '../packages/database/types';
+import { getDb } from '../../packages/database/connection';
+import { workspaceInvites } from '../../packages/database/schema';
+import { WorkspaceInvite } from '../../packages/database/types';
 
 export class InviteRepository {
   /** Create a new invite */

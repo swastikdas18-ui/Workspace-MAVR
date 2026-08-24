@@ -352,6 +352,79 @@ export class PresenceManagerEngine {
   }
 
   /**
+   * Check if user is online in workspace
+   */
+  public isUserOnline(userId: string, workspaceId: string): boolean {
+    const key = `${workspaceId}:${userId}`;
+    const state = this.presenceStates.get(key);
+    return !!state && (state.status === 'online' || state.status === 'away') && state.socketIds.size > 0;
+  }
+
+  /**
+   * Alias for step requirements: userConnected()
+   */
+  public async userConnected(
+    userId: string,
+    workspaceId: string,
+    socketId: string,
+    userInfo?: { name?: string; email?: string; role?: UserRole | string; avatar?: string | null },
+    metadata?: Record<string, any>
+  ): Promise<UserPresenceState> {
+    return this.setUserOnline(userId, workspaceId, socketId, userInfo, metadata);
+  }
+
+  /**
+   * Alias for step requirements: userDisconnected()
+   */
+  public async userDisconnected(
+    userId: string,
+    workspaceId: string,
+    socketId: string
+  ): Promise<void> {
+    return this.handleDisconnect(userId, workspaceId, socketId);
+  }
+
+  /**
+   * Alias for step requirements: setAway()
+   */
+  public async setAway(userId: string, workspaceId: string): Promise<UserPresenceState | null> {
+    return this.setStatus(userId, workspaceId, 'away');
+  }
+
+  /**
+   * Cleanup stale connections older than maxAgeMs
+   */
+  public async cleanupStaleConnections(maxAgeMs = 120000): Promise<number> {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [key, state] of this.presenceStates.entries()) {
+      const timeSinceLastSeen = now - state.lastSeen.getTime();
+      if (timeSinceLastSeen > maxAgeMs) {
+        state.status = 'offline';
+        state.socketIds.clear();
+        cleaned++;
+
+        PresenceRepository.upsertPresence({
+          userId: state.userId,
+          workspaceId: state.workspaceId,
+          status: 'offline',
+          metadata: state.metadata,
+        }).catch(() => {});
+
+        EventBus.publishWorkspaceEvent(state.workspaceId, 'user_offline', {
+          userId: state.userId,
+          workspaceId: state.workspaceId,
+          status: 'offline',
+          lastSeen: new Date().toISOString(),
+        });
+      }
+    }
+
+    return cleaned;
+  }
+
+  /**
    * Reset presence state for test isolation
    */
   public reset(): void {

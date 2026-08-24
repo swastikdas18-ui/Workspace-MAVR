@@ -152,8 +152,9 @@ export class EventService {
    */
   static async emitTaskAssigned(
     ctx: BaseEventContext,
-    task: { id: string; title: string; projectId: string; previousAssignee?: string; newAssignee: string; [key: string]: any }
+    task: { id: string; title: string; projectId: string; previousAssignee?: string; newAssignee?: string; assignedTo?: string; [key: string]: any }
   ) {
+    const assignee = task.assignedTo || task.newAssignee || '';
     const db = getDb();
     const execute = async (tx?: any) => {
       // 1. Activity Log
@@ -166,7 +167,8 @@ export class EventService {
           action: 'assigned',
           metadata: {
             title: task.title,
-            newAssignee: task.newAssignee,
+            newAssignee: assignee,
+            assignedTo: assignee,
             previousAssignee: task.previousAssignee,
           },
         },
@@ -174,11 +176,11 @@ export class EventService {
       );
 
       // 2. Notification to new assignee
-      if (task.newAssignee && task.newAssignee !== ctx.actorId) {
+      if (assignee && assignee !== ctx.actorId) {
         await NotificationRepository.createNotification(
           {
             workspaceId: ctx.workspaceId,
-            userId: task.newAssignee,
+            userId: assignee,
             title: 'Task Assigned To You',
             message: `You were assigned to "${task.title}".`,
             type: 'task_assigned',
@@ -197,7 +199,7 @@ export class EventService {
           resource: 'task',
           resourceId: task.id,
           oldValues: { assignedTo: task.previousAssignee },
-          newValues: { assignedTo: task.newAssignee },
+          newValues: { assignedTo: assignee },
           ipAddress: ctx.ipAddress,
           userAgent: ctx.userAgent,
         },
@@ -224,7 +226,7 @@ export class EventService {
       'task_assigned',
       'task',
       task.id,
-      { ...task, assignedTo: task.newAssignee },
+      { ...task, assignedTo: assignee },
       {
         actorId: ctx.actorId,
         ipAddress: ctx.ipAddress || undefined,
@@ -236,18 +238,18 @@ export class EventService {
     EventBus.publishWorkspaceEvent(
       ctx.workspaceId,
       'task_assigned',
-      { ...task, assignedTo: task.newAssignee },
+      { ...task, assignedTo: assignee },
       {
         actorId: ctx.actorId,
         entityType: 'task',
         entityId: task.id,
-        targetUserId: task.newAssignee,
+        targetUserId: assignee,
       }
     );
     EventBus.publishWorkspaceEvent(
       ctx.workspaceId,
       'task_updated',
-      { ...task, assignedTo: task.newAssignee },
+      { ...task, assignedTo: assignee },
       {
         actorId: ctx.actorId,
         entityType: 'task',
@@ -354,6 +356,88 @@ export class EventService {
       ctx.workspaceId,
       'task_updated',
       { ...task, status: 'completed' },
+      {
+        actorId: ctx.actorId,
+        entityType: 'task',
+        entityId: task.id,
+      }
+    );
+  }
+
+  /**
+   * Emit when a task is updated
+   */
+  static async emitTaskUpdated(
+    ctx: BaseEventContext,
+    task: { id: string; title: string; projectId: string; oldValues?: Record<string, any>; newValues?: Record<string, any>; [key: string]: any }
+  ) {
+    const changes = task.newValues || {};
+    const db = getDb();
+    const execute = async (tx?: any) => {
+      // 1. Activity Log
+      await ActivityRepository.logActivity(
+        {
+          workspaceId: ctx.workspaceId,
+          userId: ctx.actorId,
+          entityType: 'task',
+          entityId: task.id,
+          action: 'updated',
+          metadata: {
+            title: task.title,
+            changes,
+          },
+        },
+        tx
+      );
+
+      // 2. Audit Log
+      await AuditRepository.logAudit(
+        {
+          workspaceId: ctx.workspaceId,
+          userId: ctx.actorId,
+          action: 'UPDATE_TASK',
+          resource: 'task',
+          resourceId: task.id,
+          oldValues: task.oldValues || null,
+          newValues: changes,
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+        },
+        tx
+      );
+    };
+
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          await execute(tx);
+        });
+      } catch {
+        await execute();
+      }
+    } else {
+      await execute();
+    }
+
+    // Process Automation Engine Rules
+    await AutomationService.processEvent(
+      ctx.workspaceId,
+      'task_updated',
+      'task',
+      task.id,
+      { ...task, ...changes },
+      {
+        actorId: ctx.actorId,
+        ipAddress: ctx.ipAddress || undefined,
+        userAgent: ctx.userAgent || undefined,
+      }
+    );
+
+    // Real-Time EventBus Broadcast
+    EventBus.publishWorkspaceEvent(
+      ctx.workspaceId,
+      'task_updated',
+      { ...task, ...changes, newValues: changes },
       {
         actorId: ctx.actorId,
         entityType: 'task',
@@ -637,6 +721,20 @@ export class EventService {
         }
       );
     }
+  }
+
+  /**
+   * Emit when a project is completed
+   */
+  static async emitProjectCompleted(
+    ctx: BaseEventContext,
+    project: { id: string; title: string; progress?: number; [key: string]: any }
+  ) {
+    return this.emitProjectUpdated(ctx, {
+      id: project.id,
+      title: project.title,
+      newValues: { status: 'completed', progress: project.progress ?? 100, ...project },
+    });
   }
 
   /**
@@ -1223,6 +1321,30 @@ export class EventService {
         }
       );
     }
+  }
+
+  /**
+   * Alias for emitCrmCreated
+   */
+  static async emitCrmLeadCreated(
+    ctx: BaseEventContext,
+    crm: { id: string; customerName: string; company: string; status: string; dealValue?: number; ownerId?: string; [key: string]: any }
+  ) {
+    return this.emitCrmCreated(ctx, crm);
+  }
+
+  /**
+   * Emit when CRM record is lost
+   */
+  static async emitCrmLost(
+    ctx: BaseEventContext,
+    crm: { id: string; customerName: string; company: string; reason?: string; dealValue?: number; [key: string]: any }
+  ) {
+    return this.emitCrmStageChanged(ctx, {
+      ...crm,
+      newStatus: 'lost',
+      previousStatus: crm.previousStatus || 'negotiation',
+    });
   }
 
   /**

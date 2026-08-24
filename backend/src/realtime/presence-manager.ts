@@ -74,7 +74,7 @@ export class PresenceManagerEngine {
       workspaceId,
       status: 'online',
       metadata: state.metadata,
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Broadcast presence update event to workspace
     EventBus.publishWorkspaceEvent(workspaceId, 'user_online', {
@@ -123,7 +123,7 @@ export class PresenceManagerEngine {
         workspaceId,
         status,
         metadata: state.metadata,
-      }).catch(() => {});
+      }).catch(() => { });
 
       EventBus.publishWorkspaceEvent(workspaceId, 'status_changed', {
         userId,
@@ -151,7 +151,7 @@ export class PresenceManagerEngine {
       userId,
       workspaceId,
       status,
-    }).catch(() => {});
+    }).catch(() => { });
 
     EventBus.publishWorkspaceEvent(workspaceId, 'status_changed', {
       userId,
@@ -195,7 +195,7 @@ export class PresenceManagerEngine {
           workspaceId,
           status: 'offline',
           metadata: state.metadata,
-        }).catch(() => {});
+        }).catch(() => { });
 
         EventBus.publishWorkspaceEvent(workspaceId, 'user_offline', {
           userId,
@@ -410,7 +410,7 @@ export class PresenceManagerEngine {
           workspaceId: state.workspaceId,
           status: 'offline',
           metadata: state.metadata,
-        }).catch(() => {});
+        }).catch(() => { });
 
         EventBus.publishWorkspaceEvent(state.workspaceId, 'user_offline', {
           userId: state.userId,

@@ -458,6 +458,94 @@ export async function runRealtimeTests() {
     const internGotCrm = internClient.messages.some((m) => m.type === 'crm_won' || m.type === 'crm_stage_changed');
     assert(!internGotCrm, 'Step 5.10: RBAC enforced: Intern received 0 CRM real-time events');
 
+    // 5.11: Project Lifecycle - project_created
+    await EventService.emitProjectCreated(
+      { workspaceId: alphaWorkspaceId, actorId: adminUserId },
+      { id: 'proj-new-1', title: 'New Realtime Project', status: 'planning', progress: 0 }
+    );
+    const projCreatedMsg = await alphaEmpClient.waitForMessage((m) => m.type === 'project_created' && m.payload?.id === 'proj-new-1');
+    assert(projCreatedMsg !== null, 'Step 5.11: Live project_created broadcast received by workspace members');
+    assert(projCreatedMsg.payload.title === 'New Realtime Project', 'Step 5.12: project_created payload title verified');
+
+    // 5.13: Project Lifecycle - project_completed
+    await EventService.emitProjectCompleted(
+      { workspaceId: alphaWorkspaceId, actorId: adminUserId },
+      { id: 'proj-new-1', title: 'New Realtime Project', status: 'completed', progress: 100 }
+    );
+    const projCompletedMsg = await alphaEmpClient.waitForMessage((m) => m.type === 'project_completed' && m.payload?.id === 'proj-new-1');
+    assert(projCompletedMsg !== null, 'Step 5.13: Live project_completed broadcast received');
+    assert(projCompletedMsg.payload.progress === 100, 'Step 5.14: project_completed payload progress is 100%');
+
+    // 5.15: Task Lifecycle - task_assigned
+    await EventService.emitTaskAssigned(
+      { workspaceId: alphaWorkspaceId, actorId: adminUserId },
+      { id: 'task-102', title: 'Assigned Task Test', projectId: 'proj-1', assignedTo: empUserId, assigneeName: 'Bob Employee' }
+    );
+    const taskAssignedMsg = await alphaEmpClient.waitForMessage((m) => m.type === 'task_assigned' && m.payload?.id === 'task-102');
+    assert(taskAssignedMsg !== null, 'Step 5.15: Live task_assigned broadcast received');
+    assert(taskAssignedMsg.payload.assignedTo === empUserId, 'Step 5.16: task_assigned target user ID verified');
+
+    // 5.17: Task Lifecycle - task_updated
+    await EventService.emitTaskUpdated(
+      { workspaceId: alphaWorkspaceId, actorId: empUserId },
+      { id: 'task-102', title: 'Assigned Task Test', projectId: 'proj-1', newValues: { priority: 'urgent' } }
+    );
+    const taskUpdatedMsg = await adminClient.waitForMessage((m) => m.type === 'task_updated' && m.payload?.id === 'task-102' && m.payload?.newValues?.priority === 'urgent');
+    assert(taskUpdatedMsg !== null, 'Step 5.17: Live task_updated broadcast received for Kanban sync');
+    assert(taskUpdatedMsg.payload.newValues?.priority === 'urgent', 'Step 5.18: task_updated payload changes verified');
+
+    // 5.19: CRM Lifecycle - crm_created
+    await EventService.emitCrmLeadCreated(
+      { workspaceId: alphaWorkspaceId, actorId: adminUserId },
+      { id: 'crm-88', customerName: 'Zenith Labs', company: 'Zenith', status: 'new_lead', dealValue: 25000, ownerId: empUserId }
+    );
+    const crmCreatedMsg = await alphaEmpClient.waitForMessage((m) => m.type === 'crm_created' && m.payload?.id === 'crm-88');
+    assert(crmCreatedMsg !== null, 'Step 5.19: Live crm_created broadcast received by workspace employees');
+    assert(crmCreatedMsg.payload.company === 'Zenith', 'Step 5.20: crm_created payload company verified');
+
+    // 5.21: CRM Lifecycle - crm_lost
+    await EventService.emitCrmLost(
+      { workspaceId: alphaWorkspaceId, actorId: adminUserId },
+      { id: 'crm-88', customerName: 'Zenith Labs', company: 'Zenith', dealValue: 25000, reason: 'Budget constraints' }
+    );
+    const crmLostMsg = await adminClient.waitForMessage((m) => m.type === 'crm_lost' && m.payload?.id === 'crm-88');
+    assert(crmLostMsg !== null, 'Step 5.21: Live crm_lost broadcast received');
+    assert(crmLostMsg.payload.reason === 'Budget constraints', 'Step 5.22: crm_lost reason verified');
+
+    // 5.23: Realtime Search Analytics Event - search_metrics_updated
+    EventBus.publishWorkspaceEvent(alphaWorkspaceId, 'search_metrics_updated', {
+      totalSearches: 42,
+      topQuery: 'realtime collaboration',
+      timestamp: new Date().toISOString()
+    });
+    const searchMetricsMsg = await adminClient.waitForMessage((m) => m.type === 'search_metrics_updated');
+    assert(searchMetricsMsg !== null, 'Step 5.23: Live search_metrics_updated broadcast received by admin subscriber');
+    assert(searchMetricsMsg.payload.totalSearches === 42, 'Step 5.24: search_metrics_updated payload verified');
+
+    // 5.25: Direct PresenceManager API calls testing
+    await PresenceManager.setAway(empUserId, alphaWorkspaceId);
+    assert(PresenceManager.isUserOnline(empUserId, alphaWorkspaceId), 'Step 5.25: PresenceManager.setAway keeps user in active online state');
+
+    const alphaPresenceListAdmin = await PresenceManager.getWorkspacePresence(alphaWorkspaceId, 'admin');
+    assert(Array.isArray(alphaPresenceListAdmin), 'Step 5.26: PresenceManager.getWorkspacePresence for Admin returns list');
+    assert(alphaPresenceListAdmin.some((p) => p.userId === empUserId), 'Step 5.27: Admin view contains Employee entry');
+
+    const alphaPresenceListIntern = await PresenceManager.getWorkspacePresence(alphaWorkspaceId, 'intern');
+    assert(Array.isArray(alphaPresenceListIntern), 'Step 5.28: PresenceManager.getWorkspacePresence for Intern returns restricted list');
+    const internEntry = alphaPresenceListIntern.find((p) => p.userId === empUserId);
+    assert(internEntry !== undefined, 'Step 5.29: Intern view contains basic member entry');
+    assert((internEntry as any)?.metadata?.socketCount === undefined, 'Step 5.30: Intern view does not leak internal socketCount metadata');
+
+    const cleanedCount = await PresenceManager.cleanupStaleConnections(1000000);
+    assert(typeof cleanedCount === 'number', 'Step 5.31: cleanupStaleConnections executes gracefully');
+
+    const analyticsRealtime = AnalyticsRepository.getRealtimeMetrics(alphaWorkspaceId);
+    assert(analyticsRealtime.activeConnections >= 3, 'Step 5.32: AnalyticsRepository.getRealtimeMetrics tracks activeConnections');
+    assert(analyticsRealtime.peakConnections >= 3, 'Step 5.33: AnalyticsRepository.getRealtimeMetrics tracks peakConnections');
+    assert(analyticsRealtime.onlineUsers >= 2, 'Step 5.34: AnalyticsRepository.getRealtimeMetrics tracks onlineUsers');
+    assert(analyticsRealtime.dailyEvents > 0, 'Step 5.35: AnalyticsRepository.getRealtimeMetrics tracks dailyEvents');
+    assert(analyticsRealtime.broadcastCount > 0, 'Step 5.36: AnalyticsRepository.getRealtimeMetrics tracks broadcastCount');
+
     // -------------------------------------------------------------------------
     // STEP 6: Presence REST API & Real-Time Stats
     // -------------------------------------------------------------------------
@@ -588,3 +676,14 @@ export async function runRealtimeTests() {
     });
   }
 }
+
+// Auto-run if executed directly
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.includes('realtime-collaboration.test')) {
+  runRealtimeTests().then(() => {
+    process.exit(0);
+  }).catch((err) => {
+    console.error('Test execution failed:', err);
+    process.exit(1);
+  });
+}
+

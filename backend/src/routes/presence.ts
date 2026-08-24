@@ -26,13 +26,14 @@ presenceRouter.get('/', async (c) => {
   const userRole = workspace?.roleInWorkspace || user.role || 'employee';
 
   const presenceList = await PresenceManager.getWorkspacePresence(workspaceId, userRole);
+  const activeCount = presenceList.filter((p) => p.status === 'online' || p.status === 'away').length;
 
   return c.json({
     data: presenceList,
     meta: {
       workspaceId,
       total: presenceList.length,
-      onlineCount: presenceList.filter((p) => p.status === 'online').length,
+      onlineCount: activeCount,
       requesterRole: userRole,
     },
   });

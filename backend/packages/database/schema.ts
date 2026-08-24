@@ -434,6 +434,74 @@ export const userPresence = pgTable(
   })
 );
 
+// Subscriptions table (Free, Starter, Business, Enterprise)
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    plan: text('plan').notNull().default('free'), // 'free' | 'starter' | 'business' | 'enterprise'
+    status: text('status').notNull().default('active'), // 'active' | 'trialing' | 'past_due' | 'canceled'
+    billingCycle: text('billing_cycle').notNull().default('monthly'), // 'monthly' | 'yearly'
+    seats: integer('seats').notNull().default(5),
+    pricePerMonth: integer('price_per_month').notNull().default(0), // in USD dollars or cents
+    currentPeriodStart: timestamp('current_period_start').defaultNow().notNull(),
+    currentPeriodEnd: timestamp('current_period_end').notNull(),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: uniqueIndex('idx_subscriptions_ws_id').on(table.workspaceId),
+    planIdx: index('idx_subscriptions_plan').on(table.plan),
+    statusIdx: index('idx_subscriptions_status').on(table.status),
+  })
+);
+
+// Usage Metrics Table (Meters consumption for members, projects, storage, api requests, automations)
+export const usageMetrics = pgTable(
+  'usage_metrics',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    period: text('period').notNull(), // 'YYYY-MM'
+    membersCount: integer('members_count').notNull().default(1),
+    projectsCount: integer('projects_count').notNull().default(0),
+    storageBytes: integer('storage_bytes').notNull().default(0),
+    apiRequestsCount: integer('api_requests_count').notNull().default(0),
+    automationsCount: integer('automations_count').notNull().default(0),
+    activeUsersCount: integer('active_users_count').notNull().default(1),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsPeriodIdx: uniqueIndex('idx_usage_metrics_ws_period').on(table.workspaceId, table.period),
+    wsIdx: index('idx_usage_metrics_ws_id').on(table.workspaceId),
+  })
+);
+
+// Invoices table
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(), // e.g. 4900 for $49.00
+    currency: text('currency').notNull().default('usd'),
+    status: text('status').notNull().default('paid'), // 'paid' | 'open' | 'void' | 'uncollectible'
+    invoiceNumber: text('invoice_number').notNull(),
+    pdfUrl: text('pdf_url'),
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+    paidAt: timestamp('paid_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_invoices_ws_id').on(table.workspaceId),
+    statusIdx: index('idx_invoices_status').on(table.status),
+    invNumIdx: uniqueIndex('idx_invoices_number').on(table.invoiceNumber),
+  })
+);
+
 // Relational Definitions
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

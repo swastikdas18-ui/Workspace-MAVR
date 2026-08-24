@@ -14,7 +14,9 @@ import { searchRouter } from './routes/search';
 import { automationRouter } from './routes/automations';
 import { presenceRouter } from './routes/presence';
 import { healthRouter } from './routes/health';
-import { analyticsRouter, billingRouter, adminRouter } from './routes/protected-modules';
+import { billingRouter } from './routes/billing';
+import { executiveRouter } from './routes/executive';
+import { analyticsRouter, adminRouter } from './routes/protected-modules';
 import { env } from './config/env';
 import { requestLogger } from './middleware/logger';
 import { securityHeaders } from './middleware/security';
@@ -182,6 +184,9 @@ app.route('/analytics', analyticsRouter);
 
 app.route('/api/billing', billingRouter);
 app.route('/billing', billingRouter);
+
+app.route('/api/executive', executiveRouter);
+app.route('/executive', executiveRouter);
 
 app.route('/api/admin', adminRouter);
 app.route('/admin', adminRouter);

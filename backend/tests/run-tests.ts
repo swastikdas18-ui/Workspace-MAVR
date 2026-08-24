@@ -4,6 +4,7 @@ import { runAutomationTests } from './automation-engine.test';
 import { runRealtimeTests } from './realtime-collaboration.test';
 import { runCommandPaletteRegressionTests } from './command-palette.test';
 import { runInfrastructureHardeningTests } from './infrastructure-hardening.test';
+import { runRevenueOperationsTests } from './revenue-operations.test';
 
 async function main() {
   try {
@@ -12,6 +13,7 @@ async function main() {
     await runAutomationTests();
     await runCommandPaletteRegressionTests();
     await runInfrastructureHardeningTests();
+    await runRevenueOperationsTests();
     await runRealtimeTests();
     process.exit(0);
   } catch (err) {

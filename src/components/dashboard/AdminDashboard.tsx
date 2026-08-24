@@ -9,6 +9,7 @@ import {
 import { MetricCard } from '../common/MetricCard';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { motion } from 'motion/react';
 
 export const AdminDashboard: React.FC = () => {
@@ -25,6 +26,8 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Onboarding Checklist for Rapid 3-Minute Activation */}
+      <OnboardingChecklist />
       {/* TOP SECTION: Executive Welcome & Quick Actions */}
       <div className="relative rounded-2xl bg-gradient-to-r from-[#111827] via-[#0F172A] to-[#1E1B4B] border border-white/[0.08] p-6 sm:p-8 overflow-hidden shadow-2xl">
         <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />

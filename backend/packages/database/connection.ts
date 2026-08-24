@@ -25,6 +25,9 @@ export class InMemoryDatabase {
   public automationActions: Map<string, any> = new Map();
   public automationExecutions: Map<string, any> = new Map();
   public userPresence: Map<string, any> = new Map();
+  public subscriptions: Map<string, any> = new Map();
+  public usageMetrics: Map<string, any> = new Map();
+  public invoices: Map<string, any> = new Map();
 
   public reset() {
     this.users.clear();
@@ -47,6 +50,9 @@ export class InMemoryDatabase {
     this.automationActions.clear();
     this.automationExecutions.clear();
     this.userPresence.clear();
+    this.subscriptions.clear();
+    this.usageMetrics.clear();
+    this.invoices.clear();
   }
 }
 

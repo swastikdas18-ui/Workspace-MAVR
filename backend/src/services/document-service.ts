@@ -1,6 +1,8 @@
 import { UserRole } from '../types';
 import { can, normalizeRole } from '../lib/permissions';
 import { DocumentRepository } from '../repositories/document-repository';
+import { ObjectStorageService, StorageService } from './object-storage-service';
+import { AuditRepository } from '../repositories/audit-repository';
 import { EventService } from './event-service';
 
 export interface CreateDocumentInput {
@@ -8,6 +10,13 @@ export interface CreateDocumentInput {
   fileUrl?: string;
   fileType?: string;
   fileSize?: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
+  storageKey?: string;
+  storageUrl?: string;
+  r2Key?: string;
+  r2Url?: string;
+  content?: string | Buffer;
   visibility?: 'public' | 'team' | 'private' | 'learning';
   category?: string;
 }
@@ -37,9 +46,15 @@ export class DocumentService {
     return docs.map((d) => ({
       id: d.id,
       title: d.title,
-      file_url: d.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
+      file_url: d.storageUrl || d.r2Url || d.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       file_type: d.fileType || 'pdf',
       file_size: d.fileSize || '1.2 MB',
+      file_size_bytes: d.fileSizeBytes || 1024 * 100,
+      mime_type: d.mimeType || 'application/pdf',
+      storage_key: d.storageKey || d.r2Key || null,
+      storage_url: d.storageUrl || d.r2Url || null,
+      r2_key: d.r2Key || d.storageKey || null,
+      r2_url: d.r2Url || d.storageUrl || null,
       owner_id: d.ownerId,
       visibility: d.visibility || 'team',
       category: d.category || 'General',
@@ -49,7 +64,7 @@ export class DocumentService {
   }
 
   /**
-   * Create / upload organization document
+   * Create / upload organization document to Backblaze B2 Object Storage
    */
   static async createDocument(
     workspaceId: string,
@@ -79,15 +94,49 @@ export class DocumentService {
       throw error;
     }
 
+    const docId = 'doc-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const fileType = input.fileType || 'pdf';
+    const mimeType = input.mimeType || (fileType === 'pdf' ? 'application/pdf' : 'application/octet-stream');
+    const filename = `${input.title.toLowerCase().replace(/[^a-z0-9]/g, '_')}.${fileType}`;
+    const fileContent = input.content || Buffer.from(`Workspace OS Document Vault: ${input.title}`);
+
+    // Upload to Backblaze B2 / Object Storage with tenant path isolation
+    const storageResult = await ObjectStorageService.uploadObject({
+      workspaceId,
+      documentId: docId,
+      filename,
+      body: fileContent,
+      contentType: mimeType,
+    });
+
+    const fileSizeFormatted = `${(storageResult.sizeBytes / 1024).toFixed(1)} KB`;
+
     const newDoc = await DocumentRepository.createDocument({
+      id: docId,
       title: input.title.trim(),
-      fileUrl: input.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
-      fileType: input.fileType || 'pdf',
-      fileSize: input.fileSize || '1.5 MB',
+      fileUrl: storageResult.url,
+      fileType,
+      fileSize: input.fileSize || fileSizeFormatted,
+      fileSizeBytes: storageResult.sizeBytes,
+      mimeType,
+      storageKey: storageResult.key,
+      storageUrl: storageResult.url,
+      r2Key: storageResult.key,
+      r2Url: storageResult.url,
       ownerId: userId,
       workspaceId,
       visibility: input.visibility || 'team',
       category: input.category || 'General',
+    });
+
+    // Audit Log Entry
+    await AuditRepository.logAudit({
+      workspaceId,
+      userId,
+      action: 'document_uploaded',
+      resource: 'document',
+      resourceId: newDoc.id,
+      newValues: { title: newDoc.title, storageKey: newDoc.storageKey, sizeBytes: newDoc.fileSizeBytes },
     });
 
     // Emit event: Document Uploaded
@@ -108,6 +157,12 @@ export class DocumentService {
       file_url: newDoc.fileUrl,
       file_type: newDoc.fileType,
       file_size: newDoc.fileSize,
+      file_size_bytes: newDoc.fileSizeBytes,
+      mime_type: newDoc.mimeType,
+      storage_key: newDoc.storageKey,
+      storage_url: newDoc.storageUrl,
+      r2_key: newDoc.r2Key,
+      r2_url: newDoc.r2Url,
       owner_id: newDoc.ownerId,
       visibility: newDoc.visibility,
       category: newDoc.category,
@@ -159,9 +214,15 @@ export class DocumentService {
     return {
       id: existing.id,
       title: existing.title,
-      file_url: existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
+      file_url: existing.storageUrl || existing.r2Url || existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       file_type: existing.fileType || 'pdf',
       file_size: existing.fileSize || '1.2 MB',
+      file_size_bytes: existing.fileSizeBytes || 1024 * 100,
+      mime_type: existing.mimeType || 'application/pdf',
+      storage_key: existing.storageKey || existing.r2Key || null,
+      storage_url: existing.storageUrl || existing.r2Url || null,
+      r2_key: existing.r2Key || existing.storageKey || null,
+      r2_url: existing.r2Url || existing.storageUrl || null,
       owner_id: existing.ownerId,
       visibility: existing.visibility || 'team',
       category: existing.category || 'General',
@@ -171,7 +232,7 @@ export class DocumentService {
   }
 
   /**
-   * Delete document
+   * Delete document and purge object from Backblaze B2
    */
   static async deleteDocument(
     workspaceId: string,
@@ -203,18 +264,40 @@ export class DocumentService {
       throw error;
     }
 
-    return await DocumentRepository.deleteDocument(workspaceId, documentId);
+    const key = existing.storageKey || existing.r2Key;
+    // Delete from Backblaze B2 if key exists
+    if (key) {
+      try {
+        await ObjectStorageService.deleteObject(workspaceId, key);
+      } catch (err) {
+        console.warn(`[Object Storage Deletion Warning]: Failed to delete object ${key}:`, err);
+      }
+    }
+
+    const deleted = await DocumentRepository.deleteDocument(workspaceId, documentId);
+
+    // Audit Log Entry
+    await AuditRepository.logAudit({
+      workspaceId,
+      userId,
+      action: 'document_deleted',
+      resource: 'document',
+      resourceId: documentId,
+      oldValues: { title: existing.title, storageKey: key },
+    });
+
+    return deleted;
   }
 
   /**
-   * Increment download count for document and return download payload
+   * Increment download count for document and return signed Backblaze B2 download URL (15 min expiry)
    */
   static async incrementDownload(
     workspaceId: string,
     documentId: string,
     userId?: string,
     rawRole?: UserRole | string
-  ): Promise<{ downloadCount: number; downloadUrl: string; title: string; fileType: string }> {
+  ): Promise<{ downloadCount: number; downloadUrl: string; signedUrl: string; title: string; fileType: string }> {
     const existing = await DocumentRepository.getDocumentById(workspaceId, documentId);
 
     if (!existing) {
@@ -247,11 +330,31 @@ export class DocumentService {
       }
     }
 
+    const key = existing.storageKey || existing.r2Key;
+    let signedUrl = existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80';
+    if (key) {
+      // 15 minutes = 900 seconds
+      signedUrl = await ObjectStorageService.getSignedDownloadUrl(workspaceId, key, 900);
+    }
+
     const updated = await DocumentRepository.incrementDownload(workspaceId, documentId);
+
+    // Audit Log Entry
+    if (userId) {
+      await AuditRepository.logAudit({
+        workspaceId,
+        userId,
+        action: 'document_downloaded',
+        resource: 'document',
+        resourceId: documentId,
+        newValues: { title: existing.title, storageKey: key },
+      });
+    }
 
     return {
       downloadCount: updated ? updated.downloadCount : (existing.downloadCount || 0) + 1,
-      downloadUrl: existing.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
+      downloadUrl: signedUrl,
+      signedUrl,
       title: existing.title,
       fileType: existing.fileType || 'pdf',
     };

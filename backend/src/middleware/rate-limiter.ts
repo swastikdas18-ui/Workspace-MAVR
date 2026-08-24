@@ -7,6 +7,10 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>();
 
+export function resetRateLimits() {
+  rateLimitStore.clear();
+}
+
 // Clean up expired buckets every 5 minutes
 setInterval(() => {
   const now = Date.now();

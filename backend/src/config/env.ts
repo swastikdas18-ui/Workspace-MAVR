@@ -10,6 +10,13 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DEMO_MODE: z.string().default('true').transform((val) => val === 'true' || val === '1'),
+  // Backblaze B2 S3-Compatible Object Storage
+  B2_KEY_ID: z.string().optional(),
+  B2_APPLICATION_KEY: z.string().optional(),
+  B2_BUCKET_NAME: z.string().default('workspace-os-vault'),
+  B2_ENDPOINT: z.string().default('https://s3.us-west-004.backblazeb2.com'),
+  B2_REGION: z.string().default('us-west-004'),
+  B2_PUBLIC_URL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

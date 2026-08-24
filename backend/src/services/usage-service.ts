@@ -68,11 +68,30 @@ export class UsageService {
       if (p.workspaceId === workspaceId) projectsCount++;
     }
 
-    // 3. Calculate storage in MB (mocked or aggregated from documents)
+    // 3. Calculate storage in MB (aggregated from Cloudflare R2 document file sizes)
     let totalBytes = 0;
     for (const d of inMemoryDb.documents.values()) {
       if (d.workspaceId === workspaceId) {
-        totalBytes += d.fileSize || 1024 * 100; // default 100kb per doc
+        if (typeof d.fileSizeBytes === 'number') {
+          totalBytes += d.fileSizeBytes;
+        } else if (typeof d.fileSize === 'number') {
+          totalBytes += d.fileSize;
+        } else if (typeof d.fileSize === 'string') {
+          // Parse "1.2 MB" or "500 KB"
+          const match = d.fileSize.match(/([\d.]+)\s*(MB|KB|GB|B)/i);
+          if (match) {
+            const val = parseFloat(match[1]);
+            const unit = match[2].toUpperCase();
+            if (unit === 'MB') totalBytes += val * 1024 * 1024;
+            else if (unit === 'KB') totalBytes += val * 1024;
+            else if (unit === 'GB') totalBytes += val * 1024 * 1024 * 1024;
+            else totalBytes += val;
+          } else {
+            totalBytes += 1024 * 100;
+          }
+        } else {
+          totalBytes += 1024 * 100;
+        }
       }
     }
     const storageMb = Number((totalBytes / (1024 * 1024)).toFixed(2));

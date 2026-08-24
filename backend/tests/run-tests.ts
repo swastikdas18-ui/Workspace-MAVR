@@ -5,6 +5,8 @@ import { runRealtimeTests } from './realtime-collaboration.test';
 import { runCommandPaletteRegressionTests } from './command-palette.test';
 import { runInfrastructureHardeningTests } from './infrastructure-hardening.test';
 import { runRevenueOperationsTests } from './revenue-operations.test';
+import { runBetaUserAcceptanceTests } from './beta-acceptance.test';
+import { runB2StorageTests } from './b2-storage.test';
 
 async function main() {
   try {
@@ -14,6 +16,8 @@ async function main() {
     await runCommandPaletteRegressionTests();
     await runInfrastructureHardeningTests();
     await runRevenueOperationsTests();
+    await runBetaUserAcceptanceTests();
+    await runB2StorageTests();
     await runRealtimeTests();
     process.exit(0);
   } catch (err) {

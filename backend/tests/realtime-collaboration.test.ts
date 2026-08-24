@@ -10,6 +10,7 @@ import { EventService } from '../src/services/event-service';
 import { ActivityRepository } from '../src/repositories/activity-repository';
 import { NotificationRepository } from '../src/repositories/notification-repository';
 import { AnalyticsRepository } from '../src/repositories/analytics-repository';
+import { resetRateLimits } from '../src/middleware/rate-limiter';
 
 // Test runner helper
 let passCount = 0;
@@ -134,8 +135,8 @@ export async function runRealtimeTests() {
   console.log(' RUNNING PHASE 5D: REAL-TIME COLLABORATION PLATFORM TESTS');
   console.log('================================================================\n');
 
-  // Reset in-memory database and real-time state for clean isolated test environment
   inMemoryDb.reset();
+  resetRateLimits();
   ChannelManager.clear();
   PresenceManager.clear();
   EventBus.clearHistory();

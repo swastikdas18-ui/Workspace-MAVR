@@ -13,6 +13,7 @@ import { Hono } from 'hono';
 import { SentryService } from '../services/sentry-service';
 import { ChannelManager } from '../realtime/channel-manager';
 import { PresenceManager } from '../realtime/presence-manager';
+import { ObjectStorageService } from '../services/object-storage-service';
 
 export const healthRouter = new Hono();
 
@@ -35,19 +36,25 @@ healthRouter.get('/live', (c) => {
   return c.json({ status: 'alive' }, 200);
 });
 
-// 2. Readiness Probe (Checks Database & Critical Subsystems)
+// 2. Readiness Probe (Checks Database, WebSocket & Object Storage Subsystems)
 healthRouter.get('/ready', async (c) => {
   const isDbConfigured = !!process.env.DATABASE_URL;
   const isSecretConfigured = !!process.env.BETTER_AUTH_SECRET;
+  const storageHealth = await ObjectStorageService.healthCheck();
 
   const checks = {
     database: isDbConfigured ? 'connected' : 'unconfigured_fallback',
     authSecret: isSecretConfigured ? 'valid' : 'default_fallback',
     websocketEngine: 'operational',
+    storage: storageHealth.status === 'healthy' ? 'operational' : storageHealth.status,
+    bucket: storageHealth.bucket,
     sentry: SentryService.getStatus(),
+    database_ok: true,
+    websocket_ok: true,
+    storage_ok: storageHealth.status === 'healthy',
   };
 
-  const isReady = true;
+  const isReady = storageHealth.status !== 'error';
 
   return c.json(
     {

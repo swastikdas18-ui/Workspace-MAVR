@@ -7,6 +7,12 @@ export interface DocumentEntity {
   fileUrl: string;
   fileType: string;
   fileSize: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
+  storageKey?: string | null;
+  storageUrl?: string | null;
+  r2Key?: string | null;
+  r2Url?: string | null;
   ownerId: string;
   workspaceId: string;
   visibility: 'public' | 'team' | 'private' | 'learning';
@@ -21,6 +27,12 @@ export interface CreateDocumentParams {
   fileUrl?: string;
   fileType?: string;
   fileSize?: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
+  storageKey?: string;
+  storageUrl?: string;
+  r2Key?: string;
+  r2Url?: string;
   ownerId: string;
   workspaceId: string;
   visibility?: 'public' | 'team' | 'private' | 'learning';
@@ -47,6 +59,12 @@ export class DocumentRepository {
             fileUrl: d.fileUrl,
             fileType: d.fileType,
             fileSize: d.fileSize,
+            fileSizeBytes: d.fileSizeBytes,
+            mimeType: d.mimeType,
+            storageKey: d.storageKey || d.r2Key || null,
+            storageUrl: d.storageUrl || d.r2Url || null,
+            r2Key: d.r2Key || d.storageKey || null,
+            r2Url: d.r2Url || d.storageUrl || null,
             ownerId: d.ownerId,
             workspaceId: d.workspaceId || workspaceId,
             visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
@@ -71,6 +89,12 @@ export class DocumentRepository {
       fileUrl: d.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       fileType: d.fileType || 'pdf',
       fileSize: d.fileSize || '1.2 MB',
+      fileSizeBytes: d.fileSizeBytes || 1024 * 100,
+      mimeType: d.mimeType || 'application/pdf',
+      storageKey: d.storageKey || d.r2Key || null,
+      storageUrl: d.storageUrl || d.r2Url || null,
+      r2Key: d.r2Key || d.storageKey || null,
+      r2Url: d.r2Url || d.storageUrl || null,
       ownerId: d.ownerId,
       workspaceId: d.workspaceId,
       visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
@@ -107,6 +131,12 @@ export class DocumentRepository {
             fileUrl: doc.fileUrl,
             fileType: doc.fileType,
             fileSize: doc.fileSize,
+            fileSizeBytes: doc.fileSizeBytes,
+            mimeType: doc.mimeType,
+            storageKey: doc.storageKey || doc.r2Key || null,
+            storageUrl: doc.storageUrl || doc.r2Url || null,
+            r2Key: doc.r2Key || doc.storageKey || null,
+            r2Url: doc.r2Url || doc.storageUrl || null,
             ownerId: doc.ownerId,
             workspaceId: doc.workspaceId || workspaceId,
             visibility: (doc.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
@@ -129,6 +159,12 @@ export class DocumentRepository {
       fileUrl: d.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
       fileType: d.fileType || 'pdf',
       fileSize: d.fileSize || '1.2 MB',
+      fileSizeBytes: d.fileSizeBytes || 1024 * 100,
+      mimeType: d.mimeType || 'application/pdf',
+      storageKey: d.storageKey || d.r2Key || null,
+      storageUrl: d.storageUrl || d.r2Url || null,
+      r2Key: d.r2Key || d.storageKey || null,
+      r2Url: d.r2Url || d.storageUrl || null,
       ownerId: d.ownerId,
       workspaceId: d.workspaceId,
       visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
@@ -139,14 +175,18 @@ export class DocumentRepository {
   }
 
   /**
-   * Create document in PostgreSQL + Drizzle
+   * Create document in PostgreSQL + Drizzle with Object Storage metadata
    */
   static async createDocument(data: CreateDocumentParams): Promise<DocumentEntity> {
     const docId = data.id || 'doc-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const now = new Date();
-    const fileUrl = data.fileUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80';
+    const storageKey = data.storageKey || data.r2Key || null;
+    const storageUrl = data.storageUrl || data.r2Url || null;
+    const fileUrl = data.fileUrl || storageUrl || 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80';
     const fileType = data.fileType || 'pdf';
     const fileSize = data.fileSize || '1.5 MB';
+    const fileSizeBytes = data.fileSizeBytes || 1024 * 100;
+    const mimeType = data.mimeType || 'application/pdf';
     const visibility = data.visibility || 'team';
     const category = data.category || 'General';
 
@@ -156,6 +196,12 @@ export class DocumentRepository {
       fileUrl,
       fileType,
       fileSize,
+      fileSizeBytes,
+      mimeType,
+      storageKey,
+      storageUrl,
+      r2Key: storageKey,
+      r2Url: storageUrl,
       ownerId: data.ownerId,
       workspaceId: data.workspaceId,
       visibility,
@@ -175,6 +221,12 @@ export class DocumentRepository {
           fileUrl,
           fileType,
           fileSize,
+          fileSizeBytes,
+          mimeType,
+          storageKey,
+          storageUrl,
+          r2Key: storageKey,
+          r2Url: storageUrl,
           ownerId: data.ownerId,
           workspaceId: data.workspaceId,
           visibility,

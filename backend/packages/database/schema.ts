@@ -195,7 +195,7 @@ export const tasks = pgTable(
   })
 );
 
-// Documents table
+// Documents table (Backblaze B2 & S3-Compatible Object Storage)
 export const documents = pgTable(
   'documents',
   {
@@ -204,6 +204,12 @@ export const documents = pgTable(
     fileUrl: text('file_url').notNull(),
     fileType: text('file_type').default('pdf').notNull(),
     fileSize: text('file_size').default('1.2 MB').notNull(),
+    fileSizeBytes: integer('file_size_bytes').default(0).notNull(),
+    mimeType: text('mime_type').default('application/pdf').notNull(),
+    storageKey: text('storage_key'),
+    storageUrl: text('storage_url'),
+    r2Key: text('r2_key'),
+    r2Url: text('r2_url'),
     ownerId: text('owner_id').notNull().references(() => users.id),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
     visibility: text('visibility').default('team').notNull(), // 'public' | 'team' | 'private' | 'learning'
@@ -217,6 +223,8 @@ export const documents = pgTable(
     visibilityIdx: index('idx_documents_visibility').on(table.visibility),
     titleIdx: index('idx_documents_title').on(table.title),
     categoryIdx: index('idx_documents_category').on(table.category),
+    storageKeyIdx: index('idx_documents_storage_key').on(table.storageKey),
+    r2KeyIdx: index('idx_documents_r2_key').on(table.r2Key),
   })
 );
 

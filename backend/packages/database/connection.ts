@@ -14,8 +14,17 @@ export class InMemoryDatabase {
   public projects: Map<string, any> = new Map();
   public projectMembers: Map<string, any> = new Map();
   public tasks: Map<string, any> = new Map();
+  public taskComments: Map<string, any> = new Map();
   public documents: Map<string, any> = new Map();
   public crmRecords: Map<string, any> = new Map();
+  public workspaceInvites: Map<string, any> = new Map();
+  public notifications: Map<string, any> = new Map();
+  public activityLogs: Map<string, any> = new Map();
+  public auditLogs: Map<string, any> = new Map();
+  public automationRules: Map<string, any> = new Map();
+  public automationActions: Map<string, any> = new Map();
+  public automationExecutions: Map<string, any> = new Map();
+  public userPresence: Map<string, any> = new Map();
 
   public reset() {
     this.users.clear();
@@ -27,8 +36,17 @@ export class InMemoryDatabase {
     this.projects.clear();
     this.projectMembers.clear();
     this.tasks.clear();
+    this.taskComments.clear();
     this.documents.clear();
     this.crmRecords.clear();
+    this.workspaceInvites.clear();
+    this.notifications.clear();
+    this.activityLogs.clear();
+    this.auditLogs.clear();
+    this.automationRules.clear();
+    this.automationActions.clear();
+    this.automationExecutions.clear();
+    this.userPresence.clear();
   }
 }
 

@@ -3,89 +3,128 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  ChevronRight, Sparkles, BookOpen, GraduationCap, Shield, Briefcase
+  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles
 } from 'lucide-react';
-import { getRoleBadgeColor } from '../../lib/auth';
+import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
+import { motion, AnimatePresence } from 'motion/react';
 
-export const Sidebar: React.FC = () => {
-  const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser } = useWorkspace();
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+  onOpenCommandPalette?: () => void;
+}
 
-  // Navigation Items per role according to strict specification
+export const Sidebar: React.FC<SidebarProps> = ({
+  isCollapsed,
+  onToggleCollapse,
+  isMobileOpen = false,
+  onCloseMobile,
+  onOpenCommandPalette,
+}) => {
+  const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser, logout, systemLogs } = useWorkspace();
+
+  // Navigation items strictly mapped to role specifications
   const getNavItems = () => {
     if (currentRole === 'admin') {
       return [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
-        { id: 'workspace', label: 'Workspace', icon: Building2, badge: null },
-        { id: 'projects', label: 'Projects', icon: FolderKanban, badge: 'All' },
-        { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: 'Board' },
-        { id: 'documents', label: 'Documents', icon: FileText, badge: 'All' },
-        { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Leads' },
-        { id: 'teams', label: 'Teams', icon: Users, badge: 'Directory' },
-        { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
+        { id: 'dashboard', label: 'Executive Center', icon: LayoutDashboard, badge: null },
+        { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
+        { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
+        { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
+        { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
+        { id: 'teams', label: 'Team Directory', icon: Users, badge: null },
+        { id: 'documents', label: 'Knowledge Base', icon: FileText, badge: 'Docs' },
+        { id: 'analytics', label: 'Analytics & Velocity', icon: BarChart3, badge: null },
         { id: 'billing', label: 'Billing & Plan', icon: CreditCard, badge: 'Pro' },
         { id: 'settings', label: 'Settings', icon: Settings, badge: null },
-        { id: 'admin_tools', label: 'Admin Tools', icon: ShieldAlert, badge: 'RBAC' },
+        { id: 'admin_tools', label: 'Admin RBAC Tools', icon: ShieldAlert, badge: 'Sec' },
       ];
     }
 
     if (currentRole === 'employee') {
       return [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
-        { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Assigned' },
-        { id: 'tasks', label: 'My Tasks & Board', icon: CheckSquare, badge: 'Active' },
-        { id: 'documents', label: 'Shared & My Docs', icon: FileText, badge: null },
-        { id: 'crm', label: 'My CRM Leads', icon: DollarSign, badge: 'Assigned' },
-        { id: 'teams', label: 'My Team', icon: Users, badge: null },
+        { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
+        { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
+        { id: 'tasks', label: 'My Tasks & Board', icon: CheckSquare, badge: 'Flow' },
+        { id: 'crm', label: 'My CRM Leads', icon: DollarSign, badge: 'Pipeline' },
+        { id: 'teams', label: 'My Team & Org', icon: Users, badge: null },
+        { id: 'documents', label: 'Shared Documents', icon: FileText, badge: null },
       ];
     }
 
     // Intern Role: strictly Dashboard, Tasks, Documents
     return [
-      { id: 'dashboard', label: 'Learning Dashboard', icon: LayoutDashboard, badge: 'Overview' },
-      { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Learning' },
-      { id: 'documents', label: 'Learning & Docs', icon: BookOpen, badge: 'Resources' },
+      { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
+      { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
+      { id: 'documents', label: 'Learning Resources', icon: BookOpen, badge: 'Docs' },
     ];
   };
 
   const navItems = getNavItems();
 
-  return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 h-screen sticky top-0 text-slate-300">
-      {/* Workspace Brand Box */}
-      <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white shadow-md">
-          {currentWorkspace.name.substring(0, 2).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-white truncate tracking-tight">
-            {currentWorkspace.name}
-          </h2>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.2 rounded border ${getRoleBadgeColor(currentRole)}`}>
-              {currentRole.toUpperCase()} APP
-            </span>
+  const handleNavClick = (id: string) => {
+    setActiveTab(id);
+    if (onCloseMobile) onCloseMobile();
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-[#0F172A] border-r border-white/[0.08] text-slate-300 select-none">
+      {/* TOP SECTION: Workspace Brand & Role Badge */}
+      <div className="p-4 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#111827]">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] via-[#9333EA] to-[#A855F7] flex items-center justify-center font-bold text-white shadow-[0_0_20px_-3px_rgba(124,58,237,0.4)] shrink-0">
+            {currentWorkspace.name.substring(0, 2).toUpperCase()}
           </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-white truncate tracking-tight">
+                {currentWorkspace.name}
+              </h2>
+              <div className="mt-1">
+                <RoleBadge role={currentRole} size="sm" />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Collapse toggle on desktop */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </div>
 
-      {/* Role Notice Pill */}
-      <div className="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800/80 text-[11px]">
-        <div className="flex items-center gap-1.5 text-slate-400">
-          {currentRole === 'admin' && <Shield className="w-3.5 h-3.5 text-purple-400" />}
-          {currentRole === 'employee' && <Briefcase className="w-3.5 h-3.5 text-blue-400" />}
-          {currentRole === 'intern' && <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />}
-          <span className="font-medium text-slate-300">
-            {currentRole === 'admin' ? 'Full Organization Access' : currentRole === 'employee' ? 'Assigned Work Mode' : 'Restricted Learning Mode'}
-          </span>
+      {/* QUICK COMMAND TRIGGER */}
+      {!isCollapsed && onOpenCommandPalette && (
+        <div className="px-3 pt-3">
+          <button
+            onClick={onOpenCommandPalette}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#020617] border border-white/[0.08] hover:border-purple-500/40 text-slate-400 hover:text-white text-xs transition-all shadow-inner group cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+              <span>Command Menu</span>
+            </div>
+            <kbd className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-white/[0.06]">
+              ⌘K
+            </kbd>
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Navigation List */}
-      <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        <div className="px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-          {currentRole.toUpperCase()} PORTAL
-        </div>
+      {/* MIDDLE SECTION: Navigation Items */}
+      <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+        {!isCollapsed && (
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            Operating System
+          </div>
+        )}
 
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -93,43 +132,114 @@ export const Sidebar: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+              onClick={() => handleNavClick(item.id)}
+              className={`group relative w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-blue-600/90 text-white shadow-sm shadow-blue-600/30'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
-              }`}
+                  ? 'bg-[#7C3AED]/20 text-white border border-purple-500/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.25)]'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
+              } ${isCollapsed ? 'justify-center px-2' : ''}`}
+              title={isCollapsed ? item.label : undefined}
             >
-              <div className="flex items-center gap-2.5">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{item.label}</span>
-              </div>
-              {item.badge && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                  isActive ? 'bg-blue-700/80 text-blue-100' : 'bg-slate-800 text-slate-400'
-                }`}>
-                  {item.badge}
-                </span>
+              {/* Linear-style active indicator bar */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeNavIndicator"
+                  className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#7C3AED] rounded-r-full shadow-[0_0_8px_rgba(124,58,237,0.8)]"
+                  transition={{ duration: 0.2 }}
+                />
+              )}
+
+              <Icon
+                className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+                  isActive ? 'text-purple-300' : 'text-slate-400 group-hover:text-slate-200'
+                }`}
+              />
+
+              {!isCollapsed && (
+                <>
+                  <span className="truncate flex-1 text-left">{item.label}</span>
+                  {item.badge && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                        isActive
+                          ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </>
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Current Active User Profile Footer */}
-      <div className="p-3.5 border-t border-slate-800 bg-slate-950/70">
-        <div className="flex items-center gap-2.5">
-          <UserAvatar
-            name={currentUser.name}
-            avatar={currentUser.avatar}
-            size="md"
-          />
-          <div className="min-w-0 flex-1 text-left">
-            <p className="text-xs font-semibold text-slate-200 truncate">{currentUser.name}</p>
-            <p className="text-[10px] text-slate-400 truncate">{currentUser.title}</p>
+      {/* BOTTOM SECTION: User Profile, Activity, Logout */}
+      <div className="p-3 border-t border-white/[0.08] bg-[#020617]/70 space-y-2">
+        <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <UserAvatar name={currentUser.name} avatar={currentUser.avatar} size="md" />
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-white truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser.title || currentUser.email}</p>
+              </div>
+            )}
           </div>
+
+          {!isCollapsed && (
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside
+        className={`hidden lg:flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-200 z-20 ${
+          isCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 flex">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onCloseMobile}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+
+            {/* Drawer */}
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10"
+            >
+              {sidebarContent}
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };

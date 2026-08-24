@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { getRequestListener } from '@hono/node-server';
 import { app as honoApp } from './backend/src/app';
+import { wsServer } from './backend/src/realtime/websocket-server';
 
 async function startServer() {
   const app = express();
@@ -16,8 +17,16 @@ async function startServer() {
   const honoListener = getRequestListener(honoApp.fetch);
 
   // 1. Mount Backend API Routes & Health Check (Hono Engine)
-  app.all(['/api', '/api/*', '/auth', '/auth/*', '/workspace', '/workspace/*', '/health'], (req, res) => {
-    return honoListener(req, res);
+  app.use((req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/auth') ||
+      req.path.startsWith('/workspace') ||
+      req.path === '/health'
+    ) {
+      return honoListener(req, res);
+    }
+    next();
   });
 
   // 2. Vite middleware for development / Static files for production
@@ -39,11 +48,20 @@ async function startServer() {
     console.log(`[Workspace OS] Server running on http://0.0.0.0:${PORT}`);
   });
 
+  // Attach Real-Time Collaboration WebSocket Server
+  wsServer.attach(server, '/ws');
+
   // Graceful shutdown handling for Cloud Run container lifecycle
-  const handleShutdown = (signal: string) => {
+  const handleShutdown = async (signal: string) => {
     console.log(`[Workspace OS] Received ${signal}. Gracefully closing server...`);
+    try {
+      await wsServer.close();
+    } catch (wsErr) {
+      console.warn('[Workspace OS] Error closing WebSocket server:', wsErr);
+    }
+
     server.close(() => {
-      console.log('[Workspace OS] HTTP server closed.');
+      console.log('[Workspace OS] HTTP & WebSocket server closed.');
       process.exit(0);
     });
 

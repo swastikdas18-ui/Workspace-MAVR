@@ -175,7 +175,67 @@ export async function runMigrations() {
       );
     `;
 
-    // 12. Optimized Indexes
+    // 12. Automation Rules table
+    await sql`
+      CREATE TABLE IF NOT EXISTS automation_rules (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        entity_type TEXT NOT NULL,
+        trigger_type TEXT NOT NULL,
+        trigger_config JSONB DEFAULT '{}'::jsonb,
+        conditions JSONB DEFAULT '[]'::jsonb,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        execution_count INTEGER NOT NULL DEFAULT 0,
+        last_executed_at TIMESTAMP WITH TIME ZONE,
+        created_by TEXT NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 13. Automation Actions table
+    await sql`
+      CREATE TABLE IF NOT EXISTS automation_actions (
+        id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL REFERENCES automation_rules(id) ON DELETE CASCADE,
+        action_type TEXT NOT NULL,
+        action_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+        execution_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 14. Automation Executions table
+    await sql`
+      CREATE TABLE IF NOT EXISTS automation_executions (
+        id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL REFERENCES automation_rules(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        execution_result JSONB DEFAULT '{}'::jsonb,
+        error_message TEXT,
+        duration_ms INTEGER DEFAULT 0,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 15. User Presence table
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_presence (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'offline',
+        last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        connected_at TIMESTAMP WITH TIME ZONE,
+        metadata JSONB DEFAULT '{}'::jsonb
+      );
+    `;
+
+    // 16. Optimized Indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);`;
@@ -183,6 +243,11 @@ export async function runMigrations() {
     await sql`CREATE INDEX IF NOT EXISTS idx_crm_records_owner_id ON crm_records(owner_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_documents_owner_id ON documents(owner_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_documents_visibility ON documents(visibility);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_automation_rules_workspace ON automation_rules(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_automation_rules_trigger ON automation_rules(trigger_type);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_automation_actions_rule ON automation_actions(rule_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_automation_executions_rule ON automation_executions(rule_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_user_presence_user_workspace ON user_presence(user_id, workspace_id);`;
 
     console.log('[Workspace OS Migration] All PostgreSQL schemas and indexes successfully verified & applied.');
   } catch (error) {

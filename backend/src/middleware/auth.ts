@@ -11,9 +11,9 @@ declare module 'hono' {
 }
 
 export async function authMiddleware(c: Context, next: Next) {
-  const authHeader = c.req.header('Authorization');
-  const customHeader = c.req.header('x-session-token');
-  const cookieHeader = c.req.header('cookie');
+  const authHeader = c.req.header('Authorization') || c.req.header('authorization');
+  const customHeader = c.req.header('x-session-token') || c.req.header('X-Session-Token');
+  const cookieHeader = c.req.header('cookie') || c.req.header('Cookie');
 
   let token: string | null = null;
 

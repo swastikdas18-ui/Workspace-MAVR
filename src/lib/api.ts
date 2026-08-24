@@ -1,7 +1,10 @@
 /**
- * Workspace OS - Backend API Client
- * Connects frontend state and authentication directly to Hono backend and Drizzle ORM.
+ * Workspace OS - Centralized Backend API Client
+ * Connects frontend state and authentication directly to backend & PostgreSQL.
  */
+
+export const API_BASE_URL: string =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
 
 const TOKEN_KEY = 'ws_session_token';
 
@@ -46,7 +49,10 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
     headers['x-session-token'] = token;
   }
 
-  const response = await fetch(path, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const fullUrl = `${API_BASE_URL}${normalizedPath}`;
+
+  const response = await fetch(fullUrl, {
     ...options,
     headers,
   });
@@ -67,10 +73,13 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
 export const api = {
   // Auth API
   async register(data: { name: string; email: string; password: string; workspaceName?: string; workspaceId?: string; role?: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
     if (res.token) {
       setStoredSessionToken(res.token);
     }
@@ -78,10 +87,13 @@ export const api = {
   },
 
   async login(credentials: { email: string; password: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      }
+    );
     if (res.token) {
       setStoredSessionToken(res.token);
     }
@@ -100,20 +112,13 @@ export const api = {
     const token = getStoredSessionToken();
     if (!token) return null;
     try {
-      const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>('/api/auth/session');
+      const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+        '/api/auth/session'
+      );
       return res;
     } catch {
       setStoredSessionToken(null);
       return null;
-    }
-  },
-
-  async getDemoProfiles() {
-    try {
-      const res = await fetchApi<{ profiles: Array<{ role: string; name: string; email: string; title: string }> }>('/api/auth/demo-profiles');
-      return res.profiles;
-    } catch {
-      return [];
     }
   },
 
@@ -124,6 +129,200 @@ export const api = {
   },
 
   async getWorkspaceMembers() {
-    return await fetchApi<{ members: Array<{ member: any; role: string; joinedAt: string }> }>('/api/workspace/members');
+    return await fetchApi<{ members: Array<{ member: any; role: string; joinedAt: string }> }>(
+      '/api/workspace/members'
+    );
+  },
+
+  // Invites API
+  async createInvite(data: { email: string; role: 'employee' | 'intern'; teamId?: string }) {
+    return await fetchApi<{ invite: any }>('/api/invites', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getInvites() {
+    return await fetchApi<{ invites: any[] }>('/api/invites');
+  },
+
+  async previewInvite(token: string) {
+    return await fetchApi<{ invite: any; workspace: any }>(`/api/invites/preview/${token}`);
+  },
+
+  async acceptInvite(data: { token: string; name: string; password: string }) {
+    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      '/api/invites/accept',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    if (res.token) {
+      setStoredSessionToken(res.token);
+    }
+    return res;
+  },
+
+  // Projects API
+  async getProjects() {
+    return await fetchApi<{ projects: any[] }>('/api/projects');
+  },
+
+  async createProject(data: any) {
+    return await fetchApi<{ project: any }>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProject(id: string, data: any) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteProject(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/projects/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Tasks API
+  async getTasks() {
+    return await fetchApi<{ tasks: any[] }>('/api/tasks');
+  },
+
+  async createTask(data: any) {
+    return await fetchApi<{ task: any }>('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateTask(id: string, data: any) {
+    return await fetchApi<{ task: any }>(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteTask(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Task Comments API
+  async getTaskComments(taskId: string) {
+    return await fetchApi<{ comments: any[] }>(`/api/tasks/${taskId}/comments`);
+  },
+
+  async addTaskComment(taskId: string, content: string) {
+    return await fetchApi<{ comment: any }>(`/api/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  // Teams API
+  async getTeams() {
+    return await fetchApi<{ teams: any[] }>('/api/teams');
+  },
+
+  async createTeam(data: any) {
+    return await fetchApi<{ team: any }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Documents API
+  async getDocuments() {
+    return await fetchApi<{ documents: any[] }>('/api/documents');
+  },
+
+  async createDocument(data: any) {
+    return await fetchApi<{ document: any }>('/api/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteDocument(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/documents/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async downloadDocument(id: string) {
+    return await fetchApi<{ success: boolean; downloadCount: number }>(`/api/documents/${id}/download`, {
+      method: 'POST',
+    });
+  },
+
+  // CRM API
+  async getCrmLeads() {
+    return await fetchApi<{ leads: any[] }>('/api/crm');
+  },
+
+  async createCrmLead(data: any) {
+    return await fetchApi<{ lead: any }>('/api/crm', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateCrmLead(id: string, data: any) {
+    return await fetchApi<{ lead: any }>(`/api/crm/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCrmLead(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/crm/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Presence & Real-Time API
+  async getPresence() {
+    return await fetchApi<{ data: any[]; meta: any }>('/api/presence');
+  },
+
+  async updatePresenceStatus(status: 'online' | 'away' | 'offline') {
+    return await fetchApi<{ data: any; message: string }>('/api/presence/status', {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async sendPresenceHeartbeat() {
+    return await fetchApi<{ data: any; message: string }>('/api/presence/heartbeat', {
+      method: 'POST',
+    });
+  },
+
+  async getRealtimeStats() {
+    return await fetchApi<{ data: any; timestamp: string }>('/api/presence/stats');
+  },
+
+  async getRealtimeEvents(limit = 30) {
+    return await fetchApi<{ data: any[]; meta: any }>(`/api/presence/events?limit=${limit}`);
+  },
+
+  // Analytics & Billing API
+  async getAnalytics() {
+    return await fetchApi<{ analytics: any }>('/api/analytics');
+  },
+
+  async getBilling() {
+    return await fetchApi<{ billing: any }>('/api/billing');
+  },
+
+  async getAdminTools() {
+    return await fetchApi<any>('/api/admin/tools');
   },
 };

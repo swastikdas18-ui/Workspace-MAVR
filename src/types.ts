@@ -63,7 +63,31 @@ export interface ProjectMember {
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'completed';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent' | 'critical';
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  user_name: string;
+  user_avatar?: string;
+  user_role?: UserRole;
+  content: string;
+  created_at: string;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: 'employee' | 'intern';
+  token: string;
+  invited_by: string;
+  team_id?: string;
+  expires_at: string;
+  accepted_at?: string;
+  created_at: string;
+}
 
 export interface Task {
   id: string;

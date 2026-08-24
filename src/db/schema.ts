@@ -77,7 +77,7 @@ export const tasks = pgTable("tasks", {
   title: text("title").notNull(),
   description: text("description"),
   status: text("status", { enum: ["todo", "in_progress", "review", "completed"] }).default("todo").notNull(),
-  priority: text("priority", { enum: ["low", "medium", "high", "urgent"] }).default("medium").notNull(),
+  priority: text("priority", { enum: ["low", "medium", "high", "urgent", "critical"] }).default("medium").notNull(),
   assignedTo: text("assigned_to").notNull().references(() => users.id),
   projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   dueDate: timestamp("due_date").notNull(),

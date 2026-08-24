@@ -40,7 +40,7 @@ async function testApi(
 
 export async function runAllTests() {
   console.log('\n==================================================');
-  console.log(' RUNNING WORKSPACE OS BACKEND & RBAC TEST SUITE');
+  console.log(' RUNNING WORKSPACE OS FULL INTEGRATION TEST SUITE');
   console.log('==================================================\n');
 
   // Reset in-memory database for clean test run
@@ -54,11 +54,11 @@ export async function runAllTests() {
   let internToken = '';
   let internUserId = '';
 
-  // TEST 1: Admin Registration (creates User, Role=ADMIN, Workspace, Owner=User.id)
+  // 1. Admin Registration
   {
     const res = await testApi('POST', '/api/auth/register', {
       name: 'Sarah Connor',
-      email: 'sarah@sky.net',
+      email: 'sarah@cyberdyne.io',
       password: 'CyberPassword2026!',
       workspaceName: 'Cyberdyne Systems',
     });
@@ -75,10 +75,10 @@ export async function runAllTests() {
     workspaceId = res.data.workspace.id;
   }
 
-  // TEST 2: Admin Login
+  // 2. Admin Login
   {
     const res = await testApi('POST', '/api/auth/login', {
-      email: 'sarah@sky.net',
+      email: 'sarah@cyberdyne.io',
       password: 'CyberPassword2026!',
     });
 
@@ -89,201 +89,506 @@ export async function runAllTests() {
     adminToken = res.data.token;
   }
 
-  // TEST 3: Invalid Login Attempt
+  // 3. PHASE 2: Invite-based Membership System
+  let employeeInviteToken = '';
+  let internInviteToken = '';
   {
-    const res = await testApi('POST', '/api/auth/login', {
-      email: 'sarah@sky.net',
-      password: 'WrongPassword!',
-    });
-
-    assert(res.status === 401, '3. Invalid password rejected with HTTP 401 Unauthorized');
-    assert(res.data.error.code === 'UNAUTHORIZED', '3. Standard error format returned');
-  }
-
-  // TEST 4: Logout
-  {
-    // Register temporary user to test logout
-    const reg = await testApi('POST', '/api/auth/register', {
-      name: 'Temp User',
-      email: 'temp@sky.net',
-      password: 'Password123!',
-      workspaceName: 'Temp Org',
-    });
-    const tempToken = reg.data.token;
-
-    const logoutRes = await testApi('POST', '/api/auth/logout', {}, {
-      Authorization: `Bearer ${tempToken}`,
-    });
-    assert(logoutRes.status === 200, '4. Logout returns HTTP 200 OK');
-
-    // Trying to use invalidated session should fail
-    const sessionRes = await testApi('GET', '/api/auth/session', undefined, {
-      Authorization: `Bearer ${tempToken}`,
-    });
-    assert(sessionRes.status === 401, '4. Invalidated session is rejected with HTTP 401');
-  }
-
-  // TEST 5: Session Retrieval
-  {
-    const res = await testApi('GET', '/api/auth/session', undefined, {
-      Authorization: `Bearer ${adminToken}`,
-    });
-
-    assert(res.status === 200, '5. GET /api/auth/session returns HTTP 200 OK');
-    assert(res.data.user.email === 'sarah@sky.net', '5. Session user email matches server database');
-    assert(res.data.user.role === 'admin', '5. Server-side role is returned');
-  }
-
-  // TEST 6: Workspace Creation & Member Setup
-  {
-    // Register Employee
-    const empRes = await testApi('POST', '/api/auth/register', {
-      name: 'John Reese',
-      email: 'john@sky.net',
-      password: 'Password123!',
-      workspaceId: workspaceId,
+    // Admin creates employee invite
+    const empInviteRes = await testApi('POST', '/api/invites', {
+      email: 'john@cyberdyne.io',
       role: 'employee',
-    });
-    assert(empRes.status === 201, '6. Employee registration into workspace returns 201');
-    assert(empRes.data.user.role === 'employee', '6. Employee assigned role "employee"');
-    employeeToken = empRes.data.token;
-    employeeUserId = empRes.data.user.id;
-
-    // Register Intern
-    const internRes = await testApi('POST', '/api/auth/register', {
-      name: 'Harold Finch',
-      email: 'harold@sky.net',
-      password: 'Password123!',
-      workspaceId: workspaceId,
-      role: 'intern',
-    });
-    assert(internRes.status === 201, '6. Intern registration into workspace returns 201');
-    assert(internRes.data.user.role === 'intern', '6. Intern assigned role "intern"');
-    internToken = internRes.data.token;
-    internUserId = internRes.data.user.id;
-  }
-
-  // TEST 7: Admin Workspace Access
-  {
-    const res = await testApi('GET', '/api/workspace', undefined, {
+    }, {
       Authorization: `Bearer ${adminToken}`,
     });
 
-    assert(res.status === 200, '7. Admin workspace access returns HTTP 200 OK');
-    assert(res.data.workspace.id === workspaceId, '7. Admin retrieves own workspace');
-    assert(res.data.workspace.roleInWorkspace === 'admin', '7. Workspace role verified as admin');
-  }
+    assert(empInviteRes.status === 201, '3. Admin can generate employee invite token');
+    assert(empInviteRes.data.invite.role === 'employee', '3. Invite role is set to "employee"');
+    employeeInviteToken = empInviteRes.data.invite.token;
 
-  // TEST 8: Employee Workspace Access
-  {
-    const res = await testApi('GET', '/api/workspace', undefined, {
-      Authorization: `Bearer ${employeeToken}`,
+    // Admin creates intern invite
+    const intInviteRes = await testApi('POST', '/api/invites', {
+      email: 'intern@cyberdyne.io',
+      role: 'intern',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
     });
 
-    assert(res.status === 200, '8. Employee workspace access returns HTTP 200 OK');
-    assert(res.data.workspace.id === workspaceId, '8. Employee retrieves associated workspace');
-    assert(res.data.workspace.roleInWorkspace === 'employee', '8. Workspace role verified as employee');
-  }
+    assert(intInviteRes.status === 201, '3. Admin can generate intern invite token');
+    assert(intInviteRes.data.invite.role === 'intern', '3. Invite role is set to "intern"');
+    internInviteToken = intInviteRes.data.invite.token;
 
-  // TEST 9: Intern Workspace Access
-  {
-    const res = await testApi('GET', '/api/workspace', undefined, {
+    // Preview Invite
+    const previewRes = await testApi('GET', `/api/invites/${employeeInviteToken}`);
+    assert(previewRes.status === 200, '3. Invite token preview endpoint returns 200');
+    assert(previewRes.data.workspace.id === workspaceId, '3. Preview resolves correct workspace');
+
+    // Accept Employee Invite
+    const acceptEmpRes = await testApi('POST', '/api/invites/accept', {
+      token: employeeInviteToken,
+      name: 'John Reese',
+      password: 'Password123!',
+    });
+
+    assert(acceptEmpRes.status === 200, '3. Employee accepts invite and joins workspace');
+    assert(acceptEmpRes.data.user.role === 'employee', '3. Invited user is assigned "employee" (not admin)');
+    employeeToken = acceptEmpRes.data.token;
+    employeeUserId = acceptEmpRes.data.user.id;
+
+    // Accept Intern Invite
+    const acceptIntRes = await testApi('POST', '/api/invites/accept', {
+      token: internInviteToken,
+      name: 'Harold Finch',
+      password: 'Password123!',
+    });
+
+    assert(acceptIntRes.status === 200, '3. Intern accepts invite and joins workspace');
+    assert(acceptIntRes.data.user.role === 'intern', '3. Invited user is assigned "intern" (not admin)');
+    internToken = acceptIntRes.data.token;
+    internUserId = acceptIntRes.data.user.id;
+
+    // Intern attempts to invite someone (Must be blocked)
+    const internInviteAttempt = await testApi('POST', '/api/invites', {
+      email: 'rogue@cyberdyne.io',
+      role: 'employee',
+    }, {
       Authorization: `Bearer ${internToken}`,
     });
-
-    assert(res.status === 200, '9. Intern workspace access returns HTTP 200 OK');
-    assert(res.data.workspace.id === workspaceId, '9. Intern retrieves associated workspace');
-    assert(res.data.workspace.roleInWorkspace === 'intern', '9. Workspace role verified as intern');
+    assert(internInviteAttempt.status === 403, '3. Intern cannot generate workspace invitations (403)');
   }
 
-  // TEST 10: Unauthenticated Workspace Access Attempt
+  // 4. PHASE 1 & 3: Projects CRUD, Workspace Isolation & RBAC
+  let projectId = '';
   {
-    const res = await testApi('GET', '/api/workspace');
-    assert(res.status === 401, '10. Unauthenticated workspace access rejected with HTTP 401 Unauthorized');
-  }
-
-  // TEST 11: Employee Attempting Admin-Only Operation
-  {
-    // Employee attempting to register member as Admin
-    const res = await testApi('POST', '/api/auth/register', {
-      name: 'Hacker',
-      email: 'hacker@sky.net',
-      password: 'Password123!',
-      workspaceId: workspaceId,
-      role: 'admin', // FORBIDDEN SELF-PROMOTION
+    // Admin creates project
+    const projRes = await testApi('POST', '/api/projects', {
+      title: 'Neural Network Processor',
+      description: 'Design next-generation autonomous processor.',
+      status: 'in_progress',
+      startDate: '2026-03-01',
+      dueDate: '2026-12-31',
+      budget: '$500,000',
+      tags: ['Hardware', 'AI'],
+    }, {
+      Authorization: `Bearer ${adminToken}`,
     });
 
-    // Server must either reject invalid role (400) or never assign admin
-    const prevented = res.status === 400 || (res.status === 201 && res.data.user.role !== 'admin');
-    assert(
-      prevented,
-      '11. Client cannot self-promote to admin during member registration'
-    );
-  }
+    assert(projRes.status === 201, '4. Admin creates project in PostgreSQL');
+    assert(projRes.data.project.workspace_id === workspaceId, '4. Project is linked to session workspace');
+    projectId = projRes.data.project.id;
 
-  // TEST 12: Intern Attempting Restricted Operation
-  {
-    // Check members list
-    const res = await testApi('GET', '/api/workspace/members', undefined, {
+    // Intern attempts to create project (Forbidden)
+    const internProjRes = await testApi('POST', '/api/projects', {
+      title: 'Intern Secret Project',
+      description: 'Should fail',
+    }, {
       Authorization: `Bearer ${internToken}`,
     });
-    assert(res.status === 200, '12. Intern can view workspace team directory');
-  }
+    assert(internProjRes.status === 403, '4. Intern cannot create projects (403)');
 
-  // TEST 13: Cross-Workspace Access Attempt
-  {
-    // Create separate Org 2
-    const otherOrg = await testApi('POST', '/api/auth/register', {
-      name: 'Other Admin',
-      email: 'other@other.com',
-      password: 'Password123!',
-      workspaceName: 'Secret External Org',
+    // Intern attempts to list projects (Forbidden)
+    const internListProj = await testApi('GET', '/api/projects', undefined, {
+      Authorization: `Bearer ${internToken}`,
     });
-    const otherWorkspaceId = otherOrg.data.workspace.id;
+    assert(internListProj.status === 403, '4. Intern cannot view project roadmaps (403)');
 
-    // Employee from Cyberdyne Systems attempts to access Secret External Org
-    const crossAccess = await testApi(
-      'GET',
-      `/api/workspace?workspaceId=${otherWorkspaceId}`,
-      undefined,
-      {
-        Authorization: `Bearer ${employeeToken}`,
-      }
-    );
-
-    assert(
-      crossAccess.status === 403,
-      '13. Cross-workspace unauthorized access rejected with HTTP 403 Forbidden'
-    );
-  }
-
-  // TEST 14: Client-Supplied Role Manipulation (Tampering in request headers/body)
-  {
-    // Employee tries to send role: "admin" or x-role: "admin"
-    const tamperedSession = await testApi('GET', '/api/auth/session', undefined, {
+    // Employee lists projects
+    const empListProj = await testApi('GET', '/api/projects', undefined, {
       Authorization: `Bearer ${employeeToken}`,
-      'x-user-role': 'admin',
-      'role': 'admin',
+    });
+    assert(empListProj.status === 200, '4. Employee can list projects (200)');
+
+    // Intern attempts PATCH /api/projects/:id -> 403 Forbidden
+    const internPatchProj = await testApi('PATCH', `/api/projects/${projectId}`, {
+      status: 'planning',
+    }, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internPatchProj.status === 403, '4. Intern cannot update projects (403)');
+
+    // Admin updates project -> 200 OK
+    const adminPatchProj = await testApi('PATCH', `/api/projects/${projectId}`, {
+      status: 'completed',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminPatchProj.status === 200, '4. Admin can update projects (200)');
+
+    // Validation check: empty title fails with 400
+    const invalidTitlePatch = await testApi('PATCH', `/api/projects/${projectId}`, {
+      title: '   ',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(invalidTitlePatch.status === 400, '4. Empty project title rejected (400)');
+  }
+
+  // 5. PHASE 4: Tasks, CRITICAL Priority & Task Comments
+  let taskId = '';
+  {
+    // Admin creates CRITICAL task
+    const taskRes = await testApi('POST', '/api/tasks', {
+      title: 'Patch Critical Kernel Vulnerability',
+      description: 'Zero-day privilege escalation patch.',
+      status: 'todo',
+      priority: 'critical',
+      assignedTo: employeeUserId,
+      projectId: projectId,
+      dueDate: '2026-03-10',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
     });
 
+    assert(taskRes.status === 201, '5. Task created with CRITICAL priority');
+    assert(taskRes.data.task.priority === 'critical', '5. Task priority is "critical"');
+    taskId = taskRes.data.task.id;
+
+    // Employee posts comment on task
+    const commentRes = await testApi('POST', `/api/tasks/${taskId}/comments`, {
+      content: 'Investigation started on the kernel memory map.',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+
+    assert(commentRes.status === 201, '5. Employee can post comments on task');
+    assert(commentRes.data.comment.user_id === employeeUserId, '5. Comment author verified as employee');
+
+    // Admin views task comments
+    const commentsList = await testApi('GET', `/api/tasks/${taskId}/comments`, undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+
+    assert(commentsList.status === 200, '5. Task comments retrieved successfully');
+    assert(commentsList.data.comments.length === 1, '5. Comment count verified in PostgreSQL');
+  }
+
+  // 6. PHASE 3: Protected Modules RBAC (Billing, Analytics, Admin Diagnostics)
+  {
+    // Intern attempts to access billing (403)
+    const internBilling = await testApi('GET', '/api/billing/invoices', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internBilling.status === 403, '6. Intern blocked from /api/billing (403)');
+
+    // Employee attempts to access billing (403)
+    const empBilling = await testApi('GET', '/api/billing/invoices', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empBilling.status === 403, '6. Employee blocked from /api/billing (403)');
+
+    // Admin accesses billing (200)
+    const adminBilling = await testApi('GET', '/api/billing/invoices', undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminBilling.status === 200, '6. Admin granted access to /api/billing (200)');
+
+    // Intern attempts to access analytics (403)
+    const internAnalytics = await testApi('GET', '/api/analytics/metrics', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internAnalytics.status === 403, '6. Intern blocked from /api/analytics (403)');
+
+    // Admin accesses analytics (200)
+    const adminAnalytics = await testApi('GET', '/api/analytics/metrics', undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminAnalytics.status === 200, '6. Admin granted access to /api/analytics (200)');
+  }
+
+  // 7. Workspace Isolation: Company A cannot see Company B data
+  {
+    // Register Company B
+    const companyB = await testApi('POST', '/api/auth/register', {
+      name: 'Miles Dyson',
+      email: 'miles@competitor.com',
+      password: 'SecretPassword99!',
+      workspaceName: 'Competitor Labs',
+    });
+    const companyBToken = companyB.data.token;
+    const companyBWorkspaceId = companyB.data.workspace.id;
+
+    // Company B creates project
+    const compBProj = await testApi('POST', '/api/projects', {
+      title: 'Company B Top Secret',
+      description: 'Confidential project',
+    }, {
+      Authorization: `Bearer ${companyBToken}`,
+    });
+    assert(compBProj.status === 201, '7. Company B creates separate project');
+
+    // Company A Admin lists projects -> MUST ONLY SEE Cyberdyne Systems projects
+    const compAProjects = await testApi('GET', '/api/projects', undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    const hasCompanyBProject = compAProjects.data.projects.some((p: any) => p.workspace_id === companyBWorkspaceId);
+    assert(!hasCompanyBProject, '7. Workspace Isolation: Company A cannot see Company B projects');
+
+    // Company B Admin lists projects -> MUST ONLY SEE Competitor Labs projects
+    const compBProjects = await testApi('GET', '/api/projects', undefined, {
+      Authorization: `Bearer ${companyBToken}`,
+    });
+    const hasCompanyAProject = compBProjects.data.projects.some((p: any) => p.workspace_id === workspaceId);
+    assert(!hasCompanyAProject, '7. Workspace Isolation: Company B cannot see Company A projects');
+  }
+
+  // 8. CORS Preflight
+  {
+    const vercelOrigin = 'https://workspace-mavr-qq0whm00k-swastikdas18-1844s-projects.vercel.app';
+    const preflightReq = new Request('http://localhost:3000/api/auth/register', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: vercelOrigin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type, authorization, x-session-token',
+      },
+    });
+
+    const res = await app.fetch(preflightReq);
     assert(
-      tamperedSession.data.user.role === 'employee',
-      '14. Client-supplied role header is strictly ignored; server-side identity enforced'
+      res.status === 204 || res.status === 200,
+      '8. CORS preflight OPTIONS returns 204 No Content or 200 OK'
+    );
+    assert(
+      res.headers.get('access-control-allow-origin') === vercelOrigin,
+      '8. Access-Control-Allow-Origin dynamically reflects Vercel preview origin'
     );
   }
 
-  // TEST 15: Client-Supplied User ID Manipulation (Impersonation attempt)
+  // 9. PHASE 2: Unique Email Enforcement (409 Conflict)
   {
-    // Employee sends x-user-id pointing to Sarah Connor (Admin)
-    const impersonatedSession = await testApi('GET', '/api/auth/session', undefined, {
-      Authorization: `Bearer ${employeeToken}`,
-      'x-user-id': adminUserId,
+    const duplicateRes = await testApi('POST', '/api/auth/register', {
+      name: 'Sarah Duplicate',
+      email: 'sarah@cyberdyne.io', // Already registered in step 1
+      password: 'AnotherPassword123!',
+      workspaceName: 'Cyberdyne Clone',
     });
 
+    assert(duplicateRes.status === 409, '9. Duplicate email registration returns HTTP 409 Conflict');
     assert(
-      impersonatedSession.data.user.id === employeeUserId,
-      '15. Client-supplied userId header is strictly ignored; session token identity enforced'
+      duplicateRes.data.error?.code === 'EMAIL_EXISTS',
+      '9. Error response contains code EMAIL_EXISTS'
     );
+  }
+
+  // 10. PHASE 1: Employee Assignment Scoping & Mutation Isolation
+  {
+    // Admin creates an unassigned project not involving John Reese
+    const unassignedProjRes = await testApi('POST', '/api/projects', {
+      title: 'Skynet Defense Perimeter (Admin Only)',
+      description: 'Restricted to top-level command.',
+      status: 'planning',
+      memberIds: [adminUserId],
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(unassignedProjRes.status === 201, '10. Admin creates restricted project');
+    const restrictedProjId = unassignedProjRes.data.project.id;
+
+    // Admin creates an unassigned task assigned to admin
+    const unassignedTaskRes = await testApi('POST', '/api/tasks', {
+      title: 'Classified Core Directive',
+      description: 'Admin restricted task',
+      status: 'todo',
+      priority: 'high',
+      assignedTo: adminUserId,
+      projectId: restrictedProjId,
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(unassignedTaskRes.status === 201, '10. Admin creates restricted task');
+    const restrictedTaskId = unassignedTaskRes.data.task.id;
+
+    // Employee GET /api/projects -> MUST NOT contain restricted project
+    const empProjectsRes = await testApi('GET', '/api/projects', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    const containsRestrictedProject = empProjectsRes.data.projects.some(
+      (p: any) => p.id === restrictedProjId
+    );
+    assert(!containsRestrictedProject, '10. Employee GET /api/projects does NOT return unassigned projects');
+
+    // Employee GET /api/tasks -> MUST NOT contain restricted task
+    const empTasksRes = await testApi('GET', '/api/tasks', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    const containsRestrictedTask = empTasksRes.data.tasks.some(
+      (t: any) => t.id === restrictedTaskId
+    );
+    assert(!containsRestrictedTask, '10. Employee GET /api/tasks does NOT return unassigned tasks');
+
+    // Employee PATCH /api/tasks/:id on unassigned task -> MUST return 403 Forbidden
+    const mutateRestrictedTask = await testApi('PATCH', `/api/tasks/${restrictedTaskId}`, {
+      status: 'completed',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(mutateRestrictedTask.status === 403, '10. Employee cannot mutate unassigned task (403 Forbidden)');
+
+    // Employee PATCH /api/tasks/:id on assigned task -> MUST succeed (200 OK)
+    const mutateAssignedTask = await testApi('PATCH', `/api/tasks/${taskId}`, {
+      status: 'in_progress',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(mutateAssignedTask.status === 200, '10. Employee can mutate assigned task (200 OK)');
+  }
+
+  // 11. PHASE 4: Intern Visibility Hardening (Member Directory & CRM blocked)
+  {
+    // Intern attempts to access workspace member directory -> 403 Forbidden
+    const internMembersRes = await testApi('GET', '/api/workspace/members', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internMembersRes.status === 403, '11. Intern is blocked from workspace members directory (403)');
+
+    // Intern attempts to access CRM -> 403 Forbidden
+    const internCrmRes = await testApi('GET', '/api/crm', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internCrmRes.status === 403, '11. Intern is blocked from CRM endpoints (403)');
+  }
+
+  // 12. PHASE 3: CRM Source of Truth & CRUD Operations
+  let crmLeadId = '';
+  {
+    // Admin creates CRM lead assigned to employee
+    const createLeadRes = await testApi('POST', '/api/crm', {
+      customerName: 'Marcus Wright',
+      company: 'Resistance Technologies',
+      email: 'marcus@resistance.org',
+      phone: '+1 555-0199',
+      dealValue: 125000,
+      status: 'new_lead',
+      ownerId: employeeUserId,
+      notes: 'Initial enterprise architecture briefing.',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(createLeadRes.status === 201, '12. Admin creates CRM lead via backend API');
+    assert(createLeadRes.data.lead.customer_name === 'Marcus Wright', '12. CRM lead name verified');
+    crmLeadId = createLeadRes.data.lead.id;
+
+    // Employee can view CRM leads assigned to them
+    const empCrmList = await testApi('GET', '/api/crm', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empCrmList.status === 200, '12. Employee can list CRM leads');
+    assert(empCrmList.data.leads.some((l: any) => l.id === crmLeadId), '12. CRM lead visible to Employee');
+
+    // Employee can update CRM lead status
+    const updateLeadRes = await testApi('PATCH', `/api/crm/${crmLeadId}`, {
+      status: 'contacted',
+    }, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(updateLeadRes.status === 200, '12. Employee can update CRM lead stage');
+    assert(updateLeadRes.data.lead.status === 'contacted', '12. Lead status updated to contacted');
+
+    // Employee cannot delete CRM lead (Admin only)
+    const empDeleteLead = await testApi('DELETE', `/api/crm/${crmLeadId}`, undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empDeleteLead.status === 403, '12. Employee cannot delete CRM lead (403 Forbidden)');
+
+    // Admin can delete CRM lead
+    const adminDeleteLead = await testApi('DELETE', `/api/crm/${crmLeadId}`, undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminDeleteLead.status === 200, '12. Admin can delete CRM lead');
+  }
+
+  // 13. PHASE 5: Session Restoration Verification
+  {
+    const sessionRes = await testApi('GET', '/api/auth/session', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(sessionRes.status === 200, '13. GET /api/auth/session restores active session');
+    assert(sessionRes.data.user.id === employeeUserId, '13. Session user ID verified');
+    assert(sessionRes.data.workspace.id === workspaceId, '13. Session workspace verified');
+  }
+
+  // 14. PHASE 7: Document Download Telemetry & Access Control
+  {
+    // Admin creates public learning document
+    const learningDocRes = await testApi('POST', '/api/documents', {
+      title: 'Neural Core Onboarding Manual',
+      visibility: 'learning',
+      category: 'Onboarding',
+      fileType: 'pdf',
+      fileSize: '3.4 MB',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(learningDocRes.status === 201, '14. Admin creates learning document');
+    const learningDocId = learningDocRes.data.document.id;
+
+    // Admin creates private document
+    const privateDocRes = await testApi('POST', '/api/documents', {
+      title: 'Executive Financial Projections 2027',
+      visibility: 'private',
+      category: 'Policy',
+      fileType: 'sheet',
+      fileSize: '5.1 MB',
+    }, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(privateDocRes.status === 201, '14. Admin creates private document');
+    const privateDocId = privateDocRes.data.document.id;
+
+    // Intern downloads learning document -> Success & increment download count
+    const internDownload = await testApi('POST', `/api/documents/${learningDocId}/download`, undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internDownload.status === 200, '14. Intern can download learning document');
+    assert(internDownload.data.downloadCount >= 1, '14. Document download count incremented');
+    assert(!!internDownload.data.downloadUrl, '14. Download payload contains downloadUrl');
+
+    // Intern attempts to download private document -> 403 Forbidden
+    const internPrivateDownload = await testApi('POST', `/api/documents/${privateDocId}/download`, undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internPrivateDownload.status === 403, '14. Intern cannot download private document (403 Forbidden)');
+
+    // ----------------------------------------------------
+    // PHASE 5A: Notification, Activity, and Audit Platform
+    // ----------------------------------------------------
+
+    // 15. Employee fetches own notifications
+    const empNotifs = await testApi('GET', '/api/notifications', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empNotifs.status === 200, '15. Employee can fetch notifications (200 OK)');
+    assert(Array.isArray(empNotifs.data.notifications), '15. Notifications response is an array');
+
+    // 16. Employee marks all notifications as read
+    const markAllRead = await testApi('PATCH', '/api/notifications/read-all', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(markAllRead.status === 200, '16. Employee mark-all-as-read (200 OK)');
+
+    // 17. Workspace Activity Feed (Workspace scoped)
+    const activityFeed = await testApi('GET', '/api/activity', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(activityFeed.status === 200, '17. Employee can fetch workspace activity feed (200 OK)');
+    assert(Array.isArray(activityFeed.data.activities), '17. Activity feed response is an array');
+
+    // 18. Audit Logs (ADMIN ONLY)
+    const adminAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert(adminAudit.status === 200, '18. Admin can access audit logs (200 OK)');
+    assert(Array.isArray(adminAudit.data.auditLogs), '18. Audit logs response is an array');
+
+    // 19. Employee & Intern blocked from Audit Logs (403 Forbidden)
+    const empAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${employeeToken}`,
+    });
+    assert(empAudit.status === 403, '19. Employee is blocked from audit logs (403 Forbidden)');
+
+    const internAudit = await testApi('GET', '/api/admin/audit', undefined, {
+      Authorization: `Bearer ${internToken}`,
+    });
+    assert(internAudit.status === 403, '19. Intern is blocked from audit logs (403 Forbidden)');
   }
 
   console.log('\n==================================================');

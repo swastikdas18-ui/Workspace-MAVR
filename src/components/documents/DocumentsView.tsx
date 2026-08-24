@@ -252,7 +252,8 @@ export const DocumentsView: React.FC = () => {
       ) : (
         /* LIST VIEW */
         <div className="bg-[#111827] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse min-w-[650px]">
             <thead>
               <tr className="border-b border-white/[0.08] bg-[#0F172A] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3.5 px-4">Document Title</th>
@@ -311,6 +312,7 @@ export const DocumentsView: React.FC = () => {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

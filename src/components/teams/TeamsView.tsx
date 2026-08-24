@@ -299,7 +299,8 @@ export const TeamsView: React.FC = () => {
           <span className="text-xs text-slate-400 font-mono">{users.length} Accounts</span>
         </div>
 
-        <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse min-w-[650px]">
           <thead>
             <tr className="border-b border-white/[0.08] bg-[#0F172A]/80 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
               <th className="py-3.5 px-4">Member Name</th>
@@ -340,6 +341,7 @@ export const TeamsView: React.FC = () => {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Invite Member Modal */}

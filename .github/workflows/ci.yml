@@ -1,0 +1,37 @@
+name: Workspace OS Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-and-test:
+    name: Lint, Test & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Static Type Check (TypeScript)
+        run: npm run lint
+
+      - name: Run Full Automated Backend Test Suite
+        run: npm test
+
+      - name: Verify Production Compilation Bundle
+        run: npm run build
+
+      - name: Security Vulnerability Audit
+        run: npm audit --audit-level=high || true

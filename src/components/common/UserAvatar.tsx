@@ -1,13 +1,13 @@
 import React from 'react';
 
 interface UserAvatarProps {
-  name: string;
+  name?: string;
   avatar?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
-export function getUserInitials(name: string): string {
+export function getUserInitials(name?: string): string {
   if (!name) return 'U';
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
@@ -21,9 +21,11 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
 }) => {
   const sizeClasses = {
+    xs: 'w-5 h-5 text-[9px]',
     sm: 'w-6 h-6 text-[10px]',
     md: 'w-8 h-8 text-xs',
     lg: 'w-10 h-10 text-sm',
+    xl: 'w-12 h-12 text-base',
   }[size];
 
   if (avatar && avatar.trim().length > 0) {

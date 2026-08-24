@@ -13,9 +13,11 @@ import { activityRouter } from './routes/activity';
 import { searchRouter } from './routes/search';
 import { automationRouter } from './routes/automations';
 import { presenceRouter } from './routes/presence';
+import { healthRouter } from './routes/health';
 import { analyticsRouter, billingRouter, adminRouter } from './routes/protected-modules';
 import { env } from './config/env';
 import { requestLogger } from './middleware/logger';
+import { securityHeaders } from './middleware/security';
 import {
   authRateLimiter,
   inviteRateLimiter,
@@ -24,6 +26,9 @@ import {
 } from './middleware/rate-limiter';
 
 export const app = new Hono();
+
+// Security Headers (Helmet-equivalent)
+app.use('*', securityHeaders);
 
 // Structured Request & Error Logging
 app.use('*', requestLogger);
@@ -120,24 +125,9 @@ app.use('*', async (c, next) => {
   c.header('X-Powered-By', 'Workspace-OS/1.0-Hono');
 });
 
-// Health check endpoints
-app.get('/health', (c) => {
-  return c.json({
-    status: 'ok',
-    service: 'Workspace OS',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.get('/api/health', (c) => {
-  return c.json({
-    status: 'ok',
-    database: 'PostgreSQL (Neon / Drizzle ORM)',
-    auth: 'Better Auth (Session Active)',
-    environment: env.NODE_ENV,
-    timestamp: new Date().toISOString(),
-  });
-});
+// Health check & diagnostic endpoints
+app.route('/health', healthRouter);
+app.route('/api/health', healthRouter);
 
 // Mount API routes with Rate Limiting
 app.use('/api/auth/*', authRateLimiter);

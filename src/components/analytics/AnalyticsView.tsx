@@ -10,7 +10,7 @@ import { MetricCard } from '../common/MetricCard';
 import { motion } from 'motion/react';
 
 export const AnalyticsView: React.FC = () => {
-  const { projects, tasks, crmRecords, users, teams, auditLogs } = useWorkspace();
+  const { projects, tasks, crmRecords, users, teams } = useWorkspace();
   const [activeTab, setActiveTab] = useState<'overview' | 'velocity' | 'revenue' | 'teams'>('overview');
 
   const completedTasks = tasks.filter((t) => t.status === 'completed').length;

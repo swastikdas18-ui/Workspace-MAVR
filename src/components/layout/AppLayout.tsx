@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ToastContainer } from '../common/ToastContainer';
 import { CommandPalette } from '../common/CommandPalette';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -77,16 +78,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </div>
       </div>
 
-      {/* Global Raycast-Style Command Palette */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onOpenCreateProject={onOpenCreateProject}
-        onOpenCreateTask={onOpenCreateTask}
-        onOpenCreateLead={onOpenCreateLead}
-        onOpenUploadDoc={onOpenUploadDoc}
-        onOpenInviteMember={onOpenInviteMember}
-      />
+      {/* Global Raycast-Style Command Palette with Error Boundary */}
+      <ErrorBoundary isModal fallbackTitle="Command Palette Error" onReset={() => setIsCommandPaletteOpen(false)}>
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onOpenCreateProject={onOpenCreateProject}
+          onOpenCreateTask={onOpenCreateTask}
+          onOpenCreateLead={onOpenCreateLead}
+          onOpenUploadDoc={onOpenUploadDoc}
+          onOpenInviteMember={onOpenInviteMember}
+        />
+      </ErrorBoundary>
 
       {/* Enterprise Toast System */}
       <ToastContainer />

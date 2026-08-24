@@ -678,7 +678,7 @@ export async function runRealtimeTests() {
 }
 
 // Auto-run if executed directly
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.includes('realtime-collaboration.test')) {
+if (process.argv[1]?.endsWith('realtime-collaboration.test.ts')) {
   runRealtimeTests().then(() => {
     process.exit(0);
   }).catch((err) => {

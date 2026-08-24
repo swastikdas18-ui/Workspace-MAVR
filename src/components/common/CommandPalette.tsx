@@ -44,6 +44,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Define quick navigation items based on role
   const getNavCommands = () => {
+    const role = currentRole || 'employee';
     const items = [
       { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, category: 'Navigation', tab: 'dashboard', roles: ['admin', 'employee', 'intern'] },
       { id: 'projects', label: 'Go to Projects', icon: FolderKanban, category: 'Navigation', tab: 'projects', roles: ['admin', 'employee'] },
@@ -57,14 +58,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       { id: 'admin_tools', label: 'Go to Admin RBAC Tools', icon: ShieldAlert, category: 'Navigation', tab: 'admin_tools', roles: ['admin'] },
     ];
 
-    return items.filter(item => item.roles.includes(currentRole));
+    return items.filter(item => item.roles.includes(role));
   };
 
   // Define quick action commands based on role permissions
   const getActionCommands = () => {
     const actions = [];
 
-    if (permissions.tasks.create && onOpenCreateTask) {
+    if (permissions?.tasks?.create && onOpenCreateTask) {
       actions.push({
         id: 'action-task',
         label: 'Create New Task',
@@ -74,7 +75,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    if (permissions.projects.create && onOpenCreateProject) {
+    if (permissions?.projects?.create && onOpenCreateProject) {
       actions.push({
         id: 'action-project',
         label: 'Create New Project',
@@ -84,7 +85,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    if (permissions.crm.createRecord && onOpenCreateLead) {
+    if (permissions?.crm?.createRecord && onOpenCreateLead) {
       actions.push({
         id: 'action-lead',
         label: 'Add CRM Lead',
@@ -94,7 +95,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    if (permissions.documents.createOrgDoc && onOpenUploadDoc) {
+    if (permissions?.documents?.createOrgDoc && onOpenUploadDoc) {
       actions.push({
         id: 'action-doc',
         label: 'Upload Document',
@@ -104,7 +105,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    if (permissions.teams.inviteMembers && onOpenInviteMember) {
+    if (permissions?.teams?.inviteMembers && onOpenInviteMember) {
       actions.push({
         id: 'action-invite',
         label: 'Invite Team Member',
@@ -119,57 +120,101 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Search through entities (projects, tasks, docs, leads)
   const getEntityMatches = () => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
+    if (!query || typeof query !== 'string' || !query.trim()) return [];
+    const q = query.trim().toLowerCase();
 
-    const matches = [];
+    const matches: Array<{
+      id: string;
+      label: string;
+      icon: any;
+      category: string;
+      action: () => void;
+    }> = [];
 
     // Projects
-    if (permissions.projects.viewAssigned || permissions.projects.viewAll) {
-      projects.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)).slice(0, 3).forEach(p => {
-        matches.push({
-          id: `proj-${p.id}`,
-          label: `Project: ${p.name}`,
-          icon: FolderKanban,
-          category: 'Projects',
-          action: () => { setActiveTab('projects'); onClose(); }
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    if (permissions?.projects?.viewAssigned || permissions?.projects?.viewAll) {
+      safeProjects
+        .filter(p => {
+          if (!p) return false;
+          const name = p.title || (p as any).name || '';
+          const desc = p.description || '';
+          return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+        })
+        .slice(0, 3)
+        .forEach(p => {
+          const name = p.title || (p as any).name || 'Untitled Project';
+          matches.push({
+            id: `proj-${p.id}`,
+            label: `Project: ${name}`,
+            icon: FolderKanban,
+            category: 'Projects',
+            action: () => { setActiveTab('projects'); onClose(); }
+          });
         });
-      });
     }
 
     // Tasks
-    tasks.filter(t => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))).slice(0, 3).forEach(t => {
-      matches.push({
-        id: `task-${t.id}`,
-        label: `Task: ${t.title}`,
-        icon: CheckSquare,
-        category: 'Tasks',
-        action: () => { setActiveTab('tasks'); onClose(); }
-      });
-    });
-
-    // Documents
-    documents.filter(d => d.title.toLowerCase().includes(q)).slice(0, 3).forEach(d => {
-      matches.push({
-        id: `doc-${d.id}`,
-        label: `Doc: ${d.title}`,
-        icon: FileText,
-        category: 'Documents',
-        action: () => { setActiveTab('documents'); onClose(); }
-      });
-    });
-
-    // CRM Leads
-    if (permissions.crm.viewAssigned || permissions.crm.viewAll) {
-      crmRecords.filter(c => c.customer_name.toLowerCase().includes(q) || c.company.toLowerCase().includes(q)).slice(0, 3).forEach(c => {
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    safeTasks
+      .filter(t => {
+        if (!t) return false;
+        const title = t.title || '';
+        const desc = t.description || '';
+        return title.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+      })
+      .slice(0, 3)
+      .forEach(t => {
         matches.push({
-          id: `crm-${c.id}`,
-          label: `Lead: ${c.customer_name} (${c.company})`,
-          icon: DollarSign,
-          category: 'CRM Pipeline',
-          action: () => { setActiveTab('crm'); onClose(); }
+          id: `task-${t.id}`,
+          label: `Task: ${t.title || 'Untitled Task'}`,
+          icon: CheckSquare,
+          category: 'Tasks',
+          action: () => { setActiveTab('tasks'); onClose(); }
         });
       });
+
+    // Documents
+    const safeDocs = Array.isArray(documents) ? documents : [];
+    safeDocs
+      .filter(d => {
+        if (!d) return false;
+        const title = d.title || '';
+        return title.toLowerCase().includes(q);
+      })
+      .slice(0, 3)
+      .forEach(d => {
+        matches.push({
+          id: `doc-${d.id}`,
+          label: `Doc: ${d.title || 'Untitled Doc'}`,
+          icon: FileText,
+          category: 'Documents',
+          action: () => { setActiveTab('documents'); onClose(); }
+        });
+      });
+
+    // CRM Leads
+    const safeCrm = Array.isArray(crmRecords) ? crmRecords : [];
+    if (permissions?.crm?.viewAssigned || permissions?.crm?.viewAll) {
+      safeCrm
+        .filter(c => {
+          if (!c) return false;
+          const cust = c.customer_name || (c as any).customerName || '';
+          const comp = c.company || '';
+          return cust.toLowerCase().includes(q) || comp.toLowerCase().includes(q);
+        })
+        .slice(0, 3)
+        .forEach(c => {
+          const cust = c.customer_name || (c as any).customerName || 'Contact';
+          const comp = c.company || 'Company';
+          matches.push({
+            id: `crm-${c.id}`,
+            label: `Lead: ${cust} (${comp})`,
+            icon: DollarSign,
+            category: 'CRM Pipeline',
+            action: () => { setActiveTab('crm'); onClose(); }
+          });
+        });
     }
 
     return matches;
@@ -181,12 +226,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   }));
 
   const allItems = [
-    ...getActionCommands(),
-    ...getEntityMatches(),
-    ...navCommands,
+    ...(getActionCommands() || []),
+    ...(getEntityMatches() || []),
+    ...(navCommands || []),
   ].filter(item => {
-    if (!query.trim()) return true;
-    return item.label.toLowerCase().includes(query.toLowerCase()) || item.category.toLowerCase().includes(query.toLowerCase());
+    if (!item || !item.label) return false;
+    if (!query || !query.trim()) return true;
+    const q = query.trim().toLowerCase();
+    const labelMatch = item.label.toLowerCase().includes(q);
+    const catMatch = item.category ? item.category.toLowerCase().includes(q) : false;
+    return labelMatch || catMatch;
   });
 
   // Handle keyboard navigation

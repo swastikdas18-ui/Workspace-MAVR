@@ -174,4 +174,23 @@ export class BackupVerificationService {
       verificationDetails,
     };
   }
+
+  /**
+   * Run full simulated restore drill on latest or specified backup snapshot.
+   */
+  public static async simulateRestore(backupId?: string): Promise<VerificationResult> {
+    let targetId = backupId;
+    if (!targetId) {
+      const backups = await BackupService.listBackups(1);
+      if (backups.length === 0) {
+        // Create an on-demand backup snapshot first
+        const newBackup = await BackupService.createBackup();
+        targetId = newBackup.id;
+      } else {
+        targetId = backups[0].id;
+      }
+    }
+
+    return this.verifyBackup(targetId);
+  }
 }

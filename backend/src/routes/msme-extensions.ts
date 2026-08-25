@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { requireRole, requireWorkspaceRole } from '../middleware/rbac';
 import { WikiRepository } from '../repositories/wiki-repository';
 import { TimeTrackingRepository } from '../repositories/time-tracking-repository';
@@ -284,7 +284,7 @@ guestPortalRouter.get('/auth/:token', async (c) => {
  *
  * Everything else: 401 unauthenticated / 403 unauthorized.
  */
-guestPortalRouter.post('/approvals/:id/sign', async (c) => {
+guestPortalRouter.post('/approvals/:id/sign', optionalAuthMiddleware, async (c) => {
   const approvalId = c.req.param('id');
   const body = await c.req.json().catch(() => ({}));
   const signatureName = typeof body.signatureName === 'string' ? body.signatureName : '';

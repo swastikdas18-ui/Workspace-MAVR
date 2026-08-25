@@ -1,10 +1,13 @@
-export type UserRole = 'platform_admin' | 'admin' | 'employee' | 'intern';
+export type PlatformRole = 'founder' | 'platform_admin' | 'support' | 'none';
+export type WorkspaceRole = 'admin' | 'employee' | 'intern';
+export type UserRole = 'founder' | 'platform_admin' | 'admin' | 'employee' | 'intern' | 'guest';
 
 export interface SafeUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  platformRole: PlatformRole;
   title?: string | null;
   avatar?: string | null;
   teamId?: string | null;

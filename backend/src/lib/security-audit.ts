@@ -16,6 +16,7 @@ export type SecurityEventType =
   | 'webhook.invalid_signature'
   | 'webhook.missing_signature'
   | 'access.forbidden'
+  | 'access.denied'
   | 'csrf.failure'
   | 'guest.token_invalid'
   | 'guest.token_reuse'

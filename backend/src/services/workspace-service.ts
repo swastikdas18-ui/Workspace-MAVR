@@ -137,6 +137,7 @@ export class WorkspaceService {
             name: mem.user.name,
             email: mem.user.email,
             role: mem.user.role,
+            platformRole: ((mem.user as any).platformRole || 'none'),
             title: mem.user.title || null,
             avatar: mem.user.avatar || null,
             teamId: mem.user.teamId || null,

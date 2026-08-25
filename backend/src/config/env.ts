@@ -21,8 +21,10 @@ const envSchema = z.object({
   DEMO_MODE: z.string().default('true').transform((val) => val === 'true' || val === '1'),
   // Encryption master key material for AES-256-GCM token encryption
   ENCRYPTION_KEY: z.string().optional(),
-  // Platform administration (comma-separated emails granted platform_admin)
+  // Platform administration & Founder roles (comma-separated emails)
+  FOUNDER_EMAILS: z.string().optional(),
   PLATFORM_ADMIN_EMAILS: z.string().optional(),
+  SUPPORT_EMAILS: z.string().optional(),
   // Backblaze B2 S3-Compatible Object Storage
   B2_KEY_ID: z.string().optional(),
   B2_APPLICATION_KEY: z.string().optional(),
@@ -110,10 +112,37 @@ export function assertProductionSecrets(target: Record<string, unknown> = proces
 }
 
 /**
+ * Emails granted the founder role at startup / authentication.
+ */
+export function getFounderEmails(): string[] {
+  const founderEnv = process.env.FOUNDER_EMAILS || env.FOUNDER_EMAILS;
+  if (founderEnv !== undefined && founderEnv.trim().length > 0) {
+    return founderEnv
+      .split(',')
+      .map((email) => email.toLowerCase().trim())
+      .filter(Boolean);
+  }
+  return (process.env.PLATFORM_ADMIN_EMAILS || env.PLATFORM_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.toLowerCase().trim())
+    .filter(Boolean);
+}
+
+/**
  * Emails promoted to the platform_admin role at startup.
  */
 export function getPlatformAdminEmails(): string[] {
   return (process.env.PLATFORM_ADMIN_EMAILS || env.PLATFORM_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.toLowerCase().trim())
+    .filter(Boolean);
+}
+
+/**
+ * Emails granted the support role at startup / authentication.
+ */
+export function getSupportEmails(): string[] {
+  return (process.env.SUPPORT_EMAILS || env.SUPPORT_EMAILS || '')
     .split(',')
     .map((email) => email.toLowerCase().trim())
     .filter(Boolean);

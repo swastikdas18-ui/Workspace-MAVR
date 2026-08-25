@@ -110,34 +110,7 @@ export function requireWorkspaceRole(allowedRoles: (UserRole | string)[]) {
   };
 }
 
-/**
- * PLATFORM ADMIN GATE (Phase 17 — Fix #4)
- *
- * Cross-workspace / company-wide resources (MRR, ARR, all customers,
- * all subscriptions, global analytics) are restricted to users holding the
- * `platform_admin` role. Regular workspace admins receive 403.
- *
- * The role is resolved server-side from the authenticated session's user
- * record — client-supplied roles are never trusted.
- */
-export function requirePlatformAdmin() {
-  return async (c: Context, next: Next) => {
-    const user = c.get('user');
-
-    if (!user) {
-      return unauthorized(c);
-    }
-
-    if (user.role !== 'platform_admin') {
-      return forbidden(c, 'Platform administrator privileges required.', {
-        requiredRole: 'platform_admin',
-        actualRole: user.role,
-      });
-    }
-
-    await next();
-  };
-}
+export { requireFounder, requirePlatformAdmin, requireSupport } from './platform-admin';
 
 /**
  * Legacy helper retained for existing routes. Prefers the workspace

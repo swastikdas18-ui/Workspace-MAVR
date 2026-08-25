@@ -1,7 +1,9 @@
 import { Context, Next } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { AuthService } from '../services/auth-service';
 import { SafeUser, SafeWorkspace } from '../types';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
+import { WORKSPACE_SESSION_COOKIE, readCookieFromHeader } from '../lib/session-cookies';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -19,16 +21,15 @@ export async function authMiddleware(c: Context, next: Next) {
   let token: string | null = null;
   let transport: 'header' | 'cookie' = 'header';
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  // Primary: HttpOnly session cookie (Strict OWASP compliance)
+  const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(cookieHeader, WORKSPACE_SESSION_COOKIE);
+  if (cookieToken) {
+    token = cookieToken;
+    transport = 'cookie';
+  } else if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.substring(7).trim();
   } else if (customHeader) {
     token = customHeader.trim();
-  } else if (cookieHeader) {
-    const match = cookieHeader.match(/ws_session=([^;]+)/);
-    if (match) {
-      token = match[1];
-      transport = 'cookie';
-    }
   }
 
   if (!token) {
@@ -70,3 +71,32 @@ export async function authMiddleware(c: Context, next: Next) {
 
   await next();
 }
+
+export async function optionalAuthMiddleware(c: Context, next: Next) {
+  const authHeader = c.req.header('Authorization') || c.req.header('authorization');
+  const customHeader = c.req.header('x-session-token') || c.req.header('X-Session-Token');
+  const cookieHeader = c.req.header('cookie') || c.req.header('Cookie');
+
+  let token: string | null = null;
+
+  const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(cookieHeader, WORKSPACE_SESSION_COOKIE);
+  if (cookieToken) {
+    token = cookieToken;
+  } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7).trim();
+  } else if (customHeader) {
+    token = customHeader.trim();
+  }
+
+  if (token) {
+    const sessionData = await AuthService.getSession(token);
+    if (sessionData) {
+      c.set('user', sessionData.user);
+      c.set('workspace', sessionData.workspace);
+      c.set('sessionToken', token);
+    }
+  }
+
+  await next();
+}
+

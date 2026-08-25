@@ -269,6 +269,7 @@ export async function runPhase19bTests() {
     token: expiredToken,
     expiresAt: new Date(Date.now() - 1000), // in the past
     createdAt: new Date(Date.now() - 8 * 86400000),
+    lastActiveAt: new Date(Date.now() - 8 * 86400000),
     ipAddress: null,
     userAgent: null,
   });

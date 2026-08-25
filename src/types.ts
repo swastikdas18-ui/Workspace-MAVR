@@ -1,3 +1,4 @@
+export type PlatformRole = 'founder' | 'platform_admin' | 'support' | 'none';
 export type UserRole = 'admin' | 'employee' | 'intern' | 'guest';
 
 export interface User {
@@ -5,6 +6,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  platformRole?: PlatformRole;
   avatar: string;
   title: string;
   teamId?: string;

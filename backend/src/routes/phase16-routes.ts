@@ -10,13 +10,17 @@
 
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireWorkspaceRole, requirePlatformAdmin } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
+import { requireFounder, requirePlatformAdmin, requireSupport } from '../middleware/platform-admin';
 import { inMemoryDb } from '../../packages/database';
 import { ExportService } from '../services/export-service';
 import { DigestService } from '../services/digest-service';
 import { AuditRepository } from '../repositories/audit-repository';
 import { WorkspaceHealthService } from '../services/workspace-health-service';
 import { EmailService } from '../services/email-service';
+import { EmailHealthService } from '../services/email-health-service';
+import { BackupService } from '../services/backup-service';
+import { SentryService } from '../services/sentry-service';
 import { PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
 import { PricingEngine } from '../services/pricing-engine';
 
@@ -252,19 +256,20 @@ auditSearchRouter.get('/search', async (c) => {
 });
 
 // ============================================================================
-// PART 7 — FOUNDER ADMIN CONSOLE
+// ============================================================================
+// PART 7 — FOUNDER ADMIN CONSOLE & PLATFORM RBAC (Phase 20A)
 // ============================================================================
 
-const founderConsoleRouter = new Hono();
+export const founderConsoleRouter = new Hono();
 founderConsoleRouter.use('*', authMiddleware);
 
 /**
- * GET /api/admin/founder-console — Company-wide metrics (platform admins ONLY)
- * SECURITY (Phase 17 — Fix #4): cross-workspace financials (MRR, ARR, all
- * payments, all customers) require the platform_admin role. Workspace-level
- * admins receive 403 Forbidden and the denial is audit-logged.
+ * GET /api/admin/founder-console — Company-wide metrics (FOUNDERS ONLY)
+ * SECURITY (Phase 20A): cross-workspace financials (MRR, ARR, all
+ * payments, all customers) strictly require the founder platform role.
+ * Workspace-level admins receive 403 Forbidden and the denial is audit-logged.
  */
-founderConsoleRouter.get('/founder-console', requirePlatformAdmin(), async (c) => {
+founderConsoleRouter.get('/founder-console', requireFounder(), async (c) => {
   try {
     // Aggregate across ALL workspaces (company view)
     const allWorkspaces = Array.from(inMemoryDb.workspaces.values());
@@ -386,6 +391,149 @@ founderConsoleRouter.get('/founder-console', requirePlatformAdmin(), async (c) =
       },
       topCustomers,
       generatedAt: new Date().toISOString(),
+    }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/revenue — Detailed Financial Telemetry (FOUNDERS ONLY)
+ */
+founderConsoleRouter.get('/revenue', requireFounder(), async (c) => {
+  try {
+    const allPayments = Array.from(inMemoryDb.billingPayments.values());
+    const allSubscriptions = Array.from(inMemoryDb.billingSubscriptions.values());
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+    const monthlyPayments = allPayments.filter(
+      (p) => p.status === 'captured' && new Date(p.createdAt || Date.now()) > thirtyDaysAgo
+    );
+    const mrr = Math.round(monthlyPayments.reduce((sum, p) => sum + (p.amount || 0) / 100, 0));
+    const arr = mrr * 12;
+
+    const paidSubs = Array.from(inMemoryDb.subscriptions.values())
+      .filter((s: any) => s.plan !== 'free' && s.pricePerMonth > 0)
+      .map((s: any) => ({ plan: s.plan as PlanTier, seats: s.seats || 1, pricePerMonth: s.pricePerMonth || 0 }));
+
+    const arpu = paidSubs.length > 0
+      ? Math.round(paidSubs.reduce((sum, s) => sum + s.pricePerMonth, 0) / paidSubs.length)
+      : 0;
+    const arps = PricingEngine.calculateARPS(paidSubs);
+    const expansionRevenue = PricingEngine.calculateExpansionRevenue(paidSubs);
+
+    return c.json({
+      revenue: {
+        mrr,
+        arr,
+        arpu,
+        arps,
+        expansionRevenue,
+        currency: 'INR',
+        totalTransactions: allPayments.length,
+        successfulTransactions: monthlyPayments.length,
+      },
+      subscriptions: {
+        total: allSubscriptions.length,
+        active: allSubscriptions.filter((s) => s.status === 'active').length,
+      },
+      generatedAt: new Date().toISOString(),
+    }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/customers — Cross-Workspace Customer Directory (PLATFORM ADMINS & FOUNDERS)
+ */
+founderConsoleRouter.get('/customers', requirePlatformAdmin(), async (c) => {
+  try {
+    const allWorkspaces = Array.from(inMemoryDb.workspaces.values());
+    const customers = allWorkspaces.map((ws) => {
+      const memberCount = Array.from(inMemoryDb.workspaceMembers.values())
+        .filter((m) => m.workspaceId === ws.id).length;
+      const health = WorkspaceHealthService.calculateHealth(ws.id);
+      return {
+        id: ws.id,
+        name: ws.name,
+        slug: ws.slug,
+        plan: ws.plan,
+        memberCount,
+        healthScore: health.score,
+        healthStatus: health.status,
+        churnRisk: health.status === 'Critical' ? 'HIGH' : health.status === 'At Risk' ? 'MEDIUM' : 'LOW',
+        createdAt: ws.createdAt,
+      };
+    });
+
+    return c.json({ customers, total: customers.length }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/platform-health — Global System & Database Health (PLATFORM ADMINS)
+ */
+founderConsoleRouter.get('/platform-health', requirePlatformAdmin(), async (c) => {
+  try {
+    const memory = process.memoryUsage();
+    return c.json({
+      status: 'healthy',
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      stats: {
+        totalWorkspaces: inMemoryDb.workspaces.size,
+        totalUsers: inMemoryDb.users.size,
+        activeSessions: inMemoryDb.sessions.size,
+      },
+      memory: {
+        rssMb: Math.round(memory.rss / (1024 * 1024) * 100) / 100,
+        heapUsedMb: Math.round(memory.heapUsed / (1024 * 1024) * 100) / 100,
+      },
+    }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/email-health — Global Email Health & Deliverability (SUPPORT & ABOVE)
+ */
+founderConsoleRouter.get('/email-health', requireSupport(), async (c) => {
+  try {
+    const metrics = await EmailHealthService.getDeliverabilityMetrics();
+    return c.json({ emailHealth: metrics }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/backups — PostgreSQL Backup Snapshot Directory (FOUNDERS ONLY)
+ */
+founderConsoleRouter.get('/backups', requireFounder(), async (c) => {
+  try {
+    const backups = await BackupService.listBackups();
+    return c.json({ backups, total: backups.length }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/observability — Sentry Errors & Ring Buffer Telemetry (PLATFORM ADMINS)
+ */
+founderConsoleRouter.get('/observability', requirePlatformAdmin(), async (c) => {
+  try {
+    const reports = SentryService.getReports(50);
+    return c.json({
+      observability: {
+        totalReports: reports.length,
+        reports,
+        status: 'active',
+      },
     }, 200);
   } catch (err: any) {
     return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message } }, 500);

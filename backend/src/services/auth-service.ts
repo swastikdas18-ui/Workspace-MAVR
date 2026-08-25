@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { inMemoryDb, User, Workspace, WorkspaceMember, Session } from '../../packages/database';
 import { hashPassword, verifyPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
-import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
+import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole, PlatformRole } from '../types';
 import { generateUniqueId } from '../lib/secure-token';
-import { getPlatformAdminEmails } from '../config/env';
+import { getPlatformAdminEmails, getFounderEmails, getSupportEmails } from '../config/env';
 
 // Validation Schemas
 export const registerAdminSchema = z.object({
@@ -26,12 +26,31 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export function determinePlatformRole(email: string): PlatformRole {
+  const normalized = email.toLowerCase().trim();
+  const founderEmails = getFounderEmails();
+  if (founderEmails.includes(normalized)) {
+    return 'founder';
+  }
+  const adminEmails = getPlatformAdminEmails();
+  if (adminEmails.includes(normalized)) {
+    return 'platform_admin';
+  }
+  const supportEmails = getSupportEmails();
+  if (supportEmails.includes(normalized)) {
+    return 'support';
+  }
+  return 'none';
+}
+
 export function sanitizeUser(user: User): SafeUser {
+  const platformRole = (user.platformRole as PlatformRole) || determinePlatformRole(user.email);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role as UserRole,
+    role: (platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : user.role) as UserRole,
+    platformRole,
     title: user.title,
     avatar: user.avatar,
     teamId: user.teamId,
@@ -72,6 +91,7 @@ export class AuthService {
     const userId = crypto.randomUUID();
     const workspaceId = crypto.randomUUID();
     const now = new Date();
+    const platformRole = determinePlatformRole(normalizedEmail);
 
     // 1. Create Admin User
     const newUser: User = {
@@ -79,8 +99,9 @@ export class AuthService {
       name: data.name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      role: 'admin', // First org creator is always Admin
-      title: 'Organization Administrator',
+      role: platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : 'admin', // First org creator is always Admin
+      platformRole,
+      title: platformRole === 'founder' ? 'Platform Founder' : 'Organization Administrator',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       teamId: null,
       createdAt: now,
@@ -129,6 +150,7 @@ export class AuthService {
       token,
       expiresAt,
       createdAt: now,
+      lastActiveAt: now,
       ipAddress: null,
       userAgent: null,
     };
@@ -171,13 +193,15 @@ export class AuthService {
     const hashedPassword = await hashPassword(data.password);
     const userId = crypto.randomUUID();
     const now = new Date();
+    const platformRole = determinePlatformRole(normalizedEmail);
 
     const newUser: User = {
       id: userId,
       name: data.name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      role: assignedRole,
+      role: platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : assignedRole,
+      platformRole,
       title: assignedRole === 'intern' ? 'Product Intern' : 'Operations Specialist',
       avatar: assignedRole === 'intern' 
         ? 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80'
@@ -207,6 +231,7 @@ export class AuthService {
       token,
       expiresAt,
       createdAt: now,
+      lastActiveAt: now,
       ipAddress: null,
       userAgent: null,
     };
@@ -240,6 +265,17 @@ export class AuthService {
       throw new Error('INVALID_CREDENTIALS');
     }
 
+    // Update platform role if configured in env
+    const currentPlatformRole = determinePlatformRole(normalizedEmail);
+    if (currentPlatformRole !== 'none' && user.platformRole !== currentPlatformRole) {
+      user.platformRole = currentPlatformRole;
+      if (currentPlatformRole === 'founder' || currentPlatformRole === 'platform_admin') {
+        user.role = 'platform_admin';
+      }
+      user.updatedAt = new Date();
+      inMemoryDb.users.set(user.id, user);
+    }
+
     // Resolve user's workspace membership
     let userWorkspace: Workspace | null = null;
     let userRoleInWorkspace: UserRole = user.role as UserRole;
@@ -264,6 +300,7 @@ export class AuthService {
     }
 
     // Create new session
+    const now = new Date();
     const token = generateSessionToken();
     const expiresAt = calculateSessionExpiry(7);
     const session: Session = {
@@ -272,7 +309,8 @@ export class AuthService {
       workspaceId: userWorkspace?.id || null,
       token,
       expiresAt,
-      createdAt: new Date(),
+      createdAt: now,
+      lastActiveAt: now,
       ipAddress: null,
       userAgent: null,
     };
@@ -301,22 +339,22 @@ export class AuthService {
     const now = Date.now();
     const expiryTime = new Date(session.expiresAt).getTime();
 
-    // 1. Absolute Expiration Check
+    // 1. Absolute Expiration Check (7 days maximum)
     if (now > expiryTime) {
       inMemoryDb.sessions.delete(token);
       return null;
     }
 
-    // 2. Idle Timeout Check (default 4 hours / 240 mins)
+    // 2. Idle Timeout Check (default 4 hours / 14,400,000 ms)
     const maxIdleMs = options?.maxIdleMs || (4 * 60 * 60 * 1000);
-    const lastActiveTime = (session as any).lastActiveAt ? new Date((session as any).lastActiveAt).getTime() : new Date(session.createdAt).getTime();
+    const lastActiveTime = session.lastActiveAt ? new Date(session.lastActiveAt).getTime() : new Date(session.createdAt).getTime();
     if (now - lastActiveTime > maxIdleMs) {
       inMemoryDb.sessions.delete(token);
       return null;
     }
 
     // Update lastActiveAt to slide the idle window
-    (session as any).lastActiveAt = new Date();
+    session.lastActiveAt = new Date();
 
     const user = inMemoryDb.users.get(session.userId);
     if (!user) {
@@ -366,24 +404,39 @@ export class AuthService {
   }
 
   /**
-   * PLATFORM ADMIN BOOTSTRAP (Phase 17 — Fix #4)
+   * PLATFORM ADMIN & FOUNDER BOOTSTRAP (Phase 20A)
    *
-   * Promotes users whose emails are listed in the PLATFORM_ADMIN_EMAILS
-   * environment variable to the `platform_admin` role. Called during server
+   * Promotes users whose emails are listed in FOUNDER_EMAILS, PLATFORM_ADMIN_EMAILS,
+   * or SUPPORT_EMAILS to their respective platform roles. Called during server
    * startup; also invocable from operational tooling. Role assignment is
-   * strictly server-side — no client path can request this role.
+   * strictly server-side — no client path can request these roles.
    */
   static async bootstrapPlatformAdmins(): Promise<{ promoted: string[] }> {
+    const founderEmails = getFounderEmails();
     const adminEmails = getPlatformAdminEmails();
-    if (adminEmails.length === 0) return { promoted: [] };
+    const supportEmails = getSupportEmails();
 
     const promoted: string[] = [];
     for (const user of inMemoryDb.users.values()) {
-      if (adminEmails.includes(user.email.toLowerCase().trim()) && user.role !== 'platform_admin') {
-        user.role = 'platform_admin';
+      const email = user.email.toLowerCase().trim();
+      let newPlatformRole: PlatformRole = 'none';
+
+      if (founderEmails.includes(email)) {
+        newPlatformRole = 'founder';
+      } else if (adminEmails.includes(email)) {
+        newPlatformRole = 'platform_admin';
+      } else if (supportEmails.includes(email)) {
+        newPlatformRole = 'support';
+      }
+
+      if (newPlatformRole !== 'none') {
+        user.platformRole = newPlatformRole;
+        if (newPlatformRole === 'founder' || newPlatformRole === 'platform_admin') {
+          user.role = 'platform_admin';
+        }
         user.updatedAt = new Date();
         inMemoryDb.users.set(user.id, user);
-        promoted.push(user.email);
+        promoted.push(`${email} (${newPlatformRole})`);
       }
     }
     return { promoted };

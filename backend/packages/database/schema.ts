@@ -21,6 +21,7 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     password: text('password').notNull(),
     role: text('role').notNull().default('employee'), // 'admin' | 'employee' | 'intern'
+    platformRole: text('platform_role').notNull().default('none'), // 'founder' | 'platform_admin' | 'support' | 'none'
     title: text('title'),
     avatar: text('avatar'),
     teamId: text('team_id'),
@@ -31,6 +32,7 @@ export const users = pgTable(
     emailIdx: uniqueIndex('idx_users_email').on(table.email),
     nameIdx: index('idx_users_name').on(table.name),
     roleIdx: index('idx_users_role').on(table.role),
+    platformRoleIdx: index('idx_users_platform_role').on(table.platformRole),
     teamIdIdx: index('idx_users_team_id').on(table.teamId),
   })
 );
@@ -82,6 +84,7 @@ export const sessions = pgTable(
     token: text('token').notNull().unique(),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    lastActiveAt: timestamp('last_active_at').defaultNow().notNull(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
   },
@@ -90,6 +93,7 @@ export const sessions = pgTable(
     userIdx: index('idx_sessions_user_id').on(table.userId),
     wsIdx: index('idx_sessions_ws_id').on(table.workspaceId),
     expiresIdx: index('idx_sessions_expires_at').on(table.expiresAt),
+    lastActiveIdx: index('idx_sessions_last_active_at').on(table.lastActiveAt),
   })
 );
 

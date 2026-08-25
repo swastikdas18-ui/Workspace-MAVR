@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { setCookie } from 'hono/cookie';
+import { setCookie, getCookie } from 'hono/cookie';
 import { AuthService } from '../services/auth-service';
 import { authMiddleware } from '../middleware/auth';
 import { generateSecureToken } from '../lib/secure-token';
 import {
   WORKSPACE_SESSION_COOKIE,
   CSRF_COOKIE,
+  readCookieFromHeader,
 } from '../lib/session-cookies';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
 import { AuthSessionResponse } from '../types';
@@ -184,9 +185,8 @@ authRouter.post('/logout', async (c) => {
     if (customHeader) token = customHeader;
   }
   if (!token) {
-    const cookieHeader = c.req.header('cookie') || '';
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${WORKSPACE_SESSION_COOKIE}=([^;]*)`));
-    if (match) token = match[1];
+    const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(c.req.header('cookie'), WORKSPACE_SESSION_COOKIE);
+    if (cookieToken) token = cookieToken;
   }
 
   if (token) {

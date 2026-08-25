@@ -85,9 +85,11 @@ billingRouter.get('/invoices', authMiddleware, requireWorkspaceRole(['admin']), 
   });
 });
 
-// Admin Tools (Admin only)
-adminRouter.use('*', authMiddleware, requireWorkspaceRole(['admin']));
-adminRouter.get('/', async (c) => {
+// Admin Tools (Admin only for tenant tools; Founder / Platform Admin for platform console)
+import { founderConsoleRouter } from './phase16-routes';
+adminRouter.route('/', founderConsoleRouter);
+
+adminRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   return c.json({
     status: 'healthy',
     database: 'connected',
@@ -106,7 +108,7 @@ adminRouter.get('/', async (c) => {
   });
 });
 
-adminRouter.get('/tools', async (c) => {
+adminRouter.get('/tools', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   return c.json({
     status: 'healthy',
     database: 'connected',
@@ -131,7 +133,7 @@ adminRouter.get('/tools', async (c) => {
 /**
  * GET /api/admin/audit - Access audit trail (ADMIN ONLY)
  */
-adminRouter.get('/audit', async (c) => {
+adminRouter.get('/audit', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {

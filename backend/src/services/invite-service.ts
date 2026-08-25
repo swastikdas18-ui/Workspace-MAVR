@@ -1,7 +1,7 @@
 import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember } from '../../packages/database';
 import { hashPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
-import { sanitizeUser, sanitizeWorkspace } from './auth-service';
+import { sanitizeUser, sanitizeWorkspace, determinePlatformRole } from './auth-service';
 import { EventService } from './event-service';
 import { EmailService } from './email-service';
 // SECURITY (Phase 17 — Fix #3): all bearer credentials share one CSPRNG source.
@@ -409,13 +409,15 @@ export class InviteService {
     } else {
       userId = crypto.randomUUID();
       const hashedPassword = await hashPassword(password);
+      const platformRole = determinePlatformRole(normalizedEmail);
 
       user = {
         id: userId,
         name: name.trim(),
         email: normalizedEmail,
         password: hashedPassword,
-        role: assignedRole, // Never admin
+        role: platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : assignedRole, // Never admin
+        platformRole,
         title: assignedRole === 'intern' ? 'Product Intern' : 'Operations Specialist',
         avatar: assignedRole === 'intern'
           ? 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80'
@@ -487,6 +489,7 @@ export class InviteService {
       token: sessionToken,
       expiresAt,
       createdAt: now,
+      lastActiveAt: now,
       ipAddress: null,
       userAgent: null,
     };

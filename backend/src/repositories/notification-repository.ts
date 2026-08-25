@@ -257,4 +257,32 @@ export class NotificationRepository {
 
     return deleted;
   }
+
+  /**
+   * Get unread notification count for a user in a workspace
+   */
+  static async getUnreadCount(workspaceId: string, userId: string): Promise<number> {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.notifications)
+          .where(
+            and(
+              eq(schema.notifications.workspaceId, workspaceId),
+              eq(schema.notifications.userId, userId),
+              eq(schema.notifications.isRead, false)
+            )
+          );
+        return rows.length;
+      }
+    } catch {
+      // Fallback
+    }
+
+    return Array.from(inMemoryDb.notifications.values()).filter(
+      (n) => n.workspaceId === workspaceId && n.userId === userId && !n.isRead
+    ).length;
+  }
 }

@@ -29,6 +29,33 @@ export class InMemoryDatabase {
   public usageMetrics: Map<string, any> = new Map();
   public invoices: Map<string, any> = new Map();
 
+  // Phase 12 Maps
+  public wikiPages: Map<string, any> = new Map();
+  public wikiPageVersions: Map<string, any> = new Map();
+  public wikiComments: Map<string, any> = new Map();
+  public taskTimeEntries: Map<string, any> = new Map();
+  public guestUsers: Map<string, any> = new Map();
+  public guestPermissions: Map<string, any> = new Map();
+  public guestSessions: Map<string, any> = new Map();
+  public deliverableApprovals: Map<string, any> = new Map();
+  public emailConnections: Map<string, any> = new Map();
+  public calendarConnections: Map<string, any> = new Map();
+  public calendarEvents: Map<string, any> = new Map();
+
+  // Phase 14 Maps
+  public billingCustomers: Map<string, any> = new Map();
+  public billingSubscriptions: Map<string, any> = new Map();
+  public billingPayments: Map<string, any> = new Map();
+  public billingWebhooks: Map<string, any> = new Map();
+  public taskRecurrenceRules: Map<string, any> = new Map();
+  public taskAssignees: Map<string, any> = new Map();
+  public taskDependencies: Map<string, any> = new Map();
+  public crmPipelines: Map<string, any> = new Map();
+  public crmPipelineStages: Map<string, any> = new Map();
+  public apiKeys: Map<string, any> = new Map();
+  public webhooks: Map<string, any> = new Map();
+  public webhookDeliveries: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -53,6 +80,33 @@ export class InMemoryDatabase {
     this.subscriptions.clear();
     this.usageMetrics.clear();
     this.invoices.clear();
+
+    // Phase 12 resets
+    this.wikiPages.clear();
+    this.wikiPageVersions.clear();
+    this.wikiComments.clear();
+    this.taskTimeEntries.clear();
+    this.guestUsers.clear();
+    this.guestPermissions.clear();
+    this.guestSessions.clear();
+    this.deliverableApprovals.clear();
+    this.emailConnections.clear();
+    this.calendarConnections.clear();
+    this.calendarEvents.clear();
+
+    // Phase 14 resets
+    this.billingCustomers.clear();
+    this.billingSubscriptions.clear();
+    this.billingPayments.clear();
+    this.billingWebhooks.clear();
+    this.taskRecurrenceRules.clear();
+    this.taskAssignees.clear();
+    this.taskDependencies.clear();
+    this.crmPipelines.clear();
+    this.crmPipelineStages.clear();
+    this.apiKeys.clear();
+    this.webhooks.clear();
+    this.webhookDeliveries.clear();
   }
 }
 

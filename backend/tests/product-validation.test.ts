@@ -9,6 +9,7 @@
  */
 
 import WebSocket from 'ws';
+import { attachSessionToken } from './session-test-utils';
 
 let passCount = 0;
 let failCount = 0;
@@ -54,7 +55,7 @@ async function requestApi(
 
   let data = null;
   try {
-    data = await res.json();
+    data = attachSessionToken(res, await res.json());
   } catch {}
 
   return { status: res.status, data };

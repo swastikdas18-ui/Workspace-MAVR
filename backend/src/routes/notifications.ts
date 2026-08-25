@@ -7,6 +7,28 @@ export const notificationRouter = new Hono();
 notificationRouter.use('*', authMiddleware);
 
 /**
+ * GET /api/notifications/unread-count - Fast unread badge count
+ */
+notificationRouter.get('/unread-count', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const count = await NotificationRepository.getUnreadCount(workspace.id, user.id);
+    return c.json({ count }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get unread count.' } },
+      500
+    );
+  }
+});
+
+/**
  * GET /api/notifications - Fetch user's own notifications in the active workspace
  * RBAC: All roles (ADMIN, EMPLOYEE, INTERN) can access their own notifications.
  */

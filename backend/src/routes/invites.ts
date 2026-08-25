@@ -1,14 +1,33 @@
 import { Hono } from 'hono';
+import { setCookie } from 'hono/cookie';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { InviteService } from '../services/invite-service';
+import { generateSecureToken } from '../lib/secure-token';
+import { WORKSPACE_SESSION_COOKIE, CSRF_COOKIE } from '../lib/session-cookies';
+import type { Context } from 'hono';
 
 export const inviteRouter = new Hono();
+
+const COOKIE_BASE = {
+  path: '/',
+  sameSite: 'Strict' as const,
+  secure: process.env.NODE_ENV === 'production',
+};
+
+/** SECURITY (Phase 17 — Fix #5): invite acceptance issues httpOnly cookies; the session token never appears in JSON. */
+function issueSessionCookies(c: Context, result: { token: string; expiresAt: string }): string {
+  const maxAge = Math.max(60, Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000));
+  setCookie(c, WORKSPACE_SESSION_COOKIE, result.token, { ...COOKIE_BASE, httpOnly: true, maxAge });
+  const csrfToken = generateSecureToken();
+  setCookie(c, CSRF_COOKIE, csrfToken, { ...COOKIE_BASE, httpOnly: false, maxAge });
+  return csrfToken;
+}
 
 /**
  * POST /api/invites - Create invite (Admin only)
  */
-inviteRouter.post('/', authMiddleware, requireRole(['admin']), async (c) => {
+inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -48,7 +67,7 @@ inviteRouter.post('/', authMiddleware, requireRole(['admin']), async (c) => {
 /**
  * GET /api/invites - List active invites for workspace (Admin only)
  */
-inviteRouter.get('/', authMiddleware, requireRole(['admin']), async (c) => {
+inviteRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -116,11 +135,102 @@ inviteRouter.post('/accept', async (c) => {
       password: body.password,
     });
 
-    return c.json(result, 200);
+    const csrfToken = issueSessionCookies(c, result);
+    return c.json(
+      {
+        user: result.user,
+        workspace: result.workspace,
+        expiresAt: result.expiresAt,
+        csrfToken,
+      },
+      200
+    );
   } catch (err: any) {
     return c.json(
       { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to accept invitation.' } },
       400
+    );
+  }
+});
+
+/**
+ * POST /api/invites/:id/resend - Resend invite email (Admin only, max 3 times)
+ */
+inviteRouter.post('/:id/resend', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    const id = c.req.param('id');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace found.' } }, 404);
+    }
+
+    const result = await InviteService.resendInvite(id, workspace.id);
+    return c.json(result, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to resend invitation.' } },
+      400
+    );
+  }
+});
+
+/**
+ * GET /api/invites/analytics - Invite funnel analytics (Admin only)
+ */
+inviteRouter.get('/analytics', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const analytics = InviteService.getInviteAnalytics(workspace.id);
+    return c.json({ analytics }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to fetch invite analytics.' } },
+      500
+    );
+  }
+});
+
+/**
+ * DELETE /api/invites/:id - Cancel an invite (Admin only)
+ */
+inviteRouter.delete('/:id', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    const id = c.req.param('id');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const result = await InviteService.cancelInvite(id, workspace.id);
+    return c.json(result, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to cancel invitation.' } },
+      400
+    );
+  }
+});
+
+/**
+ * POST /api/invites/expire-stale - Expire old invites (Admin housekeeping)
+ */
+inviteRouter.post('/expire-stale', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const result = InviteService.expireStaleInvites(workspace.id);
+    return c.json(result, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to expire stale invites.' } },
+      500
     );
   }
 });

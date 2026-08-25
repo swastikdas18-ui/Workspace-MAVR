@@ -3,7 +3,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles
+  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
@@ -34,9 +34,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
         { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
         { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
+        { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Notion' },
+        { id: 'time', label: 'Time & Utilization', icon: Clock, badge: 'Live' },
         { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
+        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: 'Guests' },
+        { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Calendar' },
         { id: 'teams', label: 'Team Directory', icon: Users, badge: null },
-        { id: 'documents', label: 'Knowledge Base', icon: FileText, badge: 'Docs' },
+        { id: 'documents', label: 'Vault Documents', icon: FileText, badge: 'Docs' },
         { id: 'analytics', label: 'Analytics & Velocity', icon: BarChart3, badge: null },
         { id: 'billing', label: 'Billing & Plan', icon: CreditCard, badge: 'Pro' },
         { id: 'settings', label: 'Settings', icon: Settings, badge: null },
@@ -49,17 +53,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
         { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
         { id: 'tasks', label: 'My Tasks & Board', icon: CheckSquare, badge: 'Flow' },
+        { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Docs' },
+        { id: 'time', label: 'My Timesheets', icon: Clock, badge: 'Timer' },
         { id: 'crm', label: 'My CRM Leads', icon: DollarSign, badge: 'Pipeline' },
+        { id: 'portal', label: 'Client Approvals', icon: Sparkles, badge: null },
+        { id: 'integrations', label: 'Connected Apps', icon: Bell, badge: null },
         { id: 'teams', label: 'My Team & Org', icon: Users, badge: null },
         { id: 'documents', label: 'Shared Documents', icon: FileText, badge: null },
       ];
     }
 
-    // Intern Role: strictly Dashboard, Tasks, Documents
+    if (currentRole === 'guest') {
+      return [
+        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: 'Deliverables' },
+      ];
+    }
+
+    // Intern Role: strictly Dashboard, Tasks, Learning Wiki, Learning Documents, Own Time
     return [
       { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
       { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
-      { id: 'documents', label: 'Learning Resources', icon: BookOpen, badge: 'Docs' },
+      { id: 'wiki', label: 'Learning Wiki', icon: BookOpen, badge: 'SOPs' },
+      { id: 'time', label: 'Time Logs', icon: Clock, badge: null },
+      { id: 'documents', label: 'Learning Resources', icon: FileText, badge: 'Docs' },
     ];
   };
 

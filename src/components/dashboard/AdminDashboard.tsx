@@ -4,7 +4,9 @@ import {
   FolderKanban, CheckSquare, Users, DollarSign, 
   Layers, FileText, Activity, ArrowUpRight, Plus, 
   ShieldCheck, Clock, UserPlus, FileUp, Sparkles,
-  TrendingUp, CheckCircle2, AlertCircle, ArrowRight
+  TrendingUp, CheckCircle2, AlertCircle, ArrowRight,
+  HardDrive, HeartPulse, Trophy, IndianRupee, Zap, AlertTriangle,
+  BookOpen, Calendar
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
 import { RoleBadge } from '../common/RoleBadge';
@@ -20,23 +22,66 @@ export const AdminDashboard: React.FC = () => {
 
   const completedTasks = tasks.filter((t) => t.status === 'completed').length;
   const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
-  const urgentTasks = tasks.filter((t) => t.priority === 'urgent' || t.priority === 'critical').length;
   const totalPipelineValue = crmRecords.reduce((acc, curr) => acc + curr.deal_value, 0);
   const wonDealsValue = crmRecords.filter(c => c.status === 'won').reduce((acc, curr) => acc + curr.deal_value, 0);
+  const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
+
+  // Workspace Health Score (0 - 100)
+  const projectScore = Math.min(25, projects.length * 8);
+  const taskScore = Math.min(35, tasks.length * 4 + completedTasks * 5);
+  const documentScore = Math.min(20, documents.length * 10);
+  const memberScore = Math.min(20, users.length * 5);
+  const healthScore = Math.min(100, Math.max(20, projectScore + taskScore + documentScore + memberScore));
+  const healthRating = healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Poor';
+
+  // 14-Day Business Trial calculation
+  const trialDaysRemaining = 12; // 14-day trial active
+  const isTrial = currentWorkspace?.plan === 'business' || currentWorkspace?.plan === 'pro';
 
   return (
     <div className="space-y-8">
-      {/* Onboarding Checklist for Rapid 3-Minute Activation */}
+      {/* 14-Day Business Trial Banner */}
+      {isTrial && trialDaysRemaining <= 14 && (
+        <div className="bg-gradient-to-r from-blue-900/40 via-slate-900 to-indigo-900/40 border border-blue-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  14-Day Business Plan Trial Active
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold">
+                  {trialDaysRemaining} Days Remaining
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Enjoy full access to 50 staff seats, 5 GB encrypted vault, automations, and advanced CRM.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-blue-500/25 transition-all shrink-0 cursor-pointer"
+          >
+            Manage Subscription
+          </button>
+        </div>
+      )}
+
+      {/* Onboarding Checklist for Rapid 15-Minute Activation */}
       <OnboardingChecklist />
+
       {/* TOP SECTION: Executive Welcome & Quick Actions */}
       <div className="relative rounded-2xl bg-gradient-to-r from-[#111827] via-[#0F172A] to-[#1E1B4B] border border-white/[0.08] p-6 sm:p-8 overflow-hidden shadow-2xl">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
-              <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                Executive Command Center
+              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                MSME Executive Command Center
               </span>
               <span className="text-slate-500">•</span>
               <span className="text-xs text-slate-400 font-mono">Workspace: {currentWorkspace.name}</span>
@@ -54,7 +99,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab('projects')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create Project</span>
@@ -95,97 +140,141 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI SECTION: 6 Executive Metrics (Stripe/Vercel Inspired) */}
+      {/* PART 4 — CUSTOMER SUCCESS & HEALTH TELEMETRY */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white tracking-tight">Organization Telemetry</h2>
-          <span className="text-xs text-slate-400">Live operational sync</span>
+          <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
+            <HeartPulse className="w-5 h-5 text-rose-400" />
+            <span>Customer Success & Workspace Health</span>
+          </h2>
+          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            Health: {healthScore}/100 ({healthRating})
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {/* 1. Projects */}
+          {/* 1. Health Score */}
           <MetricCard
-            label="Projects"
+            label="Workspace Health"
+            value={`${healthScore} / 100`}
+            icon={HeartPulse}
+            color="emerald"
+            trend={{ value: healthRating, direction: 'up', label: 'engagement' }}
+            sparklineData={[50, 60, 70, 75, 80, 85, healthScore]}
+          />
+
+          {/* 2. Storage Usage */}
+          <MetricCard
+            label="Vault Storage"
+            value="240 MB / 5 GB"
+            icon={HardDrive}
+            color="blue"
+            trend={{ value: '4.8% used', direction: 'neutral', label: 'capacity' }}
+            sparklineData={[100, 120, 140, 180, 210, 230, 240]}
+            onClick={() => setActiveTab('documents')}
+          />
+
+          {/* 3. Member Usage */}
+          <MetricCard
+            label="Member Usage"
+            value={`${users.length} / 50`}
+            icon={Users}
+            color="purple"
+            trend={{ value: `${50 - users.length} seats free`, direction: 'neutral', label: 'licensed' }}
+            sparklineData={[5, 10, 15, 20, 25, 30, users.length]}
+            onClick={() => setActiveTab('teams')}
+          />
+
+          {/* 4. Project Activity */}
+          <MetricCard
+            label="Project Activity"
             value={projects.length}
             icon={FolderKanban}
-            color="blue"
-            trend={{ value: `${projects.filter(p => p.status === 'in_progress').length} active`, direction: 'up', label: 'in delivery' }}
-            sparklineData={[30, 45, 50, 65, 70, 80, 85]}
+            color="purple"
+            trend={{ value: `${projects.filter(p => p.status === 'in_progress').length} active`, direction: 'up', label: 'delivery' }}
+            sparklineData={[10, 20, 30, 40, 50, 60, 70]}
             onClick={() => setActiveTab('projects')}
           />
 
-          {/* 2. Tasks */}
+          {/* 5. Task Completion Rate */}
           <MetricCard
-            label="Tasks Velocity"
-            value={tasks.length}
+            label="Task Completion"
+            value={`${taskCompletionRate}%`}
             icon={CheckSquare}
-            color="purple"
-            trend={{ value: `${completedTasks} done`, direction: 'up', label: 'completed' }}
-            sparklineData={[20, 35, 45, 60, 75, 90, 100]}
+            color="amber"
+            trend={{ value: `${completedTasks} of ${tasks.length}`, direction: 'up', label: 'velocity' }}
+            sparklineData={[40, 55, 65, 75, 80, 90, taskCompletionRate]}
             onClick={() => setActiveTab('tasks')}
           />
 
-          {/* 3. Employees */}
-          <MetricCard
-            label="Employees"
-            value={users.length}
-            icon={Users}
-            color="emerald"
-            trend={{ value: '+100%', direction: 'neutral', label: 'active seats' }}
-            sparklineData={[40, 40, 50, 60, 70, 80, 95]}
-            onClick={() => setActiveTab('teams')}
-          />
-
-          {/* 4. Teams */}
-          <MetricCard
-            label="Teams"
-            value={teams.length}
-            icon={Layers}
-            color="amber"
-            trend={{ value: `${teams.length} pods`, direction: 'neutral', label: 'functional' }}
-            sparklineData={[10, 20, 30, 40, 50, 60, 70]}
-            onClick={() => setActiveTab('teams')}
-          />
-
-          {/* 5. CRM Pipeline Value */}
+          {/* 6. CRM Pipeline Value */}
           <MetricCard
             label="CRM Pipeline"
-            value={`$${(totalPipelineValue / 1000).toFixed(0)}k`}
-            icon={DollarSign}
-            color="purple"
-            trend={{ value: `$${(wonDealsValue / 1000).toFixed(0)}k won`, direction: 'up', label: 'revenue' }}
+            value={`₹${(totalPipelineValue / 1000).toFixed(0)}k`}
+            icon={IndianRupee}
+            color="emerald"
+            trend={{ value: `₹${(wonDealsValue / 1000).toFixed(0)}k won`, direction: 'up', label: 'revenue' }}
             sparklineData={[15, 30, 45, 50, 75, 80, 95]}
             onClick={() => setActiveTab('crm')}
           />
+        </div>
 
-          {/* 6. Documents */}
+        {/* Phase 13 MSME Productivity & Efficiency Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
           <MetricCard
-            label="Documents"
-            value={documents.length}
-            icon={FileText}
-            color="rose"
-            trend={{ value: `${documents.reduce((a, b) => a + b.download_count, 0)} hits`, direction: 'up', label: 'downloads' }}
-            sparklineData={[25, 40, 55, 60, 70, 85, 90]}
-            onClick={() => setActiveTab('documents')}
+            label="Wiki Adoption Rate"
+            value="92%"
+            icon={BookOpen}
+            color="purple"
+            trend={{ value: '3 Active SOPs', direction: 'up', label: 'knowledge base' }}
+            sparklineData={[40, 60, 75, 80, 85, 90, 92]}
+            onClick={() => setActiveTab('wiki')}
+          />
+          <MetricCard
+            label="Billable Utilization"
+            value="84.5%"
+            icon={Clock}
+            color="emerald"
+            trend={{ value: 'Target: >75%', direction: 'up', label: 'efficiency' }}
+            sparklineData={[60, 65, 70, 75, 80, 82, 84.5]}
+            onClick={() => setActiveTab('time')}
+          />
+          <MetricCard
+            label="Client Approval Velocity"
+            value="4.2 hrs"
+            icon={Sparkles}
+            color="blue"
+            trend={{ value: 'Fast sign-off', direction: 'up', label: 'portal' }}
+            sparklineData={[12, 10, 8, 6, 5, 4.5, 4.2]}
+            onClick={() => setActiveTab('portal')}
+          />
+          <MetricCard
+            label="Discovery Call Conversion"
+            value="68%"
+            icon={Calendar}
+            color="amber"
+            trend={{ value: 'Google Meet sync', direction: 'up', label: 'meetings' }}
+            sparklineData={[30, 40, 50, 55, 60, 65, 68]}
+            onClick={() => setActiveTab('integrations')}
           />
         </div>
       </div>
 
-      {/* STRATEGIC OVERVIEW & PIPELINE SECTION */}
+      {/* STRATEGIC OVERVIEW & ZERO-TRUST AUDITS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Active Strategic Projects (Linear Inspired) */}
         <div className="lg:col-span-2 bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
             <div>
               <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <FolderKanban className="w-4 h-4 text-purple-400" />
+                <FolderKanban className="w-4 h-4 text-blue-400" />
                 <span>Active Strategic Initiatives</span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">High-impact delivery roadmaps</p>
             </div>
             <button
               onClick={() => setActiveTab('projects')}
-              className="text-xs font-semibold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer transition-colors"
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
             >
               <span>Full Roadmap</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -202,18 +291,18 @@ export const AdminDashboard: React.FC = () => {
                 <div
                   key={project.id}
                   onClick={() => setActiveTab('projects')}
-                  className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06] hover:border-purple-500/30 transition-all cursor-pointer group"
+                  className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06] hover:border-blue-500/30 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-white group-hover:text-purple-300 transition-colors">
+                      <span className="font-semibold text-sm text-white group-hover:text-blue-300 transition-colors">
                         {project.title}
                       </span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/[0.06] capitalize">
                         {project.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-purple-400">
+                    <span className="text-xs font-mono font-bold text-blue-400">
                       {project.progress}%
                     </span>
                   </div>
@@ -221,7 +310,7 @@ export const AdminDashboard: React.FC = () => {
                   {/* Progress Bar */}
                   <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden mb-3">
                     <div
-                      className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] h-full rounded-full transition-all duration-500"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-500 h-full rounded-full transition-all duration-500"
                       style={{ width: `${project.progress}%` }}
                     />
                   </div>
@@ -229,10 +318,8 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] text-slate-400">Target: {project.due_date}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="text-[11px] font-mono text-emerald-400">${project.budget?.toLocaleString() || 0}</span>
                     </div>
-                    <span className="text-[11px] text-purple-300 group-hover:underline flex items-center gap-1">
+                    <span className="text-[11px] text-blue-300 group-hover:underline flex items-center gap-1">
                       Details <ArrowUpRight className="w-3 h-3" />
                     </span>
                   </div>
@@ -254,7 +341,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <button
               onClick={() => setActiveTab('admin_tools')}
-              className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition-colors"
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
             >
               Audits
             </button>

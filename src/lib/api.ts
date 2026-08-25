@@ -17,6 +17,20 @@ export interface ApiResponse<T> {
   };
 }
 
+/**
+ * SECURITY (Phase 17): session tokens now live in httpOnly cookies set by the
+ * backend. The SPA never receives or stores the raw token; it only echoes the
+ * readable `ws_csrf` cookie via the X-CSRF-Token header (double-submit).
+ */
+function readCsrfCookie(): string | null {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)ws_csrf=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getStoredSessionToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -25,6 +39,7 @@ export function getStoredSessionToken(): string | null {
   }
 }
 
+/** Legacy migration hook: clears any pre-Phase-17 localStorage token. */
 export function setStoredSessionToken(token: string | null) {
   try {
     if (token) {
@@ -38,15 +53,17 @@ export function setStoredSessionToken(token: string | null) {
 }
 
 async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getStoredSessionToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-    headers['x-session-token'] = token;
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
+    const csrfToken = readCsrfCookie();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -55,6 +72,8 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
   const response = await fetch(fullUrl, {
     ...options,
     headers,
+    // Cookie-based session transport (httpOnly ws_session)
+    credentials: 'include',
   });
 
   const json = await response.json().catch(() => ({}));
@@ -73,30 +92,27 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
 export const api = {
   // Auth API
   async register(data: { name: string; email: string; password: string; workspaceName?: string; workspaceId?: string; role?: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
       '/api/auth/register',
       {
         method: 'POST',
         body: JSON.stringify(data),
       }
     );
-    if (res.token) {
-      setStoredSessionToken(res.token);
-    }
+    // Phase 17: session arrives as httpOnly cookie; drop any legacy token.
+    setStoredSessionToken(null);
     return res;
   },
 
   async login(credentials: { email: string; password: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
       '/api/auth/login',
       {
         method: 'POST',
         body: JSON.stringify(credentials),
       }
     );
-    if (res.token) {
-      setStoredSessionToken(res.token);
-    }
+    setStoredSessionToken(null);
     return res;
   },
 
@@ -109,15 +125,12 @@ export const api = {
   },
 
   async getSession() {
-    const token = getStoredSessionToken();
-    if (!token) return null;
     try {
-      const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
+      const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
         '/api/auth/session'
       );
       return res;
     } catch {
-      setStoredSessionToken(null);
       return null;
     }
   },

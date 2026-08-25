@@ -95,6 +95,9 @@ export class WorkspaceWebSocketServer {
         }
       }
     }, 30000);
+    if (this.heartbeatInterval && typeof this.heartbeatInterval.unref === 'function') {
+      this.heartbeatInterval.unref();
+    }
   }
 
   /**

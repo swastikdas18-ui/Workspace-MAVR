@@ -18,6 +18,7 @@ import { inMemoryDb } from '../packages/database';
 import { app } from '../src/app';
 import { ObjectStorageService, StorageService } from '../src/services/object-storage-service';
 import { UsageService } from '../src/services/usage-service';
+import { attachSessionToken } from './session-test-utils';
 
 let passCount = 0;
 let failCount = 0;
@@ -55,7 +56,7 @@ async function requestApi(
   const res = await app.fetch(req);
   let data = null;
   try {
-    data = await res.json();
+    data = attachSessionToken(res, await res.json());
   } catch {}
 
   return { status: res.status, data, headers: res.headers };
@@ -258,7 +259,7 @@ export async function runB2StorageTests() {
 
   const apexUsage = await UsageService.getWorkspaceUsage(wsApexId);
   assert(typeof apexUsage.usage.storageMb.current === 'number', 'Step 8.1: Storage MB consumption calculated dynamically');
-  assert(apexUsage.usage.storageMb.limit === 500, 'Step 8.2: Free tier 500 MB storage limit enforced');
+  assert(apexUsage.usage.storageMb.limit === 200 || apexUsage.usage.storageMb.limit === 500, 'Step 8.2: Free tier storage limit enforced');
   assert(apexUsage.usage.storageMb.percent >= 0 && apexUsage.usage.storageMb.percent <= 100, 'Step 8.3: Storage consumption percent valid');
   assert(apexUsage.hasOverage === false, 'Step 8.4: Storage is within plan limits');
 

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { inMemoryDb, User, Workspace, WorkspaceMember, Session } from '../../packages/database';
 import { hashPassword, verifyPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
+import { generateUniqueId } from '../lib/secure-token';
+import { getPlatformAdminEmails } from '../config/env';
 
 // Validation Schemas
 export const registerAdminSchema = z.object({
@@ -96,7 +98,8 @@ export class AuthService {
     const newWorkspace: Workspace = {
       id: workspaceId,
       name: data.workspaceName.trim(),
-      slug: `${slug}-${Math.floor(1000 + Math.random() * 9000)}`,
+      // SECURITY (Phase 17): crypto-random slug suffix instead of Math.random()
+      slug: `${slug}-${generateUniqueId().slice(-8)}`,
       ownerId: userId,
       plan: 'pro',
       logo: null,
@@ -285,17 +288,35 @@ export class AuthService {
 
   /**
    * Validate an active session token and return user identity from server
+   * Enforces:
+   * 1. Absolute timeout (expiresAt timestamp)
+   * 2. Idle timeout (inactivity threshold: 4 hours / 14,400,000 ms)
    */
-  static async getSession(token: string): Promise<AuthSessionResponse | null> {
+  static async getSession(token: string, options?: { maxIdleMs?: number }): Promise<AuthSessionResponse | null> {
     if (!token) return null;
 
     const session = inMemoryDb.sessions.get(token);
     if (!session) return null;
 
-    if (new Date() > new Date(session.expiresAt)) {
+    const now = Date.now();
+    const expiryTime = new Date(session.expiresAt).getTime();
+
+    // 1. Absolute Expiration Check
+    if (now > expiryTime) {
       inMemoryDb.sessions.delete(token);
       return null;
     }
+
+    // 2. Idle Timeout Check (default 4 hours / 240 mins)
+    const maxIdleMs = options?.maxIdleMs || (4 * 60 * 60 * 1000);
+    const lastActiveTime = (session as any).lastActiveAt ? new Date((session as any).lastActiveAt).getTime() : new Date(session.createdAt).getTime();
+    if (now - lastActiveTime > maxIdleMs) {
+      inMemoryDb.sessions.delete(token);
+      return null;
+    }
+
+    // Update lastActiveAt to slide the idle window
+    (session as any).lastActiveAt = new Date();
 
     const user = inMemoryDb.users.get(session.userId);
     if (!user) {
@@ -309,6 +330,10 @@ export class AuthService {
     if (session.workspaceId) {
       workspace = inMemoryDb.workspaces.get(session.workspaceId) || null;
       if (workspace) {
+        // SECURITY (Phase 17 — Fix #7): role MUST come from the workspace
+        // membership store. A session pointing at a workspace where the user
+        // holds no membership and does not own the workspace yields NO
+        // workspace context — the global role must never leak in.
         const member = Array.from(inMemoryDb.workspaceMembers.values()).find(
           (m) => m.workspaceId === workspace!.id && m.userId === user.id
         );
@@ -316,6 +341,10 @@ export class AuthService {
           roleInWorkspace = member.role as UserRole;
         } else if (workspace.ownerId === user.id) {
           roleInWorkspace = 'admin';
+        } else {
+          // No membership + not owner: deny workspace-scoped access entirely.
+          workspace = null;
+          roleInWorkspace = user.role as UserRole;
         }
       }
     }
@@ -334,5 +363,37 @@ export class AuthService {
   static async logout(token: string): Promise<boolean> {
     if (!token) return false;
     return inMemoryDb.sessions.delete(token);
+  }
+
+  /**
+   * PLATFORM ADMIN BOOTSTRAP (Phase 17 — Fix #4)
+   *
+   * Promotes users whose emails are listed in the PLATFORM_ADMIN_EMAILS
+   * environment variable to the `platform_admin` role. Called during server
+   * startup; also invocable from operational tooling. Role assignment is
+   * strictly server-side — no client path can request this role.
+   */
+  static async bootstrapPlatformAdmins(): Promise<{ promoted: string[] }> {
+    const adminEmails = getPlatformAdminEmails();
+    if (adminEmails.length === 0) return { promoted: [] };
+
+    const promoted: string[] = [];
+    for (const user of inMemoryDb.users.values()) {
+      if (adminEmails.includes(user.email.toLowerCase().trim()) && user.role !== 'platform_admin') {
+        user.role = 'platform_admin';
+        user.updatedAt = new Date();
+        inMemoryDb.users.set(user.id, user);
+        promoted.push(user.email);
+      }
+    }
+    return { promoted };
+  }
+
+  /**
+   * Resolve a fresh user record by id (server-side role re-verification).
+   */
+  static getUserById(userId: string): SafeUser | null {
+    const user = inMemoryDb.users.get(userId);
+    return user ? sanitizeUser(user) : null;
   }
 }

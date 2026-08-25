@@ -1,11 +1,17 @@
 /**
- * Workspace Health & Customer Success Telemetry Service
- * 
+ * Workspace Health & Customer Success Telemetry Service V2
+ *
  * Computes:
- * - Comprehensive Health Score (0–100) based on 6 core pillars
- * - Churn Risk Detection (High, Medium, Low)
+ * - Comprehensive Health Score (0–100) based on 10 pillars
+ * - Churn Risk Detection: Healthy / At Risk / Critical
  * - Power Users Identification
  * - Account Recommendations & Growth Opportunities
+ *
+ * New in V2:
+ * - Login Frequency pillar
+ * - Invite Acceptance Rate pillar
+ * - Wiki Adoption pillar
+ * - Client Portal Usage pillar
  */
 
 import { inMemoryDb } from '../../packages/database';
@@ -13,14 +19,18 @@ import { inMemoryDb } from '../../packages/database';
 export interface WorkspaceHealthMetric {
   score: number; // 0–100
   grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
-  status: 'healthy' | 'at_risk' | 'churn_risk' | 'dormant';
+  status: 'Healthy' | 'At Risk' | 'Critical';
   breakdown: {
-    userActivityScore: number;       // 0–25
-    projectVelocityScore: number;    // 0–20
-    taskCompletionScore: number;     // 0–20
-    automationAdoptionScore: number; // 0–15
+    userActivityScore: number;       // 0–15
+    projectVelocityScore: number;    // 0–15
+    taskCompletionScore: number;     // 0–15
+    automationAdoptionScore: number; // 0–10
     searchAdoptionScore: number;     // 0–10
     collaborationScore: number;      // 0–10
+    loginFrequencyScore: number;     // 0–10
+    inviteAcceptanceScore: number;   // 0–5
+    wikiAdoptionScore: number;       // 0–5
+    clientPortalScore: number;       // 0–5
   };
   metrics: {
     totalMembers: number;
@@ -30,6 +40,9 @@ export interface WorkspaceHealthMetric {
     completedTasks: number;
     totalTasks: number;
     activeAutomations: number;
+    inviteAcceptanceRate: number;
+    wikiPagesCount: number;
+    activeGuestSessions: number;
   };
   riskFactors: string[];
   recommendations: string[];
@@ -38,7 +51,7 @@ export interface WorkspaceHealthMetric {
 
 export class WorkspaceHealthService {
   /**
-   * Calculate full health diagnostics for a workspace
+   * Calculate full health diagnostics for a workspace (V2)
    */
   public static calculateHealth(workspaceId: string): WorkspaceHealthMetric {
     // 1. Members
@@ -47,7 +60,16 @@ export class WorkspaceHealthService {
       if (m.workspaceId === workspaceId) members.push(m);
     }
     const totalMembers = Math.max(1, members.length);
-    const activeMembers = totalMembers;
+
+    // Active members: logged in within last 14 days (using session data)
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000);
+    const activeMemberIds = new Set<string>();
+    for (const session of inMemoryDb.sessions.values()) {
+      if (session.workspaceId === workspaceId && new Date(session.createdAt) > fourteenDaysAgo) {
+        activeMemberIds.add(session.userId);
+      }
+    }
+    const activeMembers = Math.max(1, activeMemberIds.size || totalMembers);
 
     // 2. Projects
     const projects: any[] = [];
@@ -80,31 +102,70 @@ export class WorkspaceHealthService {
       }
     }
 
-    // --- Scoring Engine ---
-    // Pillar 1: User Activity (0–25)
-    const userActivityScore = Math.min(25, Math.round((activeMembers / totalMembers) * 25));
+    // 5. V2: Invite acceptance rate
+    let invitesSent = 0, invitesAccepted = 0;
+    const seenInvites = new Set<string>();
+    for (const inv of inMemoryDb.workspaceInvites.values()) {
+      if (seenInvites.has(inv.id) || inv.workspaceId !== workspaceId) continue;
+      seenInvites.add(inv.id);
+      invitesSent++;
+      if (inv.acceptedAt) invitesAccepted++;
+    }
+    const inviteAcceptanceRate = invitesSent > 0 ? Math.round((invitesAccepted / invitesSent) * 100) : 100;
 
-    // Pillar 2: Project Velocity (0–20)
-    let projectVelocityScore = 15;
+    // 6. V2: Wiki adoption
+    let wikiPagesCount = 0;
+    for (const page of inMemoryDb.wikiPages.values()) {
+      if (page.workspaceId === workspaceId) wikiPagesCount++;
+    }
+
+    // 7. V2: Client portal usage
+    let activeGuestSessions = 0;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+    for (const guest of inMemoryDb.guestUsers.values()) {
+      if (guest.workspaceId === workspaceId && guest.lastAccessAt && new Date(guest.lastAccessAt) > thirtyDaysAgo) {
+        activeGuestSessions++;
+      }
+    }
+
+    // --- Scoring Engine V2 (sum = 100) ---
+
+    // Pillar 1: User Activity (0–15)
+    const userActivityScore = Math.min(15, Math.round((activeMembers / totalMembers) * 15));
+
+    // Pillar 2: Project Velocity (0–15)
+    let projectVelocityScore = 10;
     if (totalProjects > 0) {
       const completionRate = completedProjects / totalProjects;
-      projectVelocityScore = Math.min(20, Math.round(completionRate * 10 + 10));
+      projectVelocityScore = Math.min(15, Math.round(completionRate * 8 + 7));
     }
 
-    // Pillar 3: Task Completion Rate (0–20)
-    let taskCompletionScore = 15;
+    // Pillar 3: Task Completion Rate (0–15)
+    let taskCompletionScore = 10;
     if (totalTasks > 0) {
-      taskCompletionScore = Math.min(20, Math.round((completedTasks / totalTasks) * 20));
+      taskCompletionScore = Math.min(15, Math.round((completedTasks / totalTasks) * 15));
     }
 
-    // Pillar 4: Automation Adoption (0–15)
-    const automationAdoptionScore = activeAutomations > 0 ? Math.min(15, activeAutomations * 5) : 5;
+    // Pillar 4: Automation Adoption (0–10)
+    const automationAdoptionScore = activeAutomations > 0 ? Math.min(10, activeAutomations * 3) : 3;
 
     // Pillar 5: Search Adoption (0–10)
-    const searchAdoptionScore = 10;
+    const searchAdoptionScore = 8; // Default healthy
 
-    // Pillar 6: Collaboration & Presence (0–10)
-    const collaborationScore = totalMembers > 1 ? 10 : 5;
+    // Pillar 6: Collaboration (0–10)
+    const collaborationScore = totalMembers > 1 ? Math.min(10, totalMembers * 2) : 3;
+
+    // Pillar 7: Login Frequency (0–10) — active sessions ratio
+    const loginFrequencyScore = Math.min(10, Math.round((activeMembers / totalMembers) * 10));
+
+    // Pillar 8: Invite Acceptance Rate (0–5)
+    const inviteAcceptanceScore = Math.min(5, Math.round((inviteAcceptanceRate / 100) * 5));
+
+    // Pillar 9: Wiki Adoption (0–5)
+    const wikiAdoptionScore = wikiPagesCount > 0 ? Math.min(5, wikiPagesCount) : 0;
+
+    // Pillar 10: Client Portal Usage (0–5)
+    const clientPortalScore = activeGuestSessions > 0 ? Math.min(5, activeGuestSessions * 2) : 0;
 
     // Aggregate Score
     const totalScore = Math.min(
@@ -114,28 +175,29 @@ export class WorkspaceHealthService {
       taskCompletionScore +
       automationAdoptionScore +
       searchAdoptionScore +
-      collaborationScore
+      collaborationScore +
+      loginFrequencyScore +
+      inviteAcceptanceScore +
+      wikiAdoptionScore +
+      clientPortalScore
     );
 
-    // Grade & Status Mapping
+    // Grade & Status Mapping (simplified to 3-tier as requested)
     let grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F' = 'A';
-    let status: 'healthy' | 'at_risk' | 'churn_risk' | 'dormant' = 'healthy';
+    let status: 'Healthy' | 'At Risk' | 'Critical' = 'Healthy';
 
-    if (totalScore >= 90) {
-      grade = 'A+';
-      status = 'healthy';
-    } else if (totalScore >= 75) {
-      grade = 'A';
-      status = 'healthy';
-    } else if (totalScore >= 60) {
-      grade = 'B';
-      status = 'healthy';
-    } else if (totalScore >= 45) {
-      grade = 'C';
-      status = 'at_risk';
+    if (totalScore >= 85) {
+      grade = 'A+'; status = 'Healthy';
+    } else if (totalScore >= 70) {
+      grade = 'A'; status = 'Healthy';
+    } else if (totalScore >= 55) {
+      grade = 'B'; status = 'Healthy';
+    } else if (totalScore >= 40) {
+      grade = 'C'; status = 'At Risk';
+    } else if (totalScore >= 25) {
+      grade = 'D'; status = 'Critical';
     } else {
-      grade = 'D';
-      status = 'churn_risk';
+      grade = 'F'; status = 'Critical';
     }
 
     const riskFactors: string[] = [];
@@ -154,6 +216,18 @@ export class WorkspaceHealthService {
     }
     if (totalMembers === 1) {
       recommendations.push('Invite colleagues to collaborate in real-time.');
+    }
+    if (wikiPagesCount === 0) {
+      riskFactors.push('No wiki pages created — knowledge not being captured.');
+      recommendations.push('Create a team wiki page to document processes and decisions.');
+    }
+    if (invitesSent > 0 && inviteAcceptanceRate < 50) {
+      riskFactors.push(`Low invite acceptance rate: ${inviteAcceptanceRate}%. Pending members may need follow-up.`);
+      recommendations.push('Resend pending invitations or schedule onboarding calls.');
+    }
+    if (loginFrequencyScore < 5) {
+      riskFactors.push('Low login frequency detected — team may not be actively using the platform.');
+      recommendations.push('Send a daily digest or re-engage team with a project kickoff.');
     }
 
     // Identify Power Users
@@ -177,6 +251,10 @@ export class WorkspaceHealthService {
         automationAdoptionScore,
         searchAdoptionScore,
         collaborationScore,
+        loginFrequencyScore,
+        inviteAcceptanceScore,
+        wikiAdoptionScore,
+        clientPortalScore,
       },
       metrics: {
         totalMembers,
@@ -186,6 +264,9 @@ export class WorkspaceHealthService {
         completedTasks,
         totalTasks,
         activeAutomations,
+        inviteAcceptanceRate,
+        wikiPagesCount,
+        activeGuestSessions,
       },
       riskFactors,
       recommendations,

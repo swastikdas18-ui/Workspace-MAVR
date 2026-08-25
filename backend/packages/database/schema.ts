@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp, integer, boolean, pgEnum, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, bigint, boolean, pgEnum, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Enums
-export const userRoleEnum = pgEnum('user_role', ['admin', 'employee', 'intern']);
+export const userRoleEnum = pgEnum('user_role', ['admin', 'employee', 'intern', 'guest']);
 export const workspacePlanEnum = pgEnum('workspace_plan', ['free', 'pro', 'enterprise']);
 export const teamMemberRoleEnum = pgEnum('team_member_role', ['lead', 'member']);
 export const projectStatusEnum = pgEnum('project_status', ['planning', 'in_progress', 'review', 'completed', 'on_hold']);
@@ -475,7 +475,7 @@ export const usageMetrics = pgTable(
     period: text('period').notNull(), // 'YYYY-MM'
     membersCount: integer('members_count').notNull().default(1),
     projectsCount: integer('projects_count').notNull().default(0),
-    storageBytes: integer('storage_bytes').notNull().default(0),
+    storageBytes: bigint('storage_bytes', { mode: 'number' }).notNull().default(0),
     apiRequestsCount: integer('api_requests_count').notNull().default(0),
     automationsCount: integer('automations_count').notNull().default(0),
     activeUsersCount: integer('active_users_count').notNull().default(1),
@@ -507,6 +507,465 @@ export const invoices = pgTable(
     wsIdx: index('idx_invoices_ws_id').on(table.workspaceId),
     statusIdx: index('idx_invoices_status').on(table.status),
     invNumIdx: uniqueIndex('idx_invoices_number').on(table.invoiceNumber),
+  })
+);
+
+// ============================================================================
+// PHASE 12: ENTERPRISE MSME EXTENSIONS SCHEMAS
+// ============================================================================
+
+// 1. Wiki Pages (Notion-Lite Knowledge Base)
+export const wikiPages = pgTable(
+  'wiki_pages',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id'),
+    title: text('title').notNull().default('Untitled Page'),
+    icon: text('icon').default('📄'),
+    coverImage: text('cover_image'),
+    slug: text('slug').notNull(),
+    contentJson: jsonb('content_json').notNull().default({}),
+    visibility: text('visibility').notNull().default('team'), // 'public' | 'team' | 'private' | 'learning'
+    createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_wiki_pages_ws_id').on(table.workspaceId),
+    parentIdx: index('idx_wiki_pages_parent_id').on(table.parentId),
+    slugWsIdx: uniqueIndex('idx_wiki_pages_slug_ws').on(table.workspaceId, table.slug),
+  })
+);
+
+// 2. Wiki Page Versions
+export const wikiPageVersions = pgTable(
+  'wiki_page_versions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    pageId: text('page_id').notNull().references(() => wikiPages.id, { onDelete: 'cascade' }),
+    versionNumber: integer('version_number').notNull(),
+    contentSnapshot: jsonb('content_snapshot').notNull(),
+    createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    pageVerIdx: index('idx_wiki_versions_page_ver').on(table.pageId, table.versionNumber),
+  })
+);
+
+// 3. Wiki Comments
+export const wikiComments = pgTable(
+  'wiki_comments',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    pageId: text('page_id').notNull().references(() => wikiPages.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    blockId: text('block_id'),
+    comment: text('comment').notNull(),
+    resolved: boolean('resolved').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    pageIdx: index('idx_wiki_comments_page_id').on(table.pageId),
+  })
+);
+
+// 4. Task Time Entries (Stopwatch & Billable Hours)
+export const taskTimeEntries = pgTable(
+  'task_time_entries',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    startTime: timestamp('start_time').notNull(),
+    endTime: timestamp('end_time'),
+    durationMinutes: integer('duration_minutes').notNull().default(0),
+    billable: boolean('billable').notNull().default(true),
+    hourlyRate: integer('hourly_rate').notNull().default(1500), // in INR (₹1,500/hr)
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_time_entries_ws_id').on(table.workspaceId),
+    taskIdx: index('idx_time_entries_task_id').on(table.taskId),
+    userIdx: index('idx_time_entries_user_id').on(table.userId),
+    startTimeIdx: index('idx_time_entries_start_time').on(table.startTime),
+  })
+);
+
+// 5. Guest Users (Client Portal)
+export const guestUsers = pgTable(
+  'guest_users',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    company: text('company').notNull(),
+    magicToken: text('magic_token').notNull().unique(),
+    tokenExpiresAt: timestamp('token_expires_at').notNull(),
+    lastActiveAt: timestamp('last_active_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenIdx: uniqueIndex('idx_guest_users_token').on(table.magicToken),
+    wsIdx: index('idx_guest_users_ws_id').on(table.workspaceId),
+  })
+);
+
+// 6. Guest Permissions
+export const guestPermissions = pgTable(
+  'guest_permissions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    guestId: text('guest_id').notNull().references(() => guestUsers.id, { onDelete: 'cascade' }),
+    projectId: text('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    canApprove: boolean('can_approve').notNull().default(true),
+    canComment: boolean('can_comment').notNull().default(true),
+    canDownload: boolean('can_download').notNull().default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    guestProjIdx: uniqueIndex('idx_guest_perm_guest_proj').on(table.guestId, table.projectId),
+  })
+);
+
+// 7. Deliverable Approvals
+export const deliverableApprovals = pgTable(
+  'deliverable_approvals',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+    documentId: text('document_id').references(() => documents.id, { onDelete: 'cascade' }),
+    guestId: text('guest_id').notNull().references(() => guestUsers.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'changes_requested'
+    feedback: text('feedback'),
+    signatureHash: text('signature_hash'),
+    signedAt: timestamp('signed_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_deliv_approvals_ws_id').on(table.workspaceId),
+    projIdx: index('idx_deliv_approvals_proj_id').on(table.projectId),
+  })
+);
+
+// 8. Email Connections (Google / IMAP Integration)
+export const emailConnections = pgTable(
+  'email_connections',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull().default('google'),
+    emailAddress: text('email_address').notNull(),
+    accessToken: text('access_token').notNull(),
+    refreshToken: text('refresh_token'),
+    tokenExpiresAt: timestamp('token_expires_at'),
+    syncEnabled: boolean('sync_enabled').notNull().default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsUserIdx: uniqueIndex('idx_email_conn_ws_user').on(table.workspaceId, table.userId),
+  })
+);
+
+// 9. Calendar Events (Google Calendar Sync linked to Leads & Projects)
+export const calendarEvents = pgTable(
+  'calendar_events',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    crmRecordId: text('crm_record_id').references(() => crmRecords.id, { onDelete: 'set null' }),
+    projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    meetingUrl: text('meeting_url'),
+    startTime: timestamp('start_time').notNull(),
+    endTime: timestamp('end_time').notNull(),
+    attendees: jsonb('attendees').notNull().default([]),
+    status: text('status').notNull().default('confirmed'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_cal_events_ws_id').on(table.workspaceId),
+    crmIdx: index('idx_cal_events_crm_id').on(table.crmRecordId),
+    startTimeIdx: index('idx_cal_events_start_time').on(table.startTime),
+  })
+);
+
+// ============================================================================
+// PHASE 14: ENTERPRISE REVENUE & BETA READINESS SCHEMAS
+// ============================================================================
+
+// 1. Razorpay Billing Customers
+export const billingCustomers = pgTable(
+  'billing_customers',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    razorpayCustomerId: text('razorpay_customer_id').notNull().unique(),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    contact: text('contact'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: uniqueIndex('idx_billing_customers_ws').on(table.workspaceId),
+    rzpCustIdx: uniqueIndex('idx_billing_customers_rzp_id').on(table.razorpayCustomerId),
+  })
+);
+
+// 2. Razorpay Billing Subscriptions
+export const billingSubscriptions = pgTable(
+  'billing_subscriptions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    razorpaySubscriptionId: text('razorpay_subscription_id').notNull().unique(),
+    razorpayPlanId: text('razorpay_plan_id').notNull(),
+    planTier: text('plan_tier').notNull(), // 'starter' | 'business' | 'growth' | 'enterprise'
+    status: text('status').notNull().default('active'), // 'created' | 'authenticated' | 'active' | 'pending' | 'halted' | 'cancelled' | 'completed' | 'expired'
+    currentPeriodStart: timestamp('current_period_start').notNull(),
+    currentPeriodEnd: timestamp('current_period_end').notNull(),
+    chargeAt: timestamp('charge_at'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_billing_subs_ws').on(table.workspaceId),
+    rzpSubIdx: uniqueIndex('idx_billing_subs_rzp_id').on(table.razorpaySubscriptionId),
+    statusIdx: index('idx_billing_subs_status').on(table.status),
+  })
+);
+
+// 3. Razorpay Payments
+export const billingPayments = pgTable(
+  'billing_payments',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    razorpayPaymentId: text('razorpay_payment_id').notNull().unique(),
+    razorpayOrderId: text('razorpay_order_id'),
+    razorpaySubscriptionId: text('razorpay_subscription_id'),
+    amount: integer('amount').notNull(), // in paise (e.g. 149900 = ₹1,499.00)
+    currency: text('currency').notNull().default('INR'),
+    status: text('status').notNull(), // 'captured' | 'failed' | 'refunded'
+    method: text('method'), // 'card' | 'upi' | 'netbanking'
+    errorDescription: text('error_description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_billing_payments_ws').on(table.workspaceId),
+    rzpPayIdx: uniqueIndex('idx_billing_payments_rzp_id').on(table.razorpayPaymentId),
+  })
+);
+
+// 4. Razorpay Webhooks History (Prevents duplicate webhook processing & replays)
+export const billingWebhooks = pgTable(
+  'billing_webhooks',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    eventId: text('event_id').notNull().unique(),
+    event: text('event').notNull(), // e.g. 'subscription.charged'
+    payload: jsonb('payload').notNull(),
+    status: text('status').notNull().default('processed'), // 'processed' | 'failed' | 'ignored'
+    processedAt: timestamp('processed_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    eventIdx: uniqueIndex('idx_billing_webhooks_event_id').on(table.eventId),
+  })
+);
+
+// 5. Recurring Task Engine (task_recurrence_rules)
+export const taskRecurrenceRules = pgTable(
+  'task_recurrence_rules',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    frequency: text('frequency').notNull(), // 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+    interval: integer('interval').notNull().default(1),
+    nextRunAt: timestamp('next_run_at').notNull(),
+    paused: boolean('paused').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_task_recurrence_ws').on(table.workspaceId),
+    taskIdx: uniqueIndex('idx_task_recurrence_task').on(table.taskId),
+    nextRunIdx: index('idx_task_recurrence_next_run').on(table.nextRunAt),
+  })
+);
+
+// 6. Multi-Assignee Tasks (task_assignees)
+export const taskAssignees = pgTable(
+  'task_assignees',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    taskUserIdx: uniqueIndex('idx_task_assignees_task_user').on(table.taskId, table.userId),
+    taskIdx: index('idx_task_assignees_task').on(table.taskId),
+    userIdx: index('idx_task_assignees_user').on(table.userId),
+  })
+);
+
+// 7. Task Dependencies (task_dependencies)
+export const taskDependencies = pgTable(
+  'task_dependencies',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    dependsOnTaskId: text('depends_on_task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    type: text('type').notNull().default('finish_to_start'), // 'finish_to_start' | 'start_to_start' | 'finish_to_finish'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    taskDepIdx: uniqueIndex('idx_task_dep_pair').on(table.taskId, table.dependsOnTaskId),
+    taskIdx: index('idx_task_dep_task').on(table.taskId),
+  })
+);
+
+// 8. Custom CRM Pipelines (crm_pipelines)
+export const crmPipelines = pgTable(
+  'crm_pipelines',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    isDefault: boolean('is_default').notNull().default(false),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_crm_pipelines_ws').on(table.workspaceId),
+  })
+);
+
+// 9. Custom CRM Pipeline Stages (crm_pipeline_stages)
+export const crmPipelineStages = pgTable(
+  'crm_pipeline_stages',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    pipelineId: text('pipeline_id').notNull().references(() => crmPipelines.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    color: text('color').notNull().default('#3B82F6'),
+    orderIndex: integer('order_index').notNull().default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    pipelineIdx: index('idx_crm_stages_pipeline').on(table.pipelineId),
+    orderIdx: index('idx_crm_stages_order').on(table.pipelineId, table.orderIndex),
+  })
+);
+
+// 10. Developer API Keys (api_keys)
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    keyHash: text('key_hash').notNull().unique(),
+    prefix: text('prefix').notNull(), // 'ws_live_...'
+    scopes: jsonb('scopes').notNull().default([]), // ['read', 'write', 'crm', 'tasks', 'documents']
+    lastUsedAt: timestamp('last_used_at'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_api_keys_ws').on(table.workspaceId),
+    hashIdx: uniqueIndex('idx_api_keys_hash').on(table.keyHash),
+  })
+);
+
+// 11. Outbound Webhooks (webhooks)
+export const webhooks = pgTable(
+  'webhooks',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(),
+    events: jsonb('events').notNull().default([]), // ['task.created', 'lead.won', 'invoice.paid']
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_webhooks_ws').on(table.workspaceId),
+  })
+);
+
+// 12. Outbound Webhook Deliveries (webhook_deliveries)
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    webhookId: text('webhook_id').notNull().references(() => webhooks.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(),
+    payload: jsonb('payload').notNull(),
+    responseCode: integer('response_code'),
+    responseBody: text('response_body'),
+    status: text('status').notNull(), // 'delivered' | 'failed' | 'retrying'
+    attempts: integer('attempts').notNull().default(1),
+    deliveredAt: timestamp('delivered_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    webhookIdx: index('idx_webhook_deliv_wh').on(table.webhookId),
+    statusIdx: index('idx_webhook_deliv_status').on(table.status),
+  })
+);
+
+// 13. Backup Reports (backup_reports) — Phase 19B
+export const backupReports = pgTable(
+  'backup_reports',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    filename: text('filename').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    checksum: text('checksum').notNull(),
+    status: text('status').notNull().default('pending'), // 'completed' | 'failed' | 'pending'
+    verificationStatus: text('verification_status').notNull().default('unverified'), // 'verified' | 'failed' | 'unverified'
+    verificationDetails: jsonb('verification_details').default({}),
+    durationMs: integer('duration_ms').default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    statusIdx: index('idx_backup_reports_status').on(table.status),
+    createdIdx: index('idx_backup_reports_created').on(table.createdAt),
+  })
+);
+
+// 14. Email Health Metrics (email_health_metrics) — Phase 19B
+export const emailHealthMetrics = pgTable(
+  'email_health_metrics',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id'),
+    emailId: text('email_id').notNull(),
+    recipient: text('recipient').notNull(),
+    eventType: text('event_type').notNull(), // 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained'
+    bounceType: text('bounce_type'), // 'hard' | 'soft'
+    metadata: jsonb('metadata').default({}),
+    timestamp: timestamp('timestamp').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_email_health_ws').on(table.workspaceId),
+    eventIdx: index('idx_email_health_event').on(table.eventType),
+    emailIdx: index('idx_email_health_email').on(table.emailId),
   })
 );
 

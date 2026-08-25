@@ -41,6 +41,12 @@ export interface GetAuditLogsOptions {
   limit?: number;
   offset?: number;
   resource?: string;
+  // V2 search + filter options
+  search?: string;
+  actor?: string;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  module?: string;
 }
 
 export class AuditRepository {
@@ -95,69 +101,62 @@ export class AuditRepository {
   }
 
   /**
-   * Fetch audit logs for a workspace (Admin access only)
+   * Fetch audit logs for a workspace with full search & filtering (V2)
    */
   static async getAuditLogs(
+    workspaceId: string,
+    options: GetAuditLogsOptions = {}
+  ): Promise<AuditLogItemWithUser[]> {
+    return this.searchAuditLogs(workspaceId, options);
+  }
+
+  /**
+   * Search & filter audit logs:
+   * - keyword search (action, resource, resourceId)
+   * - actor filter (userId)
+   * - module filter (resource type)
+   * - date range filter
+   */
+  static async searchAuditLogs(
     workspaceId: string,
     options: GetAuditLogsOptions = {}
   ): Promise<AuditLogItemWithUser[]> {
     const limit = options.limit || 100;
     const offset = options.offset || 0;
 
-    try {
-      const db = getDb();
-      if (db) {
-        const rows = await db
-          .select({
-            id: schema.auditLogs.id,
-            workspaceId: schema.auditLogs.workspaceId,
-            action: schema.auditLogs.action,
-            resource: schema.auditLogs.resource,
-            resourceId: schema.auditLogs.resourceId,
-            oldValues: schema.auditLogs.oldValues,
-            newValues: schema.auditLogs.newValues,
-            ipAddress: schema.auditLogs.ipAddress,
-            userAgent: schema.auditLogs.userAgent,
-            createdAt: schema.auditLogs.createdAt,
-            userId: schema.auditLogs.userId,
-            userName: schema.users.name,
-            userEmail: schema.users.email,
-          })
-          .from(schema.auditLogs)
-          .leftJoin(schema.users, eq(schema.auditLogs.userId, schema.users.id))
-          .where(eq(schema.auditLogs.workspaceId, workspaceId))
-          .orderBy(desc(schema.auditLogs.createdAt))
-          .limit(limit)
-          .offset(offset);
-
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            workspaceId: r.workspaceId,
-            userId: r.userId,
-            action: r.action,
-            resource: r.resource,
-            resourceId: r.resourceId,
-            oldValues: (r.oldValues as Record<string, any>) || null,
-            newValues: (r.newValues as Record<string, any>) || null,
-            ipAddress: r.ipAddress,
-            userAgent: r.userAgent,
-            createdAt: r.createdAt,
-            user: {
-              id: r.userId,
-              name: r.userName || 'System/Admin',
-              email: r.userEmail || '',
-            },
-          }));
-        }
-      }
-    } catch {
-      // Fallback
-    }
-
-    const list = Array.from(inMemoryDb.auditLogs.values())
+    let list = Array.from(inMemoryDb.auditLogs.values())
       .filter((a) => a.workspaceId === workspaceId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Keyword search across action, resource, resourceId
+    if (options.search) {
+      const q = options.search.toLowerCase();
+      list = list.filter((a) =>
+        a.action.toLowerCase().includes(q) ||
+        a.resource.toLowerCase().includes(q) ||
+        a.resourceId.toLowerCase().includes(q)
+      );
+    }
+
+    // Actor filter (userId)
+    if (options.actor) {
+      list = list.filter((a) => a.userId === options.actor);
+    }
+
+    // Module filter (resource type, e.g. 'task', 'crm', 'document')
+    if (options.module) {
+      list = list.filter((a) => a.resource.toLowerCase() === options.module!.toLowerCase());
+    }
+
+    // Date range filter
+    if (options.startDate) {
+      const start = new Date(options.startDate);
+      list = list.filter((a) => new Date(a.createdAt) >= start);
+    }
+    if (options.endDate) {
+      const end = new Date(options.endDate);
+      list = list.filter((a) => new Date(a.createdAt) <= end);
+    }
 
     return list.slice(offset, offset + limit).map((a) => {
       const user = inMemoryDb.users.get(a.userId);

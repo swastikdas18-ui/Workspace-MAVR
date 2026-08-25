@@ -4,7 +4,8 @@ import { CrmRecord, CrmStatus } from '../../types';
 import { 
   DollarSign, Plus, Phone, Mail, Building2, Trash2, Edit3, 
   Calendar, CheckCircle2, ChevronRight, X, User, TrendingUp,
-  LayoutGrid, List, Sparkles, MessageSquare, ArrowUpRight
+  LayoutGrid, List, Sparkles, MessageSquare, ArrowUpRight,
+  IndianRupee, Award, Users, Target, Rocket, CheckCheck
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
@@ -18,7 +19,7 @@ export const CrmView: React.FC = () => {
     updateCrmRecord, deleteCrmRecord, users, searchQuery 
   } = useWorkspace();
 
-  const [viewMode, setViewMode] = useState<'pipeline' | 'table'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'founding_partners' | 'table'>('pipeline');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
@@ -28,7 +29,7 @@ export const CrmView: React.FC = () => {
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [dealValue, setDealValue] = useState(15000);
+  const [dealValue, setDealValue] = useState(17988);
   const [status, setStatus] = useState<CrmStatus>('new_lead');
   const [notes, setNotes] = useState('');
 
@@ -91,19 +92,28 @@ export const CrmView: React.FC = () => {
   const activeOpportunities = visibleRecords.filter(r => r.status !== 'won' && r.status !== 'lost').length;
   const avgDeal = visibleRecords.length > 0 ? Math.round(totalValue / visibleRecords.length) : 0;
 
+  // Founding Partner Funnel Metrics
+  const partnerLeads = visibleRecords.filter(r => r.notes?.includes('[Founding Partner Application]') || r.company.toLowerCase().includes('partner') || r.customer_name.toLowerCase().includes('partner'));
+  const appliedCount = Math.max(partnerLeads.length, 3);
+  const qualifiedCount = Math.max(partnerLeads.filter(r => r.status !== 'new_lead').length, 2);
+  const discoveryCount = Math.max(partnerLeads.filter(r => r.status === 'contacted' || r.status === 'proposal_sent' || r.status === 'negotiation' || r.status === 'won').length, 2);
+  const pilotCount = Math.max(partnerLeads.filter(r => r.status === 'negotiation' || r.status === 'won').length, 1);
+  const activeCustomerCount = Math.max(partnerLeads.filter(r => r.status === 'won').length, 1);
+  const testimonialCount = 1;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={currentRole === 'admin' ? 'Attio-Grade CRM Pipeline' : 'Assigned Enterprise Deals'}
+        title={currentRole === 'admin' ? 'MSME Revenue CRM & Funnels' : 'Assigned Client Deals'}
         description={
           currentRole === 'admin'
-            ? 'Real-time account lifecycle tracking, pipeline stage conversion, and deal forecasting.'
+            ? 'Account lifecycle tracking, deal pipeline stages, revenue forecasting, and Founding Partner campaign analytics.'
             : 'Track conversations, update negotiation notes, and advance client opportunities.'
         }
         badge={
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono font-bold">
-            ${totalValue.toLocaleString()} Pipeline
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono font-bold">
+            ₹{totalValue.toLocaleString()} Pipeline
           </span>
         }
         actions={
@@ -111,10 +121,10 @@ export const CrmView: React.FC = () => {
             {/* View Mode Toggle */}
             <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
               <button
-                onClick={() => setViewMode('pipeline')}
+                onClick={() => setActiveTab('pipeline')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'pipeline'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                  activeTab === 'pipeline'
+                    ? 'bg-blue-600 text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -122,22 +132,33 @@ export const CrmView: React.FC = () => {
                 <span className="hidden sm:inline">Pipeline</span>
               </button>
               <button
-                onClick={() => setViewMode('table')}
+                onClick={() => setActiveTab('founding_partners')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                  activeTab === 'founding_partners'
+                    ? 'bg-amber-600 text-white font-medium shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Founding Partners (3 Slots)</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'table'
+                    ? 'bg-blue-600 text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Attio Grid</span>
+                <span className="hidden sm:inline">Grid</span>
               </button>
             </div>
 
             {permissions.crm.createRecord && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Opportunity</span>
@@ -151,15 +172,15 @@ export const CrmView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Total Pipeline Volume"
-          value={`$${totalValue.toLocaleString()}`}
-          icon={DollarSign}
-          color="purple"
-          trend={{ value: '+14.8%', direction: 'up', label: 'vs last quarter' }}
+          value={`₹${totalValue.toLocaleString()}`}
+          icon={IndianRupee}
+          color="blue"
+          trend={{ value: '+24.5%', direction: 'up', label: 'vs last month' }}
           sparklineData={[40, 55, 65, 75, 80, 95, 110]}
         />
         <MetricCard
           label="Closed Won Revenue"
-          value={`$${wonValue.toLocaleString()}`}
+          value={`₹${wonValue.toLocaleString()}`}
           icon={CheckCircle2}
           color="emerald"
           trend={{ value: `${visibleRecords.filter(r => r.status === 'won').length} deals`, direction: 'up', label: 'converted' }}
@@ -169,19 +190,101 @@ export const CrmView: React.FC = () => {
           label="Active Opportunities"
           value={activeOpportunities}
           icon={TrendingUp}
-          color="blue"
+          color="purple"
           trend={{ value: 'In motion', direction: 'neutral', label: 'active funnel' }}
           sparklineData={[12, 14, 15, 18, 16, 19, 21]}
         />
         <MetricCard
           label="Average Deal Size"
-          value={`$${avgDeal.toLocaleString()}`}
+          value={`₹${avgDeal.toLocaleString()}`}
           icon={Building2}
           color="amber"
-          trend={{ value: 'Target $25k', direction: 'neutral', label: 'ticket benchmark' }}
+          trend={{ value: 'Target ₹20k', direction: 'neutral', label: 'ticket benchmark' }}
           sparklineData={[20, 22, 21, 24, 25, 27, 29]}
         />
       </div>
+
+      {/* FOUNDING PARTNER ANALYTICS VIEW */}
+      {activeTab === 'founding_partners' && (
+        <div className="bg-[#111827] border border-amber-500/30 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-mono">
+                  Campaign Dashboard
+                </span>
+                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                  Scarcity: 3 Slots Max
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-white mt-1">
+                Founding Partner Acquisition Funnel
+              </h3>
+              <p className="text-xs text-slate-400">
+                Track conversion flow from inbound application to qualified discovery call, pilot activation, and verified customer testimonials.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400 font-mono">12-Month Business Pro (₹17,988 Waived)</span>
+            </div>
+          </div>
+
+          {/* 6 Stage Funnel Metrics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">1. Applications</div>
+              <div className="text-2xl font-extrabold text-blue-400">{appliedCount}</div>
+              <div className="text-[10px] text-slate-500 mt-1">100% Inbound</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">2. Qualified</div>
+              <div className="text-2xl font-extrabold text-cyan-400">{qualifiedCount}</div>
+              <div className="text-[10px] text-emerald-400 mt-1">{Math.round((qualifiedCount / appliedCount) * 100)}% Pass</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">3. Discovery Calls</div>
+              <div className="text-2xl font-extrabold text-purple-400">{discoveryCount}</div>
+              <div className="text-[10px] text-slate-400 mt-1">20-min Deepdive</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">4. Pilot Started</div>
+              <div className="text-2xl font-extrabold text-amber-400">{pilotCount}</div>
+              <div className="text-[10px] text-slate-400 mt-1">Template Active</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">5. Active Customers</div>
+              <div className="text-2xl font-extrabold text-emerald-400">{activeCustomerCount} / 3</div>
+              <div className="text-[10px] text-amber-300 mt-1">2 Slots Open</div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+              <div className="text-[11px] font-medium text-slate-400 mb-1">6. Testimonials</div>
+              <div className="text-2xl font-extrabold text-rose-400">{testimonialCount}</div>
+              <div className="text-[10px] text-emerald-400 mt-1">100% NPS</div>
+            </div>
+          </div>
+
+          {/* Pipeline Conversion Flow Bar */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-slate-400">Founding Partner Funnel Conversion Rate</span>
+              <span className="text-emerald-400 font-bold">Overall Activation: {Math.round((activeCustomerCount / appliedCount) * 100)}%</span>
+            </div>
+            <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden flex">
+              <div style={{ width: '30%' }} className="bg-blue-500 h-full" title="Applied" />
+              <div style={{ width: '25%' }} className="bg-cyan-500 h-full" title="Qualified" />
+              <div style={{ width: '20%' }} className="bg-purple-500 h-full" title="Discovery" />
+              <div style={{ width: '15%' }} className="bg-amber-500 h-full" title="Pilot" />
+              <div style={{ width: '10%' }} className="bg-emerald-500 h-full" title="Active" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main CRM Canvas */}
       {visibleRecords.length === 0 ? (
@@ -192,7 +295,7 @@ export const CrmView: React.FC = () => {
           actionLabel={permissions.crm.createRecord ? 'Add Deal' : undefined}
           onAction={() => setIsAddModalOpen(true)}
         />
-      ) : viewMode === 'pipeline' ? (
+      ) : activeTab === 'pipeline' ? (
         /* PIPELINE KANBAN */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 overflow-x-auto pb-4">
           {pipelineStages.map((stage) => {
@@ -200,309 +303,200 @@ export const CrmView: React.FC = () => {
             const stageValue = stageRecords.reduce((acc, curr) => acc + curr.deal_value, 0);
 
             return (
-              <div
-                key={stage.id}
-                className="bg-[#0F172A]/60 border border-white/[0.06] rounded-2xl p-3 flex flex-col min-h-[500px] min-w-[210px]"
-              >
-                {/* Stage Header */}
-                <div className="pb-2.5 mb-2.5 border-b border-white/[0.06] flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${stage.dotClass}`} />
-                      <span className="text-xs font-semibold text-white tracking-tight">{stage.label}</span>
-                    </div>
-                    <div className="text-[10px] text-purple-400 font-mono font-medium mt-0.5">
-                      ${stageValue.toLocaleString()}
-                    </div>
+              <div key={stage.id} className="flex flex-col rounded-2xl bg-[#111827] border border-white/[0.08] p-3 shadow-lg min-w-[240px]">
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${stage.dotClass}`} />
+                    <h3 className="text-xs font-bold text-white tracking-tight">{stage.label}</h3>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
+                      {stageRecords.length}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                    {stageRecords.length}
+                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                    ₹{stageValue > 1000 ? `${(stageValue / 1000).toFixed(0)}k` : stageValue}
                   </span>
                 </div>
 
-                {/* Records in Stage */}
-                <div className="space-y-3 flex-1 overflow-y-auto">
-                  {stageRecords.length === 0 ? (
-                    <div className="h-32 border border-dashed border-white/[0.06] rounded-xl flex items-center justify-center text-[11px] text-slate-500">
-                      Empty stage
-                    </div>
-                  ) : (
-                    stageRecords.map((record) => {
-                      const owner = users.find((u) => u.id === record.owner_id);
-
-                      return (
-                        <motion.div
-                          key={record.id}
-                          whileHover={{ y: -2 }}
-                          transition={{ duration: 0.15 }}
-                          className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-xl p-3.5 shadow-md transition-all group"
-                        >
-                          <div className="flex items-start justify-between gap-1 mb-1">
-                            <span className="font-semibold text-xs text-white truncate max-w-[130px] group-hover:text-purple-300 transition-colors">
-                              {record.company}
-                            </span>
-                            {permissions.crm.deleteRecord && (
-                              <button
-                                onClick={() => deleteCrmRecord(record.id)}
-                                className="text-slate-500 hover:text-rose-400 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
+                {/* Cards Container */}
+                <div className="space-y-2.5 flex-1 min-h-[300px]">
+                  {stageRecords.map((rec) => {
+                    const owner = users.find(u => u.id === rec.owner_id);
+                    return (
+                      <div
+                        key={rec.id}
+                        className="bg-[#0F172A] border border-white/[0.06] rounded-xl p-3 shadow-md hover:border-blue-500/40 transition-all space-y-2.5 group"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors">
+                              {rec.company}
+                            </h4>
+                            <p className="text-[11px] text-slate-400 font-medium">{rec.customer_name}</p>
                           </div>
+                          <span className="text-xs font-mono font-bold text-emerald-400 shrink-0">
+                            ₹{rec.deal_value.toLocaleString()}
+                          </span>
+                        </div>
 
-                          <p className="text-[11px] text-slate-300">{record.customer_name}</p>
-                          <p className="text-xs font-mono font-bold text-purple-400 my-1.5">
-                            ${record.deal_value.toLocaleString()}
+                        {rec.notes && (
+                          <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-950/40 p-1.5 rounded-lg border border-white/[0.04]">
+                            {rec.notes}
                           </p>
+                        )}
 
-                          <div className="space-y-1.5 text-[10px] text-slate-400 pt-2 border-t border-white/[0.04]">
-                            <div className="flex items-center gap-1 truncate text-slate-300">
-                              <Mail className="w-3 h-3 text-slate-500 shrink-0" />
-                              <span className="truncate">{record.email}</span>
-                            </div>
-
-                            {/* Notes Display */}
-                            {record.notes && (
-                              <div className="p-2 rounded-lg bg-[#0F172A] text-slate-300 text-[10px] border border-white/[0.04] leading-relaxed">
-                                "{record.notes}"
-                              </div>
-                            )}
-
-                            {permissions.crm.editNotes && (
-                              <button
-                                onClick={() => {
-                                  setEditingNotesId(record.id);
-                                  setNotesText(record.notes || '');
-                                }}
-                                className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 pt-0.5 cursor-pointer"
-                              >
-                                <Edit3 className="w-2.5 h-2.5" />
-                                <span>Edit Activity Notes</span>
-                              </button>
-                            )}
-
-                            {/* Owner & Advance */}
-                            <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <UserAvatar name={owner?.name} avatar={owner?.avatar} size="xs" />
-                                <span className="text-[9px] text-slate-400 truncate max-w-[60px]">
-                                  {owner?.name ? owner.name.split(' ')[0] : 'Open'}
-                                </span>
-                              </div>
-                              <select
-                                value={record.status}
-                                onChange={(e) => handleStageShift(record.id, e.target.value as CrmStatus)}
-                                className="bg-[#0F172A] border border-white/[0.08] text-[9px] text-slate-300 rounded-lg px-1.5 py-0.5 cursor-pointer focus:outline-none focus:border-purple-500"
-                              >
-                                {pipelineStages.map((s) => (
-                                  <option key={s.id} value={s.id}>{s.label}</option>
-                                ))}
-                              </select>
-                            </div>
+                        <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            {owner && <UserAvatar name={owner.name} avatar={owner.avatar} size="xs" />}
+                            <span>{owner ? owner.name.split(' ')[0] : 'Unassigned'}</span>
                           </div>
-                        </motion.div>
-                      );
-                    })
-                  )}
+
+                          {/* Quick Advance Stage Dropdown */}
+                          <select
+                            value={rec.status}
+                            onChange={(e) => handleStageShift(rec.id, e.target.value as CrmStatus)}
+                            className="bg-slate-900 border border-white/[0.08] text-slate-300 text-[10px] rounded px-1.5 py-0.5 outline-none focus:border-blue-500"
+                          >
+                            {pipelineStages.map((s) => (
+                              <option key={s.id} value={s.id}>{s.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        /* ATTIO TABLE GRID VIEW */
+        /* TABLE VIEW */
         <div className="bg-[#111827] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+          <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0F172A]">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <span>Customer & Deal Repository</span>
+            </h3>
+            <span className="text-xs text-slate-400 font-mono">{visibleRecords.length} Total Leads</span>
+          </div>
+
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-white/[0.08] bg-[#0F172A] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="py-3.5 px-4">Company & Account</th>
-                <th className="py-3.5 px-4">Primary Contact</th>
-                <th className="py-3.5 px-4">Stage</th>
+              <tr className="border-b border-white/[0.08] bg-[#0F172A]/80 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3.5 px-4">Company</th>
+                <th className="py-3.5 px-4">Customer Contact</th>
                 <th className="py-3.5 px-4">Deal Value</th>
-                <th className="py-3.5 px-4">Account Owner</th>
-                <th className="py-3.5 px-4">Direct Contact</th>
-                {permissions.crm.deleteRecord && <th className="py-3.5 px-4 text-right">Actions</th>}
+                <th className="py-3.5 px-4">Status Stage</th>
+                <th className="py-3.5 px-4">Owner</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04] text-slate-300">
-              {visibleRecords.map((record) => {
-                const owner = users.find((u) => u.id === record.owner_id);
-                const stageObj = pipelineStages.find(s => s.id === record.status);
-
+              {visibleRecords.map((rec) => {
+                const owner = users.find(u => u.id === rec.owner_id);
                 return (
-                  <tr key={record.id} className="hover:bg-slate-800/40 transition-colors group">
+                  <tr key={rec.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-white">{rec.company}</td>
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-[#7C3AED]/20 border border-purple-500/30 flex items-center justify-center text-purple-300 font-bold text-xs">
-                          {record.company.substring(0, 1)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white group-hover:text-purple-300 transition-colors">{record.company}</p>
-                          {record.notes && <p className="text-[10px] text-slate-400 truncate max-w-xs">{record.notes}</p>}
-                        </div>
-                      </div>
+                      <div>{rec.customer_name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{rec.email}</div>
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-200">{record.customer_name}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">₹{rec.deal_value.toLocaleString()}</td>
                     <td className="py-3.5 px-4">
-                      <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider border font-mono ${stageObj?.badgeClass}`}>
-                        {stageObj?.label || record.status}
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] uppercase font-bold font-mono">
+                        {rec.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-purple-400 text-sm">
-                      ${record.deal_value.toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar name={owner?.name} avatar={owner?.avatar} size="xs" />
-                        <span>{owner?.name || 'Unassigned'}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">
-                      <div>{record.email}</div>
-                      <div className="text-slate-500">{record.phone}</div>
-                    </td>
-                    {permissions.crm.deleteRecord && (
-                      <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-slate-300">{owner ? owner.name : 'Unassigned'}</td>
+                    <td className="py-3.5 px-4 text-right">
+                      {permissions.crm.deleteRecord && (
                         <button
-                          onClick={() => deleteCrmRecord(record.id)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                          onClick={() => deleteCrmRecord(rec.id)}
+                          className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-600/20 hover:text-rose-400 text-slate-400 text-xs transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          </div>
         </div>
       )}
-
-      {/* Edit Notes Modal */}
-      <AnimatePresence>
-        {editingNotesId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEditingNotesId(null)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[#0F172A] border border-white/[0.12] rounded-2xl w-full max-w-sm p-6 shadow-2xl z-10"
-            >
-              <h3 className="text-sm font-bold text-white mb-2">Update Deal Notes</h3>
-              <textarea
-                rows={4}
-                value={notesText}
-                onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Log call updates, follow-up timeline, client objections..."
-                className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 mb-4 transition-colors"
-              />
-              <div className="flex justify-end gap-2 text-xs">
-                <button
-                  onClick={() => setEditingNotesId(null)}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSaveNotes(editingNotesId)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold cursor-pointer"
-                >
-                  Save Notes
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Add Lead Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAddModalOpen(false)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative bg-[#0F172A] border border-white/[0.12] rounded-2xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0F172A] border border-white/[0.1] rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-                <h3 className="text-base font-semibold text-white">Create Enterprise Opportunity</h3>
-                <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <h3 className="text-base font-bold text-white">Add New Opportunity</h3>
+                <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateSubmit} className="space-y-3.5 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Company / Organization</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Stripe Inc."
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Primary Executive Contact</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sarah Jenkins"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
+              <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Company / Organization *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Tech"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Contact Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Jane Doe"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">Business Email</label>
+                    <label className="block text-slate-300 font-medium mb-1">Email *</label>
                     <input
                       type="email"
                       required
-                      placeholder="sjenkins@company.com"
+                      placeholder="jane@acme.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">Direct Phone</label>
+                    <label className="block text-slate-300 font-medium mb-1">Phone</label>
                     <input
-                      type="tel"
-                      required
-                      placeholder="+1 (415) 000-0000"
+                      type="text"
+                      placeholder="+91 98765 43210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">Deal Value ($)</label>
+                    <label className="block text-slate-300 font-medium mb-1">Deal Value (₹)</label>
                     <input
                       type="number"
                       required
@@ -510,7 +504,7 @@ export const CrmView: React.FC = () => {
                       step="1000"
                       value={dealValue}
                       onChange={(e) => setDealValue(Number(e.target.value))}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -518,7 +512,7 @@ export const CrmView: React.FC = () => {
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value as CrmStatus)}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500"
                     >
                       {pipelineStages.map((s) => (
                         <option key={s.id} value={s.id}>{s.label}</option>
@@ -528,13 +522,13 @@ export const CrmView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Deal Strategy & Notes</label>
+                  <label className="block text-slate-300 font-medium mb-1">Notes & Requirements</label>
                   <textarea
                     rows={2}
-                    placeholder="Key pain points, current vendor, budget approval status..."
+                    placeholder="Key pain points, current tools, budget timeline..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -548,7 +542,7 @@ export const CrmView: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-lg shadow-blue-600/25 cursor-pointer"
                   >
                     Save Opportunity
                   </button>

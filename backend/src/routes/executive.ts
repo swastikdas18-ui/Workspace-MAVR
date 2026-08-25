@@ -12,7 +12,7 @@
 
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { WorkspaceHealthService } from '../services/workspace-health-service';
 import { UsageService } from '../services/usage-service';
 import { BillingRepository } from '../repositories/billing-repository';
@@ -20,7 +20,7 @@ import { inMemoryDb } from '../../packages/database';
 
 export const executiveRouter = new Hono();
 
-executiveRouter.use('*', authMiddleware, requireRole(['admin']));
+executiveRouter.use('*', authMiddleware, requireWorkspaceRole(['admin']));
 
 /**
  * GET /api/executive/metrics - Executive Overview KPIs
@@ -114,7 +114,7 @@ executiveRouter.get('/growth', async (c) => {
 
   const customerSuccess = {
     healthStatus: health.status,
-    churnRisk: health.status === 'churn_risk' ? 'HIGH' : health.status === 'at_risk' ? 'MEDIUM' : 'LOW',
+    churnRisk: health.status === 'Critical' ? 'HIGH' : health.status === 'At Risk' ? 'MEDIUM' : 'LOW',
     expansionPotential: subscription.plan === 'free' ? 'HIGH' : 'MEDIUM',
     riskFactors: health.riskFactors,
     recommendations: health.recommendations,

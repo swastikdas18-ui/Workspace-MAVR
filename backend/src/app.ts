@@ -17,9 +17,14 @@ import { healthRouter } from './routes/health';
 import { billingRouter } from './routes/billing';
 import { executiveRouter } from './routes/executive';
 import { analyticsRouter, adminRouter } from './routes/protected-modules';
+import { foundingPartnerRouter } from './routes/founding-partner';
+import { wikiRouter, timeRouter, guestPortalRouter, integrationRouter } from './routes/msme-extensions';
+import { phase14Router } from './routes/phase14-routes';
+import { phase16Router } from './routes/phase16-routes';
 import { env } from './config/env';
 import { requestLogger } from './middleware/logger';
 import { securityHeaders } from './middleware/security';
+import { csrfProtection } from './middleware/csrf';
 import {
   authRateLimiter,
   inviteRateLimiter,
@@ -96,6 +101,7 @@ app.use(
       'X-Requested-With',
       'Accept',
       'Origin',
+      'X-CSRF-Token',
     ],
     exposeHeaders: ['Content-Length', 'X-Response-Time', 'X-Powered-By'],
     credentials: true,
@@ -110,7 +116,7 @@ app.options('*', (c) => {
   if (origin && isOriginAllowed(origin)) {
     c.header('Access-Control-Allow-Origin', origin);
     c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-session-token, X-Requested-With, Accept, Origin');
+    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-session-token, X-Requested-With, Accept, Origin, X-CSRF-Token');
     c.header('Access-Control-Allow-Credentials', 'true');
     c.header('Access-Control-Max-Age', '86400');
   }
@@ -126,6 +132,10 @@ app.use('*', async (c, next) => {
   c.header('X-Response-Time', `${ms}ms`);
   c.header('X-Powered-By', 'Workspace-OS/1.0-Hono');
 });
+
+// 4. CSRF Protection (Phase 17 — Fix #9): double-submit cookie enforcement
+// for all state-changing cookie-authenticated requests.
+app.use('*', csrfProtection);
 
 // Health check & diagnostic endpoints
 app.route('/health', healthRouter);
@@ -182,14 +192,43 @@ app.route('/presence', presenceRouter);
 app.route('/api/analytics', analyticsRouter);
 app.route('/analytics', analyticsRouter);
 
+// Phase 14 routes (includes /billing/webhook) MUST be mounted BEFORE
+// the billingRouter sub-app so the webhook path is not intercepted
+// by billingRouter's sub-app prefix.
+app.route('/api/v2', phase14Router);
+app.route('/api', phase14Router);
+
 app.route('/api/billing', billingRouter);
 app.route('/billing', billingRouter);
+
+app.route('/api/founding-partner', foundingPartnerRouter);
+app.route('/founding-partner', foundingPartnerRouter);
 
 app.route('/api/executive', executiveRouter);
 app.route('/executive', executiveRouter);
 
 app.route('/api/admin', adminRouter);
 app.route('/admin', adminRouter);
+
+// Phase 12: Enterprise MSME Extension Routes
+app.route('/api/wiki', wikiRouter);
+app.route('/wiki', wikiRouter);
+
+app.route('/api/time', timeRouter);
+app.route('/time', timeRouter);
+
+app.route('/api/portal', guestPortalRouter);
+app.route('/portal', guestPortalRouter);
+
+app.route('/api/integrations', integrationRouter);
+app.route('/integrations', integrationRouter);
+
+// Phase 14: Enterprise Revenue & Beta Readiness Routes
+// (already mounted above, before billingRouter, to avoid /billing/webhook collision)
+
+// Phase 16: Beta Readiness Hardening — Export, Digest, Audit Search, Founder Console
+app.route('/api', phase16Router);
+app.route('/api/v2', phase16Router);
 
 // Global Error Handler
 app.onError((err, c) => {

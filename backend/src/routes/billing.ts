@@ -16,7 +16,7 @@
 
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
 import { UsageService } from '../services/usage-service';
 
@@ -28,46 +28,67 @@ billingRouter.use('*', authMiddleware);
 /**
  * GET /api/billing/plan - Plan details & limits (Admin & Employee)
  */
-billingRouter.get('/plan', requireRole(['admin', 'employee']), async (c) => {
-  const workspace = c.get('workspace');
-  if (!workspace) {
-    return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
-  }
+billingRouter.get('/plan', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
+    }
 
-  const subscription = await BillingRepository.getSubscription(workspace.id);
-  const planTier = (subscription.plan as PlanTier) || 'free';
-  const planInfo = PLAN_CONFIG[planTier] || PLAN_CONFIG.free;
+    const subscription = await BillingRepository.getSubscription(workspace.id);
+    const planTier = (subscription.plan as PlanTier) || 'free';
+    const planInfo = PLAN_CONFIG[planTier] || PLAN_CONFIG.free;
 
-  return c.json(
-    {
-      subscription: {
-        ...subscription,
-        planName: planInfo.name,
-        limits: planInfo.limits,
+    return c.json(
+      {
+        subscription: {
+          ...subscription,
+          planName: planInfo.name,
+          limits: planInfo.limits,
+        },
+        availablePlans: PLAN_CONFIG,
       },
-      availablePlans: PLAN_CONFIG,
-    },
-    200
-  );
+      200
+    );
+  } catch (err: any) {
+    return c.json({ error: { code: 'BILLING_ERROR', message: err.message || 'Failed to fetch billing plan' } }, 500);
+  }
+});
+
+billingRouter.get('/trial', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
+    }
+    const trial = await BillingRepository.getTrialStatus(workspace.id);
+    return c.json({ trial }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'BILLING_ERROR', message: err.message || 'Failed to fetch trial status' } }, 500);
+  }
 });
 
 /**
  * GET /api/billing/usage - Real-time metered resource consumption (Admin & Employee)
  */
-billingRouter.get('/usage', requireRole(['admin', 'employee']), async (c) => {
-  const workspace = c.get('workspace');
-  if (!workspace) {
-    return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
-  }
+billingRouter.get('/usage', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
+    }
 
-  const usage = await UsageService.getWorkspaceUsage(workspace.id);
-  return c.json({ usage }, 200);
+    const usage = await UsageService.getWorkspaceUsage(workspace.id);
+    return c.json({ usage }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'USAGE_ERROR', message: err.message || 'Failed to fetch usage metrics' } }, 500);
+  }
 });
 
 /**
  * GET /api/billing/invoices - Invoice payment history (Admin ONLY)
  */
-billingRouter.get('/invoices', requireRole(['admin']), async (c) => {
+billingRouter.get('/invoices', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   if (!workspace) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
@@ -80,7 +101,7 @@ billingRouter.get('/invoices', requireRole(['admin']), async (c) => {
 /**
  * POST /api/billing/upgrade - Upgrade or change subscription tier (Admin ONLY)
  */
-billingRouter.post('/upgrade', requireRole(['admin']), async (c) => {
+billingRouter.post('/upgrade', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   if (!workspace) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
@@ -89,9 +110,9 @@ billingRouter.post('/upgrade', requireRole(['admin']), async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { plan, billingCycle = 'monthly' } = body;
 
-  if (!plan || !['free', 'starter', 'business', 'enterprise'].includes(plan)) {
+  if (!plan || !['free', 'starter', 'business', 'scale', 'enterprise'].includes(plan)) {
     return c.json(
-      { error: { code: 'INVALID_INPUT', message: 'Plan must be one of: free, starter, business, enterprise' } },
+      { error: { code: 'INVALID_INPUT', message: 'Plan must be one of: free, starter, business, scale, enterprise' } },
       400
     );
   }
@@ -103,7 +124,7 @@ billingRouter.post('/upgrade', requireRole(['admin']), async (c) => {
 /**
  * POST /api/billing/cancel - Cancel subscription (Admin ONLY)
  */
-billingRouter.post('/cancel', requireRole(['admin']), async (c) => {
+billingRouter.post('/cancel', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   if (!workspace) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
@@ -116,7 +137,7 @@ billingRouter.post('/cancel', requireRole(['admin']), async (c) => {
 /**
  * Legacy root GET /api/billing
  */
-billingRouter.get('/', requireRole(['admin', 'employee']), async (c) => {
+billingRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   const workspace = c.get('workspace');
   const sub = await BillingRepository.getSubscription(workspace.id);
   return c.json({ billing: sub }, 200);

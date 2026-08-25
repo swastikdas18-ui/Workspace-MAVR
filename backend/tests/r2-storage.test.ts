@@ -18,6 +18,7 @@ import { inMemoryDb } from '../packages/database';
 import { app } from '../src/app';
 import { R2Service } from '../src/services/r2-service';
 import { UsageService } from '../src/services/usage-service';
+import { attachSessionToken } from './session-test-utils';
 
 let passCount = 0;
 let failCount = 0;
@@ -55,7 +56,7 @@ async function requestApi(
   const res = await app.fetch(req);
   let data = null;
   try {
-    data = await res.json();
+    data = attachSessionToken(res, await res.json());
   } catch {}
 
   return { status: res.status, data, headers: res.headers };

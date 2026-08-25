@@ -1,6 +1,7 @@
 import { Context, Next } from 'hono';
 import { AuthService } from '../services/auth-service';
 import { SafeUser, SafeWorkspace } from '../types';
+import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -16,6 +17,7 @@ export async function authMiddleware(c: Context, next: Next) {
   const cookieHeader = c.req.header('cookie') || c.req.header('Cookie');
 
   let token: string | null = null;
+  let transport: 'header' | 'cookie' = 'header';
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.substring(7).trim();
@@ -25,6 +27,7 @@ export async function authMiddleware(c: Context, next: Next) {
     const match = cookieHeader.match(/ws_session=([^;]+)/);
     if (match) {
       token = match[1];
+      transport = 'cookie';
     }
   }
 
@@ -43,6 +46,12 @@ export async function authMiddleware(c: Context, next: Next) {
   const sessionData = await AuthService.getSession(token);
 
   if (!sessionData) {
+    // SECURITY AUDIT (Phase 17): record expired/invalid token usage.
+    await logSecurityEvent('auth.expired_token', {
+      resourceId: `${c.req.method} ${c.req.path}`,
+      ...requestSecurityMeta(c),
+      details: { transport, tokenPrefix: `${token.slice(0, 8)}…` },
+    });
     return c.json(
       {
         error: {

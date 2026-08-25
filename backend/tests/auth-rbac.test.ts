@@ -1,5 +1,6 @@
 import { inMemoryDb } from '../packages/database';
 import { app } from '../src/app';
+import { attachSessionToken } from './session-test-utils';
 
 // Test runner helper
 let passCount = 0;
@@ -34,7 +35,7 @@ async function testApi(
   });
 
   const res = await app.fetch(req);
-  const data = await res.json();
+  const data = attachSessionToken(res, await res.json());
   return { status: res.status, data };
 }
 

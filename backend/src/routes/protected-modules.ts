@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { AuditRepository } from '../repositories/audit-repository';
 
@@ -9,34 +9,61 @@ export const billingRouter = new Hono();
 export const adminRouter = new Hono();
 
 // Analytics (Admin only)
-analyticsRouter.use('*', authMiddleware, requireRole(['admin']));
+analyticsRouter.use('*', authMiddleware, requireWorkspaceRole(['admin']));
+
+analyticsRouter.post('/track', async (c) => {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+  const body = await c.req.json().catch(() => ({}));
+  const { eventName, metadata } = body;
+
+  if (!eventName) {
+    return c.json({ error: { code: 'BAD_REQUEST', message: 'eventName is required' } }, 400);
+  }
+
+  const event = await AnalyticsRepository.trackEvent(
+    eventName,
+    workspace?.id || 'ws-default',
+    user?.id || 'usr-system',
+    metadata
+  );
+
+  return c.json({ success: true, event }, 201);
+});
+
+analyticsRouter.get('/engagement', async (c) => {
+  const workspace = c.get('workspace');
+  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || 'ws-default');
+  return c.json({ engagement }, 200);
+});
+
 analyticsRouter.get('/', async (c) => {
   const workspace = c.get('workspace');
-  const metrics = await AnalyticsRepository.getWorkspaceMetrics(workspace?.id || '');
+  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || '');
   return c.json({
-    analytics: metrics,
+    analytics: engagement,
   });
 });
 
 analyticsRouter.get('/metrics', async (c) => {
   const workspace = c.get('workspace');
-  const metrics = await AnalyticsRepository.getWorkspaceMetrics(workspace?.id || '');
+  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || '');
   return c.json({
-    metrics,
+    metrics: engagement,
   });
 });
 
 analyticsRouter.get('/search-metrics', async (c) => {
   const workspace = c.get('workspace');
-  const searchMetrics = await AnalyticsRepository.getSearchMetrics(workspace?.id || '');
+  const searchMetrics = AnalyticsRepository.getSearchMetrics(workspace?.id || '');
   return c.json({
     searchMetrics,
   });
 });
 
-// Billing (Admin only)
-billingRouter.use('*', authMiddleware, requireRole(['admin']));
-billingRouter.get('/', async (c) => {
+// Billing (Admin only) — per-route auth so phase14Router's /billing/webhook
+// is not intercepted by a catch-all middleware in this sub-router.
+billingRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   return c.json({
     billing: {
@@ -45,10 +72,10 @@ billingRouter.get('/', async (c) => {
       currentPeriodEnd: '2026-12-31',
       invoices: [],
     },
-  });
+  }, 200);
 });
 
-billingRouter.get('/invoices', async (c) => {
+billingRouter.get('/invoices', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   return c.json({
     invoices: [
@@ -59,7 +86,7 @@ billingRouter.get('/invoices', async (c) => {
 });
 
 // Admin Tools (Admin only)
-adminRouter.use('*', authMiddleware, requireRole(['admin']));
+adminRouter.use('*', authMiddleware, requireWorkspaceRole(['admin']));
 adminRouter.get('/', async (c) => {
   return c.json({
     status: 'healthy',

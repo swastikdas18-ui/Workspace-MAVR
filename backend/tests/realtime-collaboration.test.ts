@@ -2,6 +2,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import { inMemoryDb } from '../packages/database';
 import { app } from '../src/app';
+import { attachSessionToken } from './session-test-utils';
 import { wsServer } from '../src/realtime/websocket-server';
 import { ChannelManager } from '../src/realtime/channel-manager';
 import { PresenceManager } from '../src/realtime/presence-manager';
@@ -45,7 +46,7 @@ async function testApi(
   });
 
   const res = await app.fetch(req);
-  const data = await res.json();
+  const data = attachSessionToken(res, await res.json());
   return { status: res.status, data };
 }
 

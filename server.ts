@@ -4,10 +4,22 @@ import { createServer as createViteServer } from 'vite';
 import { getRequestListener } from '@hono/node-server';
 import { app as honoApp } from './backend/src/app';
 import { wsServer } from './backend/src/realtime/websocket-server';
+import { assertProductionSecrets } from './backend/src/config/env';
+import { AuthService } from './backend/src/services/auth-service';
 
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
+
+  // SECURITY (Phase 17 — Fix #6): Fail fast when required secrets are absent.
+  // The application never boots with placeholder or missing credentials.
+  assertProductionSecrets();
+
+  // SECURITY (Phase 17 — Fix #4): promote configured platform administrators.
+  const { promoted } = await AuthService.bootstrapPlatformAdmins();
+  if (promoted.length > 0) {
+    console.log(`[Workspace OS] Platform admins provisioned: ${promoted.join(', ')}`);
+  }
 
   // Strict Production Safety: Fail fast if DATABASE_URL is missing in production
   if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
@@ -22,7 +34,7 @@ async function startServer() {
       req.path.startsWith('/api') ||
       req.path.startsWith('/auth') ||
       req.path.startsWith('/workspace') ||
-      req.path === '/health'
+      req.path.startsWith('/health')
     ) {
       return honoListener(req, res);
     }

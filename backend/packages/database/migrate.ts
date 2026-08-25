@@ -235,7 +235,36 @@ export async function runMigrations() {
       );
     `;
 
-    // 16. Optimized Indexes
+    // 16. Backup Reports table (Phase 19B)
+    await sql`
+      CREATE TABLE IF NOT EXISTS backup_reports (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        checksum TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        verification_status TEXT NOT NULL DEFAULT 'unverified',
+        verification_details JSONB DEFAULT '{}'::jsonb,
+        duration_ms INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 17. Email Health Metrics table (Phase 19B)
+    await sql`
+      CREATE TABLE IF NOT EXISTS email_health_metrics (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT,
+        email_id TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        bounce_type TEXT,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // 18. Optimized Indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);`;
@@ -248,6 +277,9 @@ export async function runMigrations() {
     await sql`CREATE INDEX IF NOT EXISTS idx_automation_actions_rule ON automation_actions(rule_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_automation_executions_rule ON automation_executions(rule_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_user_presence_user_workspace ON user_presence(user_id, workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_backup_reports_status ON backup_reports(status);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_health_ws ON email_health_metrics(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_health_event ON email_health_metrics(event_type);`;
 
     console.log('[Workspace OS Migration] All PostgreSQL schemas and indexes successfully verified & applied.');
   } catch (error) {

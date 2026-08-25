@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'employee' | 'intern';
+export type UserRole = 'admin' | 'employee' | 'intern' | 'guest';
 
 export interface User {
   id: string;
@@ -16,7 +16,7 @@ export interface Workspace {
   name: string;
   slug: string;
   owner_id: string;
-  plan: 'free' | 'pro' | 'enterprise';
+  plan: 'free' | 'starter' | 'business' | 'scale' | 'enterprise' | 'pro';
   created_at: string;
   logo?: string;
 }
@@ -154,4 +154,92 @@ export interface Invoice {
   status: 'paid' | 'pending' | 'failed';
   pdf_url: string;
   plan_name: string;
+}
+
+// ============================================================================
+// PHASE 13: EXTENDED SYSTEM TYPES
+// ============================================================================
+
+export interface WikiPageItem {
+  id: string;
+  workspaceId: string;
+  parentId: string | null;
+  title: string;
+  icon: string;
+  coverImage?: string | null;
+  slug: string;
+  contentJson: Record<string, any>;
+  visibility: DocumentVisibility;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WikiCommentItem {
+  id: string;
+  pageId: string;
+  userId: string;
+  userName: string;
+  blockId?: string;
+  comment: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface TaskTimeEntryItem {
+  id: string;
+  workspaceId: string;
+  taskId: string;
+  userId: string;
+  startTime: string;
+  endTime?: string | null;
+  durationMinutes: number;
+  billable: boolean;
+  hourlyRate: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface DeliverableApprovalItem {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  taskId?: string;
+  documentId?: string;
+  title: string;
+  description?: string;
+  fileUrl?: string;
+  guestId: string;
+  status: 'pending' | 'approved' | 'changes_requested';
+  feedback?: string;
+  signatureHash?: string;
+  signedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CalendarEventItemType {
+  id: string;
+  workspaceId: string;
+  crmRecordId?: string | null;
+  projectId?: string | null;
+  title: string;
+  description?: string;
+  meetingUrl?: string;
+  startTime: string;
+  endTime: string;
+  attendees: Array<{ email: string; name?: string; status?: string }>;
+  status: 'confirmed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface EmailLogItemType {
+  id: string;
+  workspaceId: string;
+  crmRecordId?: string | null;
+  from: string;
+  to: string;
+  subject: string;
+  snippet: string;
+  direction: 'inbound' | 'outbound';
+  timestamp: string;
 }

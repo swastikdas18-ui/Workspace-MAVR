@@ -35,13 +35,27 @@ export type Action =
   | 'billing:read'
   | 'billing:manage'
   | 'analytics:read'
-  | 'admin:tools';
+  | 'admin:tools'
+  // Phase 12 Actions
+  | 'wiki:read'
+  | 'wiki:create'
+  | 'wiki:update'
+  | 'wiki:delete'
+  | 'wiki:comment'
+  | 'time:read'
+  | 'time:log'
+  | 'time:manage'
+  | 'portal:access'
+  | 'portal:approve';
 
-export function normalizeRole(role: string | null | undefined): UserRole {
+export function normalizeRole(role: string | null | undefined): UserRole | 'guest' {
   if (!role) return 'employee';
   const lower = role.toLowerCase().trim();
+  // Platform administrators hold full access across all workspaces.
+  if (lower === 'platform_admin') return 'admin';
   if (lower === 'admin') return 'admin';
   if (lower === 'intern') return 'intern';
+  if (lower === 'guest') return 'guest';
   return 'employee';
 }
 
@@ -140,6 +154,20 @@ export function can(
         }
         return true;
 
+      // Phase 12: Employee permissions
+      case 'wiki:read':
+      case 'wiki:create':
+      case 'wiki:update':
+      case 'wiki:comment':
+      case 'time:read':
+      case 'time:log':
+        return true;
+      case 'wiki:delete':
+      case 'time:manage':
+      case 'portal:access':
+      case 'portal:approve':
+        return false;
+
       // Protected modules strictly forbidden for employees
       case 'billing:read':
       case 'billing:manage':
@@ -157,6 +185,24 @@ export function can(
     switch (action) {
       case 'workspace:read':
         return true;
+
+      // Wiki: read learning/public pages only
+      case 'wiki:read':
+        if (resource) {
+          return resource.visibility === 'public' || resource.visibility === 'learning';
+        }
+        return true;
+      case 'time:read':
+      case 'time:log':
+        return true;
+      case 'wiki:create':
+      case 'wiki:update':
+      case 'wiki:delete':
+      case 'wiki:comment':
+      case 'time:manage':
+      case 'portal:access':
+      case 'portal:approve':
+        return false;
 
       // Tasks: restricted to viewing assigned tasks and updating assigned task status
       case 'tasks:read':
@@ -214,6 +260,18 @@ export function can(
 
       default:
         return false;
+    }
+  }
+
+  // 4. GUEST - Restricted External Portal
+  if (normalizedRole === 'guest') {
+    switch (action) {
+      case 'portal:access':
+      case 'portal:approve':
+      case 'documents:download':
+        return true;
+      default:
+        return false; // Zero access to any internal app modules
     }
   }
 

@@ -16,6 +16,10 @@ import { SettingsView } from './components/settings/SettingsView';
 import { AdminToolsView } from './components/admin/AdminToolsView';
 import { WorkspaceView } from './components/workspace/WorkspaceView';
 import { AcceptInviteView } from './components/invites/AcceptInviteView';
+import { WikiView } from './components/wiki/WikiView';
+import { TimeTrackingView } from './components/time/TimeTrackingView';
+import { ClientPortalView } from './components/portal/ClientPortalView';
+import { IntegrationsView } from './components/integrations/IntegrationsView';
 import { RoleGuard } from './components/common/RoleGuard';
 import { RequireRole } from './components/common/RequireRole';
 import { ForbiddenPage } from './components/common/ForbiddenPage';
@@ -180,6 +184,22 @@ const MainAppContent: React.FC = () => {
 
       case 'tasks':
         return <TasksView />;
+
+      case 'wiki':
+        return <WikiView />;
+
+      case 'time':
+        return <TimeTrackingView />;
+
+      case 'portal':
+        return <ClientPortalView />;
+
+      case 'integrations':
+        return (
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Third-party integrations and Google synchronization are restricted to organization staff." />}>
+            <IntegrationsView />
+          </RoleGuard>
+        );
 
       case 'documents':
         return <DocumentsView />;

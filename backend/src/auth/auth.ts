@@ -23,7 +23,9 @@ export function calculateSessionExpiry(days = 7): Date {
 }
 
 export const betterAuthConfig = {
-  secret: env.BETTER_AUTH_SECRET,
+  // SECURITY (Phase 17): SESSION_SECRET is mandatory — validated at startup
+  // by assertProductionSecrets(). No fallback secret exists.
+  secret: env.SESSION_SECRET as string,
   baseURL: env.BETTER_AUTH_URL,
   sessionDurationDays: 7,
 };

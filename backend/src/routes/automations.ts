@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/rbac';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { AutomationRepository } from '../repositories/automation-repository';
 import { AutomationService } from '../services/automation-service';
 import { AuditRepository } from '../repositories/audit-repository';
@@ -15,7 +15,7 @@ automationRouter.use('*', authMiddleware);
  * GET / - List all automation rules for active workspace
  * Allowed: ADMIN, EMPLOYEE. Forbidden: INTERN
  */
-automationRouter.get('/', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
+automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -39,7 +39,7 @@ automationRouter.get('/', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
 /**
  * GET /rules - Alias for list rules
  */
-automationRouter.get('/rules', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
+automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -63,7 +63,7 @@ automationRouter.get('/rules', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => 
 /**
  * GET /rules/:id - Get rule by ID
  */
-automationRouter.get('/rules/:id', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
+automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     const id = c.req.param('id');
@@ -97,7 +97,7 @@ automationRouter.get('/rules/:id', requireRole(['ADMIN', 'EMPLOYEE']), async (c)
  * POST / - Create a new automation rule
  * Allowed: ADMIN only.
  */
-automationRouter.post('/', requireRole(['ADMIN']), async (c) => {
+automationRouter.post('/', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -163,7 +163,7 @@ automationRouter.post('/', requireRole(['ADMIN']), async (c) => {
 /**
  * POST /rules - Alias for create rule
  */
-automationRouter.post('/rules', requireRole(['ADMIN']), async (c) => {
+automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -230,7 +230,7 @@ automationRouter.post('/rules', requireRole(['ADMIN']), async (c) => {
  * PUT /rules/:id - Update an automation rule
  * Allowed: ADMIN only.
  */
-automationRouter.put('/rules/:id', requireRole(['ADMIN']), async (c) => {
+automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -287,7 +287,7 @@ automationRouter.put('/rules/:id', requireRole(['ADMIN']), async (c) => {
  * PATCH /rules/:id/toggle - Toggle rule active/inactive
  * Allowed: ADMIN only.
  */
-automationRouter.patch('/rules/:id/toggle', requireRole(['ADMIN']), async (c) => {
+automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -337,7 +337,7 @@ automationRouter.patch('/rules/:id/toggle', requireRole(['ADMIN']), async (c) =>
  * DELETE /rules/:id - Delete an automation rule
  * Allowed: ADMIN only.
  */
-automationRouter.delete('/rules/:id', requireRole(['ADMIN']), async (c) => {
+automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -387,7 +387,7 @@ automationRouter.delete('/rules/:id', requireRole(['ADMIN']), async (c) => {
  * GET /executions - List execution history
  * Allowed: ADMIN, EMPLOYEE. Forbidden: INTERN
  */
-automationRouter.get('/executions', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
+automationRouter.get('/executions', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -421,7 +421,7 @@ automationRouter.get('/executions', requireRole(['ADMIN', 'EMPLOYEE']), async (c
  * GET /metrics - Get automation metrics
  * Allowed: ADMIN, EMPLOYEE
  */
-automationRouter.get('/metrics', requireRole(['ADMIN', 'EMPLOYEE']), async (c) => {
+automationRouter.get('/metrics', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -446,7 +446,7 @@ automationRouter.get('/metrics', requireRole(['ADMIN', 'EMPLOYEE']), async (c) =
  * POST /trigger - Test execution / manual trigger
  * Allowed: ADMIN only
  */
-automationRouter.post('/trigger', requireRole(['ADMIN']), async (c) => {
+automationRouter.post('/trigger', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');

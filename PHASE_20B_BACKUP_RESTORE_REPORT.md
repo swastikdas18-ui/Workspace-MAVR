@@ -5,7 +5,7 @@
 Disaster recovery readiness was verified via [`backend/src/services/backup-verification-service.ts`](file:///d:/Development/MAVR/Workspace-MAVR/backend/src/services/backup-verification-service.ts) using the `simulateRestore()` engine and exposed via `POST /health/backup-verify`.
 
 ---
-
+...
 ## 2. Restoration Drill Lifecycle
 
 1. **Snapshot Ingestion**: Gzip `.sql.gz` archive loaded from storage.

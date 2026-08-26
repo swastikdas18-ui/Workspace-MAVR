@@ -61,6 +61,10 @@ export class InMemoryDatabase {
   public onboardingState: Map<string, any> = new Map();
   public notificationPreferences: Map<string, any> = new Map();
 
+  // Phase 22 Maps
+  public betaFeedback: Map<string, any> = new Map();
+  public customerSuccessProfiles: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -117,6 +121,10 @@ export class InMemoryDatabase {
     this.events.clear();
     this.onboardingState.clear();
     this.notificationPreferences.clear();
+
+    // Phase 22 resets
+    this.betaFeedback.clear();
+    this.customerSuccessProfiles.clear();
   }
 }
 

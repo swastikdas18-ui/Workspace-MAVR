@@ -1033,6 +1033,55 @@ export const notificationPreferences = pgTable(
   })
 );
 
+// 18. Beta User Feedback (beta_feedback) — Phase 22
+export const betaFeedback = pgTable(
+  'beta_feedback',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    category: text('category').notNull().default('bug'), // bug, feature_request, ux_friction, performance, praise, other
+    severity: text('severity').notNull().default('p2_major'), // p0_blocker, p1_critical, p2_major, p3_minor
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    screenshotUrl: text('screenshot_url'),
+    status: text('status').notNull().default('open'), // open, in_review, resolved, wont_fix
+    founderNotes: text('founder_notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_feedback_ws').on(table.workspaceId),
+    userIdx: index('idx_feedback_user').on(table.userId),
+    statusIdx: index('idx_feedback_status').on(table.status),
+    severityIdx: index('idx_feedback_severity').on(table.severity),
+  })
+);
+
+// 19. Customer Success Profiles (customer_success_profiles) — Phase 22
+export const customerSuccessProfiles = pgTable(
+  'customer_success_profiles',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    companyName: text('company_name').notNull(),
+    tier: text('tier').notNull().default('closed_beta'),
+    healthScore: integer('health_score').notNull().default(100),
+    onboardingStatus: text('onboarding_status').notNull().default('in_progress'), // not_started, in_progress, completed
+    totalUsers: integer('total_users').notNull().default(1),
+    activeUsers7d: integer('active_users_7d').notNull().default(1),
+    tasksCompleted7d: integer('tasks_completed_7d').notNull().default(0),
+    openTicketsCount: integer('open_tickets_count').notNull().default(0),
+    lastActiveAt: timestamp('last_active_at').defaultNow().notNull(),
+    notes: text('notes'),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: uniqueIndex('idx_cs_ws').on(table.workspaceId),
+    healthIdx: index('idx_cs_health').on(table.healthScore),
+  })
+);
+
 // Relational Definitions
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

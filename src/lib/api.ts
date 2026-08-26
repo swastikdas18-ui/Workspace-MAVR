@@ -388,4 +388,47 @@ export const api = {
     const query = ruleId ? `?ruleId=${encodeURIComponent(ruleId)}` : '';
     return await fetchApi<{ executions: any[]; total: number }>(`/api/automations/executions${query}`);
   },
+
+  // Phase 22: Closed Beta API Methods
+  async submitFeedback(data: {
+    category: string;
+    severity: string;
+    title: string;
+    description: string;
+    screenshotUrl?: string;
+  }) {
+    return await fetchApi<{ success: boolean; feedback: any }>('/api/beta/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getBetaFeedback(params?: { category?: string; severity?: string; status?: string; crossWorkspace?: boolean }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ feedback: any[] }>(`/api/beta/feedback${query ? `?${query}` : ''}`);
+  },
+
+  async updateBetaFeedback(id: string, updates: { status?: string; founderNotes?: string }) {
+    return await fetchApi<{ success: boolean; feedback: any }>(`/api/beta/feedback/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async getBetaFeedbackMetrics() {
+    return await fetchApi<any>('/api/beta/feedback/metrics');
+  },
+
+  async getCustomerSuccess() {
+    return await fetchApi<{ companies: any[] }>('/api/beta/customer-success');
+  },
+
+  async getWeeklyBetaReport() {
+    return await fetchApi<any>('/api/beta/reports/weekly');
+  },
+
+  async getLaunchReadiness() {
+    return await fetchApi<any>('/api/beta/launch-readiness');
+  },
 };
+

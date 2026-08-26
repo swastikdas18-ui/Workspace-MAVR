@@ -134,30 +134,43 @@ export class CustomerSuccessService {
   }
 
   /**
-   * Get all cohort company health profiles
+   * Get all cohort company health profiles from actual workspace records
    */
   static async getAllCompanyProfiles(): Promise<CompanyHealthProfile[]> {
-    // Seed default beta companies if empty
-    if (inMemoryDb.customerSuccessProfiles.size === 0) {
-      const defaultCompanies = [
-        { workspaceId: 'ws-acme-scale', companyName: 'Acme Scale Corp', totalUsers: 14, activeUsers7d: 12, tasksCompleted7d: 38, onboardingStatus: 'completed' as const },
-        { workspaceId: 'ws-nexatech-ai', companyName: 'NexaTech AI', totalUsers: 10, activeUsers7d: 9, tasksCompleted7d: 29, onboardingStatus: 'completed' as const },
-        { workspaceId: 'ws-horizon-logistics', companyName: 'Horizon Logistics', totalUsers: 8, activeUsers7d: 7, tasksCompleted7d: 19, onboardingStatus: 'in_progress' as const },
-        { workspaceId: 'ws-vertex-media', companyName: 'Vertex Media Labs', totalUsers: 9, activeUsers7d: 8, tasksCompleted7d: 24, onboardingStatus: 'completed' as const },
-        { workspaceId: 'ws-cloudscale-ops', companyName: 'CloudScale Cloud Ops', totalUsers: 7, activeUsers7d: 6, tasksCompleted7d: 15, onboardingStatus: 'in_progress' as const },
-      ];
-
-      for (const comp of defaultCompanies) {
-        await this.upsertCompanyProfile(comp);
-      }
-    }
-
+    const allWorkspaces = Array.from(inMemoryDb.workspaces.values());
     const profiles: CompanyHealthProfile[] = [];
-    for (const wsId of inMemoryDb.customerSuccessProfiles.keys()) {
-      profiles.push(await this.calculateCompanyHealth(wsId));
+
+    for (const ws of allWorkspaces) {
+      // Calculate real members & activity for workspace
+      const members = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.workspaceId === ws.id);
+      const totalUsers = Math.max(1, members.length);
+      
+      const wsTasks = Array.from(inMemoryDb.tasks.values()).filter((t) => t.workspaceId === ws.id);
+      const tasksCompleted7d = wsTasks.filter((t) => t.status === 'completed').length;
+
+      // Ensure a profile record exists
+      if (!inMemoryDb.customerSuccessProfiles.has(ws.id)) {
+        inMemoryDb.customerSuccessProfiles.set(ws.id, {
+          id: `cs-${ws.id}`,
+          workspaceId: ws.id,
+          companyName: ws.name,
+          tier: 'closed_beta',
+          onboardingStatus: tasksCompleted7d > 0 ? 'completed' : 'in_progress',
+          totalUsers,
+          activeUsers7d: totalUsers,
+          tasksCompleted7d,
+          openTicketsCount: 0,
+          lastActiveAt: ws.updatedAt || ws.createdAt || new Date(),
+          notes: null,
+          updatedAt: new Date(),
+        });
+      }
+
+      profiles.push(await this.calculateCompanyHealth(ws.id));
     }
 
     profiles.sort((a, b) => b.healthScore - a.healthScore);
     return profiles;
   }
 }
+

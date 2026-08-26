@@ -430,5 +430,23 @@ export const api = {
   async getLaunchReadiness() {
     return await fetchApi<any>('/api/beta/launch-readiness');
   },
+
+  // Phase 23: NPS and Metric Lineage Methods
+  async submitNps(data: { score: number; comment?: string }) {
+    return await fetchApi<{ success: boolean; survey: any }>('/api/nps/submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getNpsMetrics(minRequired?: number) {
+    const query = minRequired ? `?minRequired=${minRequired}` : '';
+    return await fetchApi<any>(`/api/nps/metrics${query}`);
+  },
+
+  async getMetricLineage() {
+    return await fetchApi<any>('/api/analytics/lineage');
+  },
 };
+
 

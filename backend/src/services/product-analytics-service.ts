@@ -9,6 +9,8 @@ import { inMemoryDb } from '../../packages/database';
 import { getDb } from '../../packages/database';
 import * as schema from '../../packages/database/schema';
 import { eq, desc, and, gte } from 'drizzle-orm';
+import { RetentionAnalyticsService, RetentionMetrics } from './retention-analytics-service';
+import { RevenueAnalyticsService, RevenueMetrics } from './revenue-analytics-service';
 
 export interface TrackEventPayload {
   workspaceId: string;
@@ -39,7 +41,7 @@ export interface AnalyticsEventRecord {
   eventName: string;
   entityType?: string;
   entityId?: string;
-  metadata?: Record<string, any>;
+  metadata: Record<string, any>;
   createdAt: Date;
 }
 
@@ -48,6 +50,7 @@ export interface FounderAnalyticsSummary {
     dau: number;
     wau: number;
     mau: number;
+    confidence: 'real' | 'estimated' | 'insufficient_data';
   };
   activationFunnel: {
     workspacesCreated: number;
@@ -55,27 +58,26 @@ export interface FounderAnalyticsSummary {
     firstTaskCreated: number;
     firstInviteSent: number;
     activationRatePercent: number;
+    confidence: 'real' | 'estimated' | 'insufficient_data';
   };
-  retention: {
-    d1Percent: number;
-    d7Percent: number;
-    d30Percent: number;
-  };
-  revenue: {
-    mrr: number;
-    arr: number;
-    churnRatePercent: number;
-    expansionRevenue: number;
-    activePaidWorkspaces: number;
-  };
+  retention: RetentionMetrics;
+  revenue: RevenueMetrics;
 }
 
 export class ProductAnalyticsService {
   /**
-   * Record a lifecycle event into both in-memory store and PostgreSQL events table.
+   * Track high-fidelity product lifecycle event.
    */
-  public static async trackEvent(payload: TrackEventPayload): Promise<AnalyticsEventRecord> {
-    const id = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  public static async trackEvent(payload: {
+    workspaceId: string;
+    userId?: string;
+    eventName: string;
+    entityType?: string;
+    entityId?: string;
+    metadata?: Record<string, any>;
+  }): Promise<AnalyticsEventRecord> {
+    const id = `evt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
     const record: AnalyticsEventRecord = {
       id,
       workspaceId: payload.workspaceId,
@@ -113,7 +115,7 @@ export class ProductAnalyticsService {
   }
 
   /**
-   * Query event streams for a workspace or platform-wide.
+   * Query product event telemetry streams.
    */
   public static async getEvents(filters?: {
     workspaceId?: string;
@@ -135,12 +137,12 @@ export class ProductAnalyticsService {
 
   /**
    * Compute comprehensive Founder Analytics Dashboard metrics.
+   * 100% database-derived with zero synthetic/hardcoded revenue or retention fallbacks.
    */
   public static async getFounderAnalytics(): Promise<FounderAnalyticsSummary> {
     const allUsers = Array.from(inMemoryDb.users.values());
     const allWorkspaces = Array.from(inMemoryDb.workspaces.values());
     const allEvents = Array.from(inMemoryDb.events.values());
-    const allSubscriptions = Array.from(inMemoryDb.subscriptions.values());
 
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
@@ -160,63 +162,46 @@ export class ProductAnalyticsService {
       if (t >= thirtyDaysAgo) mauSet.add(evt.userId);
     }
 
-    // Default to at least active user count if events sparse
-    const dau = Math.max(dauSet.size, allUsers.filter((u) => u.role === 'admin' || u.role === 'employee').length);
-    const wau = Math.max(wauSet.size, allUsers.length);
-    const mau = Math.max(mauSet.size, allUsers.length);
+    const dau = dauSet.size;
+    const wau = wauSet.size;
+    const mau = mauSet.size;
+    const adoptionConfidence = allEvents.length >= 10 ? 'real' : (allUsers.length > 0 ? 'estimated' : 'insufficient_data');
 
-    // Activation Funnel
-    const workspacesCreated = allWorkspaces.length || 1;
+    // Real Activation Funnel
+    const workspacesCreated = allWorkspaces.length;
     const firstProjectCreated = allEvents.filter((e) => e.eventName === 'project.created').length || Math.min(workspacesCreated, inMemoryDb.projects.size);
     const firstTaskCreated = allEvents.filter((e) => e.eventName === 'task.created').length || Math.min(workspacesCreated, inMemoryDb.tasks.size);
     const firstInviteSent = allEvents.filter((e) => e.eventName === 'invite.sent').length || Math.min(workspacesCreated, inMemoryDb.workspaceMembers.size);
 
     const activationRatePercent = workspacesCreated > 0
       ? Math.min(100, Math.round((Math.min(firstProjectCreated, firstTaskCreated) / workspacesCreated) * 100))
-      : 80;
+      : 0;
 
-    // Retention metrics benchmarked to healthy SaaS target rates
-    const d1Percent = 68;
-    const d7Percent = 42;
-    const d30Percent = 28;
+    const activationConfidence = workspacesCreated >= 5 ? 'real' : (workspacesCreated > 0 ? 'estimated' : 'insufficient_data');
 
-    // Revenue Rollup
-    let mrr = 0;
-    let expansionRevenue = 0;
-    let activePaidWorkspaces = 0;
+    // Real Cohort Retention
+    const retention = await RetentionAnalyticsService.calculateRetention();
 
-    for (const sub of allSubscriptions) {
-      if (sub.status === 'active') {
-        activePaidWorkspaces++;
-        if (sub.plan === 'pro') mrr += 79;
-        if (sub.plan === 'enterprise') {
-          mrr += 299;
-          expansionRevenue += 50;
-        }
-      }
-    }
-
-    // Baseline baseline ARR
-    const arr = mrr * 12;
-    const churnRatePercent = 2.1;
+    // Real Revenue & Monetization
+    const revenue = await RevenueAnalyticsService.calculateRevenue();
 
     return {
-      adoption: { dau, wau, mau },
+      adoption: {
+        dau,
+        wau,
+        mau,
+        confidence: adoptionConfidence,
+      },
       activationFunnel: {
         workspacesCreated,
         firstProjectCreated,
         firstTaskCreated,
         firstInviteSent,
-        activationRatePercent: Math.max(activationRatePercent, 65),
+        activationRatePercent,
+        confidence: activationConfidence,
       },
-      retention: { d1Percent, d7Percent, d30Percent },
-      revenue: {
-        mrr: mrr || 4580,
-        arr: arr || 54960,
-        churnRatePercent,
-        expansionRevenue: expansionRevenue || 850,
-        activePaidWorkspaces: Math.max(activePaidWorkspaces, 12),
-      },
+      retention,
+      revenue,
     };
   }
 }

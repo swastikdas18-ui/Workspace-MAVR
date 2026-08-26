@@ -1082,6 +1082,26 @@ export const customerSuccessProfiles = pgTable(
   })
 );
 
+// 20. NPS Surveys (nps_surveys) — Phase 23
+export const npsSurveys = pgTable(
+  'nps_surveys',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    score: integer('score').notNull(), // 0 to 10
+    comment: text('comment'),
+    submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_nps_ws').on(table.workspaceId),
+    userIdx: index('idx_nps_user').on(table.userId),
+    scoreIdx: index('idx_nps_score').on(table.score),
+    submittedIdx: index('idx_nps_submitted').on(table.submittedAt),
+  })
+);
+
 // Relational Definitions
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

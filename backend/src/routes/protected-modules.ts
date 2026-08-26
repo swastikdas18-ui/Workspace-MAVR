@@ -4,6 +4,7 @@ import { requireWorkspaceRole } from '../middleware/rbac';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { AuditRepository } from '../repositories/audit-repository';
 import { ProductAnalyticsService } from '../services/product-analytics-service';
+import { MetricLineageService } from '../services/metric-lineage-service';
 
 export const analyticsRouter = new Hono();
 export const billingRouter = new Hono();
@@ -52,6 +53,14 @@ analyticsRouter.get('/events', async (c) => {
   });
 
   return c.json({ events }, 200);
+});
+
+/**
+ * GET /api/analytics/lineage - Metric Provenance, Source Tables & Confidence Lineage
+ */
+analyticsRouter.get('/lineage', async (c) => {
+  const lineage = await MetricLineageService.getLineageReport();
+  return c.json(lineage, 200);
 });
 
 /**

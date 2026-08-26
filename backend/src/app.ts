@@ -25,6 +25,7 @@ import { onboardingRouter } from './routes/onboarding';
 import { portabilityRouter } from './routes/portability';
 import { auditRouter } from './routes/audit';
 import { betaRouter } from './routes/beta';
+import { npsRouter } from './routes/nps';
 import { env } from './config/env';
 import { requestLogger } from './middleware/logger';
 import { securityHeaders } from './middleware/security';
@@ -240,6 +241,10 @@ app.route('/audit', auditRouter);
 // Phase 22: Closed Beta Execution & Launch Readiness
 app.route('/api/beta', betaRouter);
 app.route('/beta', betaRouter);
+
+// Phase 23: Real NPS Survey System
+app.route('/api/nps', npsRouter);
+app.route('/nps', npsRouter);
 
 // Phase 14: Enterprise Revenue & Beta Readiness Routes
 // (already mounted above, before billingRouter, to avoid /billing/webhook collision)

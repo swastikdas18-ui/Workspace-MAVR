@@ -65,6 +65,9 @@ export class InMemoryDatabase {
   public betaFeedback: Map<string, any> = new Map();
   public customerSuccessProfiles: Map<string, any> = new Map();
 
+  // Phase 23 Maps
+  public npsSurveys: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -125,6 +128,9 @@ export class InMemoryDatabase {
     // Phase 22 resets
     this.betaFeedback.clear();
     this.customerSuccessProfiles.clear();
+
+    // Phase 23 resets
+    this.npsSurveys.clear();
   }
 }
 

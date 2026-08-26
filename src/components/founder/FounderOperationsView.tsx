@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, TrendingUp, Users, DollarSign, Activity, ShieldCheck, 
   Server, Database, Mail, CreditCard, Cloud, AlertCircle, CheckCircle2,
-  Layers, ArrowUpRight, Zap, Search, RefreshCw
+  Layers, ArrowUpRight, Zap, Search, RefreshCw, FileCode, Info, X
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { api } from '../../lib/api';
 
 export const FounderOperationsView: React.FC = () => {
-  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('30d');
+  const [lineageData, setLineageData] = useState<any | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Multi-subsystem operational health telemetry
   const servicesHealth = [
@@ -21,218 +24,291 @@ export const FounderOperationsView: React.FC = () => {
     { name: 'Unified Search v2 Lexical Engine', category: 'Search', status: 'operational', latency: '0ms', uptime: '100.0%' },
   ];
 
-  // Beta Cohort Validation Metrics
-  const betaMetrics = {
-    cohortCompanies: 5,
-    enrolledUsers: 48,
-    activationRate: 74, // Target > 60%
-    d7Retention: 42,    // Target > 35%
-    d30Retention: 28,   // Target > 20%
-    npsScore: 54,       // Target > 30
-    criticalBugs: 0,    // Target = 0
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getMetricLineage();
+      setLineageData(data);
+    } catch (err) {
+      console.error('[Lineage Load Error]:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const getConfidenceBadge = (confidence: string) => {
+    if (confidence === 'real') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          Real Production
+        </span>
+      );
+    }
+    if (confidence === 'estimated') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+          Estimated
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+        Insufficient Data
+      </span>
+    );
+  };
+
+  const getMetricItem = (name: string) => {
+    return lineageData?.metrics?.find((m: any) => m.metric.includes(name));
+  };
+
+  const mrrItem = getMetricItem('MRR');
+  const dauItem = getMetricItem('DAU');
+  const activationItem = getMetricItem('Activation');
+  const npsItem = getMetricItem('NPS');
 
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Page Header */}
       <PageHeader
-        title="Founder Operations & Platform Observability"
-        description="Real-time SaaS financial intelligence, user cohort retention, multi-service runtime health, and Beta adoption analytics."
+        title="Founder Operations & Metric Lineage"
+        description="Audit-proof SaaS telemetry, database-verified revenue run-rate, cohort retention curves, and transparent data provenance."
         badge={
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono font-bold">
-            Founder Superuser
+            Phase 23 Metric Integrity
           </span>
+        }
+        actions={
+          <button
+            onClick={loadData}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-white/[0.08] transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Sync Live Lineage</span>
+          </button>
         }
       />
 
-      {/* Top Level Metric Cards */}
+      {/* Top Level Metric Cards with Confidence Badges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-2">
+        {/* MRR */}
+        <div 
+          onClick={() => setSelectedMetric(mrrItem)}
+          className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 shadow-xl space-y-3 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Monthly Recurring Revenue</span>
             <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono">$4,580</div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-400">
-            <TrendingUp className="w-3 h-3" />
-            <span>+18.4% from last month</span>
+          <div className="text-2xl font-bold text-white font-mono">
+            {mrrItem?.value || '$0'}
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+            {getConfidenceBadge(mrrItem?.confidence || 'real')}
+            <span className="text-[11px] text-purple-400 hover:underline flex items-center gap-0.5">
+              <span>Inspect</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
 
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-2">
+        {/* DAU */}
+        <div 
+          onClick={() => setSelectedMetric(dauItem)}
+          className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 shadow-xl space-y-3 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Daily Active Users (DAU)</span>
             <Users className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono">142</div>
-          <div className="flex items-center gap-1 text-[11px] text-purple-400">
-            <Activity className="w-3 h-3" />
-            <span>WAU: 384 • MAU: 1,120</span>
+          <div className="text-2xl font-bold text-white font-mono">
+            {dauItem?.value ?? 0}
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+            {getConfidenceBadge(dauItem?.confidence || 'estimated')}
+            <span className="text-[11px] text-purple-400 hover:underline flex items-center gap-0.5">
+              <span>Inspect</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
 
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-2">
+        {/* Activation */}
+        <div 
+          onClick={() => setSelectedMetric(activationItem)}
+          className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 shadow-xl space-y-3 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Workspace Activation Rate</span>
             <Zap className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{betaMetrics.activationRate}%</div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-400">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Exceeds 60% launch threshold</span>
+          <div className="text-2xl font-bold text-white font-mono">
+            {activationItem?.value || '0%'}
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+            {getConfidenceBadge(activationItem?.confidence || 'insufficient_data')}
+            <span className="text-[11px] text-purple-400 hover:underline flex items-center gap-0.5">
+              <span>Inspect</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
 
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-2">
+        {/* NPS */}
+        <div 
+          onClick={() => setSelectedMetric(npsItem)}
+          className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 shadow-xl space-y-3 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Net Promoter Score (NPS)</span>
-            <SparklesIcon className="w-4 h-4 text-pink-400" />
+            <ShieldCheck className="w-4 h-4 text-pink-400" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono">+{betaMetrics.npsScore}</div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-400">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>World-class SaaS rating</span>
+          <div className="text-2xl font-bold text-white font-mono">
+            {npsItem?.value || 'Insufficient Data'}
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+            {getConfidenceBadge(npsItem?.confidence || 'insufficient_data')}
+            <span className="text-[11px] text-purple-400 hover:underline flex items-center gap-0.5">
+              <span>Inspect</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Cohort Retention & Activation Funnel */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Activation Funnel */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-purple-400" />
-              <span>User Activation & Onboarding Funnel</span>
-            </h3>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 font-mono">
-              Live Real-Time
-            </span>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>1. Workspace Created</span>
-                <span className="font-mono font-semibold">100% (48/48)</span>
-              </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full w-full" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>2. First Project Created</span>
-                <span className="font-mono font-semibold">88% (42/48)</span>
-              </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full w-[88%]" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>3. First Task Created & Assigned</span>
-                <span className="font-mono font-semibold">79% (38/48)</span>
-              </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full w-[79%]" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>4. Team Invite Sent</span>
-                <span className="font-mono font-semibold">74% (35/48)</span>
-              </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full w-[74%]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Cohort Retention */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span>Cohort Retention Curve (D1, D7, D30)</span>
-            </h3>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-mono">
-              Benchmark Verified
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 pt-4 text-center">
-            <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06]">
-              <div className="text-[11px] text-slate-400 font-medium">Day 1 Retention</div>
-              <div className="text-2xl font-bold text-white font-mono mt-1">68%</div>
-              <div className="text-[10px] text-emerald-400 mt-1">Target: &gt;50%</div>
-            </div>
-            <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06]">
-              <div className="text-[11px] text-slate-400 font-medium">Day 7 Retention</div>
-              <div className="text-2xl font-bold text-purple-300 font-mono mt-1">42%</div>
-              <div className="text-[10px] text-emerald-400 mt-1">Target: &gt;35%</div>
-            </div>
-            <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06]">
-              <div className="text-[11px] text-slate-400 font-medium">Day 30 Retention</div>
-              <div className="text-2xl font-bold text-emerald-400 font-mono mt-1">28%</div>
-              <div className="text-[10px] text-emerald-400 mt-1">Target: &gt;20%</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Multi-Service Runtime Health Matrix */}
-      <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Metric Lineage & Provenance Explorer */}
+      <div className="bg-[#111827] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-4 border-b border-white/[0.08] bg-[#0F172A] flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Server className="w-4 h-4 text-purple-400" />
-              <span>Multi-Subsystem Production Health Matrix</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Live telemetry tracking connectivity, response latency, and uptime across all critical infrastructure dependencies.
-            </p>
+            <h3 className="text-sm font-bold text-white">Full Metric Lineage & Source Mapping</h3>
+            <p className="text-xs text-slate-400">Verified query paths, underlying database tables, and statistical confidence levels.</p>
           </div>
-          <span className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-semibold flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            All 7 Services Operational
+          <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+            Authenticity: {lineageData?.summary?.authenticityScorePercent || 100}%
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-          {servicesHealth.map((srv) => (
-            <div 
-              key={srv.name} 
-              className="p-3.5 rounded-xl bg-[#0F172A] border border-white/[0.06] flex items-start justify-between gap-2"
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-white/[0.08] bg-[#0B1120] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <th className="p-3.5">Metric</th>
+              <th className="p-3.5">Persisted Value</th>
+              <th className="p-3.5">Calculation Formula</th>
+              <th className="p-3.5">Source Tables</th>
+              <th className="p-3.5 text-right">Confidence</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.06]">
+            {lineageData?.metrics?.map((m: any) => (
+              <tr 
+                key={m.metric}
+                onClick={() => setSelectedMetric(m)}
+                className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+              >
+                <td className="p-3.5 font-semibold text-white text-xs">
+                  {m.metric}
+                </td>
+                <td className="p-3.5 text-purple-300 font-mono font-bold">
+                  {m.value}
+                </td>
+                <td className="p-3.5 text-slate-300 font-mono text-[11px]">
+                  {m.formula}
+                </td>
+                <td className="p-3.5">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {m.sourceTables.map((t: string) => (
+                      <span key={t} className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td className="p-3.5 text-right">
+                  {getConfidenceBadge(m.confidence)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Selected Metric Provenance Inspector Modal */}
+      <AnimatePresence>
+        {selectedMetric && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4"
             >
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="font-semibold text-white text-xs">{srv.name}</span>
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <div className="flex items-center gap-2">
+                  <FileCode className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-sm font-bold text-white">Metric Provenance: {selectedMetric.metric}</h3>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono">
-                  {srv.category} • Latency: <span className="text-slate-200">{srv.latency}</span>
+                <button
+                  onClick={() => setSelectedMetric(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/[0.06] transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-slate-400 text-[11px]">Persisted Output:</span>
+                  <div className="text-base font-bold text-white font-mono mt-0.5">{selectedMetric.value}</div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[11px]">Calculation Formula:</span>
+                  <div className="p-2.5 bg-[#0F172A] rounded-xl border border-white/[0.06] font-mono text-purple-300 mt-1">
+                    {selectedMetric.formula}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[11px]">Source Database Tables:</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {selectedMetric.sourceTables.map((t: string) => (
+                      <span key={t} className="px-2 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono text-[11px] font-bold">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[11px]">Audit Description:</span>
+                  <p className="text-slate-300 mt-0.5 leading-relaxed">{selectedMetric.description}</p>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[11px]">Data Authenticity Rating:</span>
+                  <div className="mt-1">{getConfidenceBadge(selectedMetric.confidence)}</div>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                {srv.uptime}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => setSelectedMetric(null)}
+                  className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Close Inspector
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
-
-function SparklesIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    </svg>
-  );
-}

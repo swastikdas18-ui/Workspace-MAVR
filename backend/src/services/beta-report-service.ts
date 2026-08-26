@@ -2,9 +2,11 @@
  * Phase 22: Weekly Beta Report Generator Service
  */
 
+import { inMemoryDb } from '../../packages/database';
 import { CustomerSuccessService } from './customer-success-service';
 import { FeedbackService } from './feedback-service';
 import { ProductAnalyticsService } from './product-analytics-service';
+import { NpsService } from './nps-service';
 
 export interface WeeklyBetaReport {
   generatedAt: string;
@@ -15,11 +17,11 @@ export interface WeeklyBetaReport {
     totalUsers: number;
     activeUsers: number;
     activationRatePercent: number;
-    d7RetentionPercent: number;
-    d30RetentionPercent: number;
+    d7RetentionPercent: number | null;
+    d30RetentionPercent: number | null;
     mrr: number;
     arr: number;
-    npsScore: number;
+    npsScore: number | null;
     criticalBugsOpen: number;
   };
   featureAdoption: {
@@ -52,19 +54,28 @@ export class BetaReportService {
     const companies = await CustomerSuccessService.getAllCompanyProfiles();
     const feedbackMetrics = await FeedbackService.getFeedbackMetrics();
     const analytics = await ProductAnalyticsService.getFounderAnalytics();
+    const nps = await NpsService.getMetrics();
 
     const totalCompanies = companies.length;
     const activeCompanies = companies.filter((c) => c.healthStatus !== 'critical').length;
     const totalUsers = companies.reduce((acc, c) => acc + c.totalUsers, 0);
     const activeUsers = companies.reduce((acc, c) => acc + c.activeUsers7d, 0);
 
+    // Compute real feature usage directly from database / in-memory entities
+    const tasksCreatedAndCompleted = inMemoryDb.tasks.size;
+    const crmLeadsManaged = inMemoryDb.crmRecords.size;
+    const documentsShared = inMemoryDb.documents.size;
+    const automationsFired = inMemoryDb.automationExecutions.size;
+    const searchesExecuted = Array.from(inMemoryDb.events.values()).filter((e) => e.eventName.includes('search')).length;
+    const guestApprovals = inMemoryDb.deliverableApprovals.size;
+
     const featureAdoption = {
-      tasksCreatedAndCompleted: 142,
-      crmLeadsManaged: 37,
-      documentsShared: 28,
-      automationsFired: 86,
-      searchesExecuted: 310,
-      guestApprovals: 19,
+      tasksCreatedAndCompleted,
+      crmLeadsManaged,
+      documentsShared,
+      automationsFired,
+      searchesExecuted,
+      guestApprovals,
     };
 
     const now = new Date();
@@ -78,12 +89,12 @@ export class BetaReportService {
 **Period**: ${reportPeriod} | **Generated**: ${now.toISOString()}
 
 ### 1. Executive Performance Highlights
-- **Enrolled Beta Cohorts**: ${totalCompanies} Companies (${activeCompanies} Active, 100% Retained)
-- **Active User Base**: ${activeUsers} / ${totalUsers} Active Users (${Math.round((activeUsers / (totalUsers || 1)) * 100)}% Weekly Engagement)
-- **Activation Rate**: ${analytics.activationFunnel.activationRatePercent}% (Launch Gate Target: >60%)
-- **D7 / D30 Cohort Retention**: ${analytics.retention.d7Percent}% / ${analytics.retention.d30Percent}% (Target: >35% / >20%)
-- **Financial Run-Rate**: $${analytics.revenue.mrr} MRR ($${analytics.revenue.arr} ARR, 0% Churn)
-- **Net Promoter Score**: +54 (World-Class SaaS Benchmark)
+- **Enrolled Beta Cohorts**: ${totalCompanies} Companies (${activeCompanies} Active)
+- **Active User Base**: ${activeUsers} / ${totalUsers} Active Users
+- **Activation Rate**: ${analytics.activationFunnel.activationRatePercent}%
+- **D7 / D30 Cohort Retention**: ${analytics.retention.d7Percent !== null ? `${analytics.retention.d7Percent}%` : 'Insufficient Data'} / ${analytics.retention.d30Percent !== null ? `${analytics.retention.d30Percent}%` : 'Insufficient Data'}
+- **Financial Run-Rate**: $${analytics.revenue.mrr} MRR ($${analytics.revenue.arr} ARR, ${analytics.revenue.churnRatePercent}% Churn)
+- **Net Promoter Score**: ${nps.npsScore !== null ? `+${nps.npsScore}` : 'Insufficient Data (requires 20 responses)'}
 
 ### 2. Feature & Workstream Adoption
 - **Tasks Processed**: ${featureAdoption.tasksCreatedAndCompleted}
@@ -112,7 +123,7 @@ export class BetaReportService {
         d30RetentionPercent: analytics.retention.d30Percent,
         mrr: analytics.revenue.mrr,
         arr: analytics.revenue.arr,
-        npsScore: 54,
+        npsScore: nps.npsScore,
         criticalBugsOpen,
       },
       featureAdoption,
@@ -134,3 +145,4 @@ export class BetaReportService {
     };
   }
 }
+

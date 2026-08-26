@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { 
-  User, UserRole, Workspace, Team, Project, Task, DocumentItem, CrmRecord, SystemLog, Invoice, TaskComment, WorkspaceInvite 
+import {
+  User, UserRole, Workspace, Team, Project, Task, DocumentItem, CrmRecord, SystemLog, Invoice, TaskComment, WorkspaceInvite
 } from '../types';
-import { 
-  INITIAL_USERS, INITIAL_WORKSPACE, INITIAL_TEAMS, INITIAL_PROJECTS, 
-  INITIAL_TASKS, INITIAL_DOCUMENTS, INITIAL_CRM_RECORDS, INITIAL_SYSTEM_LOGS, INITIAL_INVOICES 
+import {
+  INITIAL_USERS, INITIAL_WORKSPACE, INITIAL_TEAMS, INITIAL_PROJECTS,
+  INITIAL_TASKS, INITIAL_DOCUMENTS, INITIAL_CRM_RECORDS, INITIAL_SYSTEM_LOGS, INITIAL_INVOICES
 } from '../lib/mockData';
 import { ROLE_PERMISSIONS, RolePermissions } from '../lib/auth';
 import { api } from '../lib/api';
@@ -35,7 +35,7 @@ interface WorkspaceContextType {
   isAuthBootstrapping: boolean;
   searchQuery: string;
   toasts: ToastMessage[];
-  
+
   // Actions
   setAuthUser: (user: User, workspace?: Partial<Workspace>) => void;
   logout: () => Promise<void>;
@@ -45,42 +45,49 @@ interface WorkspaceContextType {
   addToast: (toast: Omit<ToastMessage, 'id'>) => void;
   removeToast: (id: string) => void;
   refreshWorkspaceData: () => Promise<void>;
-  
+
   // Projects
   createProject: (project: Omit<Project, 'id' | 'created_by' | 'progress'>) => Promise<boolean>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<boolean>;
   deleteProject: (id: string) => Promise<boolean>;
-  
+
   // Tasks
   createTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<boolean>;
   updateTaskStatus: (id: string, status: Task['status']) => Promise<boolean>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<boolean>;
   deleteTask: (id: string) => Promise<boolean>;
-  
+
   // Task Comments
   getTaskComments: (taskId: string) => Promise<TaskComment[]>;
   addTaskComment: (taskId: string, content: string) => Promise<TaskComment | null>;
-  
+
   // Documents
   uploadDocument: (doc: Omit<DocumentItem, 'id' | 'created_at' | 'download_count' | 'owner_id'>) => Promise<boolean>;
   deleteDocument: (id: string) => Promise<boolean>;
   incrementDocDownload: (id: string) => Promise<void>;
-  
+
   // CRM
   createCrmRecord: (record: Omit<CrmRecord, 'id' | 'created_at' | 'last_contacted' | 'owner_id'>) => boolean;
   updateCrmRecord: (id: string, updates: Partial<CrmRecord>) => boolean;
   deleteCrmRecord: (id: string) => boolean;
-  
+
   // Teams & Invites
   createTeam: (team: Omit<Team, 'id' | 'member_count' | 'workspace_id'>) => Promise<boolean>;
   inviteMember: (email: string, role: UserRole, teamId?: string) => Promise<WorkspaceInvite | null>;
   loadInvites: () => Promise<void>;
-  
+
   // Settings & Workspace
   updateWorkspace: (updates: Partial<Workspace>) => boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
+
+function normalizeFrontendUser(user: User): User {
+  if (user.platformRole === 'founder' || user.platformRole === 'platform_admin') {
+    return { ...user, role: 'admin' };
+  }
+  return user;
+}
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
@@ -94,7 +101,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>(INITIAL_SYSTEM_LOGS);
   const [invoices] = useState<Invoice[]>(INITIAL_INVOICES);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
-  
+
   const [isLandingPage, setIsLandingPage] = useState<boolean>(true);
   const [isAuthBootstrapping, setIsAuthBootstrapping] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -202,7 +209,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const session = await api.getSession();
         if (session?.user) {
-          const authUser = session.user as User;
+          const authUser = normalizeFrontendUser(session.user as User);
           setCurrentUser(authUser);
           setUsers((prev) => {
             if (!prev.some((u) => u.id === authUser.id)) {
@@ -238,10 +245,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [refreshWorkspaceData]);
 
   const currentRole = currentUser?.role || 'employee';
-  const permissions = ROLE_PERMISSIONS[currentRole];
+  const permissions = ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.employee;
 
   const setAuthUser = (user: User, workspace?: Partial<Workspace>) => {
-    setCurrentUser(user);
+    const normalizedUser = normalizeFrontendUser(user);
+    setCurrentUser(normalizedUser);
     if (workspace) {
       setCurrentWorkspace((prev) => ({
         ...prev,
@@ -253,7 +261,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsLandingPage(false);
     setActiveTab('dashboard');
     refreshWorkspaceData();
-    logAction(`User authenticated with role [${user.role.toUpperCase()}]`, 'AUTH');
+    logAction(`User authenticated with role [${normalizedUser.role.toUpperCase()}]`, 'AUTH');
   };
 
   const logout = async () => {
@@ -480,7 +488,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const deleteDocument = async (id: string): Promise<boolean> => {
     const target = documents.find((d) => d.id === id);
     if (!target) return false;
-    
+
     if (currentRole === 'intern') {
       addToast({ type: 'error', title: 'Access Denied', message: 'Interns cannot delete documents.' });
       logAction(`Intern attempted to delete doc ${id}`, 'DOCS', 'denied');
@@ -491,7 +499,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       logAction(`Employee attempted to delete non-owned doc ${id}`, 'DOCS', 'denied');
       return false;
     }
-    
+
     try {
       await api.deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));

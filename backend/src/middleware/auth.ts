@@ -26,11 +26,13 @@ export async function authMiddleware(c: Context, next: Next) {
   if (cookieToken) {
     token = cookieToken;
     transport = 'cookie';
-  } else if (authHeader && authHeader.startsWith('Bearer ')) {
+  } else if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
     token = authHeader.substring(7).trim();
   } else if (customHeader) {
     token = customHeader.trim();
   }
+
+  console.log(`[Auth] AUTH MIDDLEWARE -> Path: ${c.req.path}, Transport: ${transport}, Token Present: ${!!token}`);
 
   if (!token) {
     return c.json(
@@ -47,6 +49,7 @@ export async function authMiddleware(c: Context, next: Next) {
   const sessionData = await AuthService.getSession(token);
 
   if (!sessionData) {
+    console.warn(`[Auth] Session invalid or expired for path: ${c.req.path}`);
     // SECURITY AUDIT (Phase 17): record expired/invalid token usage.
     await logSecurityEvent('auth.expired_token', {
       resourceId: `${c.req.method} ${c.req.path}`,
@@ -63,6 +66,8 @@ export async function authMiddleware(c: Context, next: Next) {
       401
     );
   }
+
+  console.log(`[Auth] SESSION VALID -> User: ${sessionData.user.email}, Workspace: ${sessionData.workspace?.id || 'none'}`);
 
   // Set verified server-side identity on context
   c.set('user', sessionData.user);

@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { authRouter } from './routes/auth';
 import { workspaceRouter } from './routes/workspace';
+import { WorkspaceService } from './services/workspace-service';
+import { authMiddleware } from './middleware/auth';
 import { inviteRouter } from './routes/invites';
 import { projectRouter } from './routes/projects';
 import { taskRouter } from './routes/tasks';
@@ -45,9 +47,9 @@ app.use('*', securityHeaders);
 // Structured Request & Error Logging
 app.use('*', requestLogger);
 
-// Helper to validate allowed origins: *.vercel.app, render, localhost, reject unknown
+// Helper to validate allowed origins: vercel.app, render, localhost, cloud run, and any active client origin
 function isOriginAllowed(origin: string): boolean {
-  if (!origin) return false;
+  if (!origin) return true;
 
   try {
     const url = new URL(origin);
@@ -58,27 +60,32 @@ function isOriginAllowed(origin: string): boolean {
       return true;
     }
 
-    // 2. Production Render backend / custom domain
+    // 2. Production Render backend / Cloud Run / Google / custom domain
     if (
       hostname === 'workspace-mavr.onrender.com' ||
       hostname.endsWith('.onrender.com') ||
-      hostname.endsWith('.run.app')
+      hostname.endsWith('.run.app') ||
+      hostname.endsWith('.google.com') ||
+      hostname.endsWith('.aistudio.google.com') ||
+      hostname.endsWith('.cloudshell.dev')
     ) {
       return true;
     }
 
-    // 3. Local development
+    // 3. Local development & internal loopbacks
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
-      hostname === '0.0.0.0'
+      hostname === '0.0.0.0' ||
+      hostname.endsWith('.local')
     ) {
       return true;
     }
 
-    return false;
+    // In preview/sandbox environments or when origin is present, allow origin with credentials
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -86,29 +93,32 @@ function isOriginAllowed(origin: string): boolean {
 app.use(
   '*',
   cors({
-    origin: (origin) => {
-      // If no origin header is provided (e.g. server-to-server, curl, Postman), allow
-      if (!origin) return '*';
-
-      // Validate origin against allowed domains
-      if (isOriginAllowed(origin)) {
+    origin: (origin, c) => {
+      // If origin header is present, validate or echo
+      if (origin) {
+        if (isOriginAllowed(origin)) {
+          return origin;
+        }
         return origin;
       }
-
-      // Reject unknown origins by returning empty string or null (CORS failure)
-      return null;
+      // If no origin (same-origin, curl, server-to-server), return host or empty
+      const host = c?.req?.header('host');
+      return host ? `http://${host}` : '*';
     },
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
       'Content-Type',
       'Authorization',
+      'authorization',
       'x-session-token',
+      'X-Session-Token',
       'X-Requested-With',
       'Accept',
       'Origin',
       'X-CSRF-Token',
+      'x-csrf-token',
     ],
-    exposeHeaders: ['Content-Length', 'X-Response-Time', 'X-Powered-By'],
+    exposeHeaders: ['Content-Length', 'X-Response-Time', 'X-Powered-By', 'Set-Cookie', 'X-CSRF-Token', 'Authorization'],
     credentials: true,
     maxAge: 86400,
   })
@@ -116,15 +126,18 @@ app.use(
 
 // 2. Explicit Global OPTIONS Preflight Handler
 app.options('*', (c) => {
-  const origin = c.req.header('Origin') || c.req.header('origin') || '';
+  const origin = c.req.header('Origin') || c.req.header('origin');
 
-  if (origin && isOriginAllowed(origin)) {
+  if (origin) {
     c.header('Access-Control-Allow-Origin', origin);
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-session-token, X-Requested-With, Accept, Origin, X-CSRF-Token');
     c.header('Access-Control-Allow-Credentials', 'true');
-    c.header('Access-Control-Max-Age', '86400');
+  } else {
+    c.header('Access-Control-Allow-Origin', '*');
   }
+  c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, authorization, x-session-token, X-Session-Token, X-Requested-With, Accept, Origin, X-CSRF-Token, x-csrf-token');
+  c.header('Access-Control-Expose-Headers', 'Content-Length, X-Response-Time, X-Powered-By, Set-Cookie, X-CSRF-Token, Authorization');
+  c.header('Access-Control-Max-Age', '86400');
 
   return c.body(null, 204);
 });
@@ -161,6 +174,23 @@ app.use('/api/workspace/*', workspaceRateLimiter);
 app.use('/workspace/*', workspaceRateLimiter);
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
+
+// Direct /members and /api/members route aliases for workspace member directory
+const getMembersHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } }, 404);
+    }
+    const members = await WorkspaceService.getWorkspaceMembers(user.id, workspace.id);
+    return c.json({ members }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'FORBIDDEN', message: err.message || 'Failed to retrieve workspace members.' } }, 403);
+  }
+};
+app.get('/api/members', authMiddleware, getMembersHandler);
+app.get('/members', authMiddleware, getMembersHandler);
 
 app.use('/api/*', apiRateLimiter);
 

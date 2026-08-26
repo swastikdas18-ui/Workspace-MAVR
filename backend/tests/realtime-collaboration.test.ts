@@ -155,6 +155,7 @@ export async function runRealtimeTests() {
   await new Promise<void>((resolve) => {
     httpServer.listen(0, '127.0.0.1', () => {
       testPort = (httpServer.address() as any).port;
+      httpServer.unref();
       resolve();
     });
   });
@@ -672,10 +673,16 @@ export async function runRealtimeTests() {
     console.log('================================================================\n');
   } finally {
     // Teardown test server
-    await wsServer.close();
-    await new Promise<void>((resolve) => {
-      httpServer.close(() => resolve());
-    });
+    try {
+      await wsServer.close();
+    } catch {}
+    try {
+      (httpServer as any).closeAllConnections?.();
+      await new Promise<void>((resolve) => {
+        httpServer.close(() => resolve());
+        setTimeout(resolve, 200);
+      });
+    } catch {}
   }
 }
 

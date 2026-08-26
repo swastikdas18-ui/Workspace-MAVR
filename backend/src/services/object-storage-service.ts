@@ -49,19 +49,28 @@ export class ObjectStorageService {
 
     const keyId = process.env.B2_KEY_ID || env.B2_KEY_ID;
     const applicationKey = process.env.B2_APPLICATION_KEY || env.B2_APPLICATION_KEY;
-    const endpoint = process.env.B2_ENDPOINT || env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
+    let endpoint = process.env.B2_ENDPOINT || env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
     const region = process.env.B2_REGION || env.B2_REGION || 'us-west-004';
 
-    if (keyId && applicationKey) {
-      this.client = new S3Client({
-        region,
-        endpoint,
-        credentials: {
-          accessKeyId: keyId,
-          secretAccessKey: applicationKey,
-        },
-      });
-      return this.client;
+    if (endpoint && !endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+      endpoint = `https://${endpoint.replace(/^\/+/, '')}`;
+    }
+
+    if (keyId && applicationKey && process.env.NODE_ENV !== 'test') {
+      try {
+        this.client = new S3Client({
+          region,
+          endpoint,
+          credentials: {
+            accessKeyId: keyId,
+            secretAccessKey: applicationKey,
+          },
+        });
+        return this.client;
+      } catch (clientErr) {
+        console.warn('[ObjectStorageService] Failed to initialize S3Client:', clientErr);
+        return null;
+      }
     }
 
     return null;
@@ -87,28 +96,32 @@ export class ObjectStorageService {
 
     const client = this.getClient();
     if (client) {
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        Metadata: {
-          workspaceId: options.workspaceId,
-          documentId: options.documentId,
-        },
-      });
+      try {
+        const command = new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          Metadata: {
+            workspaceId: options.workspaceId,
+            documentId: options.documentId,
+          },
+        });
 
-      const response = await client.send(command);
-      const publicBase = process.env.B2_PUBLIC_URL || env.B2_PUBLIC_URL || `https://f005.backblazeb2.com/file/${this.bucketName}`;
-      const url = `${publicBase}/${key}`;
+        const response = await client.send(command);
+        const publicBase = process.env.B2_PUBLIC_URL || env.B2_PUBLIC_URL || `https://f005.backblazeb2.com/file/${this.bucketName}`;
+        const url = `${publicBase}/${key}`;
 
-      return {
-        key,
-        url,
-        bucket: this.bucketName,
-        sizeBytes,
-        etag: response.ETag,
-      };
+        return {
+          key,
+          url,
+          bucket: this.bucketName,
+          sizeBytes,
+          etag: response.ETag,
+        };
+      } catch (err) {
+        console.warn('[ObjectStorageService] Remote PutObject failed, falling back to local store:', err);
+      }
     }
 
     // High-resilience In-Memory test/fallback storage

@@ -13,9 +13,9 @@ automationRouter.use('*', authMiddleware);
 
 /**
  * GET / - List all automation rules for active workspace
- * Allowed: ADMIN only.
+ * Allowed: ADMIN & EMPLOYEE
  */
-automationRouter.get('/', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -39,7 +39,7 @@ automationRouter.get('/', requireWorkspaceRole(['admin']), async (c) => {
 /**
  * GET /rules - Alias for list rules
  */
-automationRouter.get('/rules', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -113,16 +113,24 @@ automationRouter.get('/metrics', requireWorkspaceRole(['admin']), async (c) => {
 
     const activeRulesCount = rules.filter((r) => r.isActive).length;
     const successfulExecutions = executions.filter((e) => e.status === 'success').length;
+    const failedExecutions = executions.filter((e) => e.status === 'failed').length;
     const successRate = executions.length > 0 ? (successfulExecutions / executions.length) * 100 : 100;
+
+    const metricsPayload = {
+      totalRules: rules.length,
+      activeRules: activeRulesCount,
+      totalExecutions: executions.length,
+      automationRules: rules.length,
+      automationExecutions: executions.length,
+      successfulExecutions,
+      failedExecutions,
+      successRate: Math.round(successRate * 10) / 10,
+    };
 
     return c.json(
       {
-        metrics: {
-          totalRules: rules.length,
-          activeRules: activeRulesCount,
-          totalExecutions: executions.length,
-          successRate: Math.round(successRate * 10) / 10,
-        },
+        ...metricsPayload,
+        metrics: metricsPayload,
       },
       200
     );

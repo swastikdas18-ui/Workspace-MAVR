@@ -8,6 +8,7 @@ import {
   WORKSPACE_SESSION_COOKIE,
   CSRF_COOKIE,
   readCookieFromHeader,
+  isSecureRequestContext,
 } from '../lib/session-cookies';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
 import { AuthSessionResponse } from '../types';
@@ -17,44 +18,70 @@ export const authRouter = new Hono();
 
 const COOKIE_BASE = {
   path: '/',
-  sameSite: 'Strict' as const,
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'Lax' as const,
+  secure: isSecureRequestContext(),
 };
 
 /**
- * SECURITY (Phase 17 — Fix #5): session tokens are delivered exclusively as
- * httpOnly SameSite=Strict cookies. JSON responses expose only the user and
- * workspace — never the raw session token.
+ * Dual Transport Authentication:
+ * Session tokens are set as httpOnly cookies AND returned in the JSON payload
+ * to guarantee session resilience across all browser environments, serverless proxies,
+ * and iframe previews.
  */
 function issueSessionCookies(c: Context, result: AuthSessionResponse): string {
+  const isSecure = isSecureRequestContext(c);
   const maxAge = Math.max(
     60,
     Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
   );
+
+  console.log(`[Auth] COOKIE GENERATED -> Secure: ${isSecure}, SameSite: ${isSecure ? 'None' : 'Lax'}, MaxAge: ${maxAge}s`);
+
   setCookie(c, WORKSPACE_SESSION_COOKIE, result.token, {
-    ...COOKIE_BASE,
+    path: '/',
     httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
     maxAge,
   });
+
   const csrfToken = generateSecureToken();
   setCookie(c, CSRF_COOKIE, csrfToken, {
-    ...COOKIE_BASE,
+    path: '/',
     httpOnly: false,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
     maxAge,
   });
+
+  console.log(`[Auth] COOKIE ATTACHED -> Set-Cookie headers queued`);
   return csrfToken;
 }
 
 function clearSessionCookies(c: Context): void {
-  setCookie(c, WORKSPACE_SESSION_COOKIE, '', { ...COOKIE_BASE, httpOnly: true, maxAge: 0 });
-  setCookie(c, CSRF_COOKIE, '', { ...COOKIE_BASE, httpOnly: false, maxAge: 0 });
+  const isSecure = isSecureRequestContext(c);
+  setCookie(c, WORKSPACE_SESSION_COOKIE, '', {
+    path: '/',
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
+    maxAge: 0,
+  });
+  setCookie(c, CSRF_COOKIE, '', {
+    path: '/',
+    httpOnly: false,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
+    maxAge: 0,
+  });
 }
 
-/** Public-safe session payload — token stripped. */
+/** Complete session payload with token for dual-transport compatibility. */
 function publicSessionPayload(result: AuthSessionResponse, csrfToken?: string) {
   return {
     user: result.user,
     workspace: result.workspace,
+    token: result.token,
     expiresAt: result.expiresAt,
     ...(csrfToken ? { csrfToken } : {}),
   };
@@ -129,6 +156,7 @@ authRouter.post('/register', async (c) => {
 authRouter.post('/login', async (c) => {
   let body: any = null;
   try {
+    console.log('[Auth] LOGIN START');
     body = await c.req.json();
     const result = await AuthService.login(body);
 
@@ -141,6 +169,7 @@ authRouter.post('/login', async (c) => {
     }
 
     const csrfToken = issueSessionCookies(c, result);
+    console.log('[Auth] RESPONSE SENT -> 200 OK');
     return c.json(publicSessionPayload(result, csrfToken), 200);
   } catch (err: any) {
     if (err.message === 'INVALID_CREDENTIALS') {
@@ -207,19 +236,30 @@ authRouter.post('/logout', async (c) => {
 
 /**
  * GET /session - Retrieve authenticated session details
- * (the token never leaves the httpOnly cookie)
  */
 authRouter.get('/session', authMiddleware, async (c) => {
+  console.log('[Auth] SESSION REQUEST -> Processing authenticated identity introspection');
   const user = c.get('user');
   const workspace = c.get('workspace');
+  const sessionToken = c.get('sessionToken');
 
+  const isSecure = isSecureRequestContext(c);
   const csrfToken = generateSecureToken();
-  setCookie(c, CSRF_COOKIE, csrfToken, { ...COOKIE_BASE, httpOnly: false, maxAge: 7 * 24 * 60 * 60 });
+  setCookie(c, CSRF_COOKIE, csrfToken, {
+    path: '/',
+    httpOnly: false,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
+    maxAge: 7 * 24 * 60 * 60,
+  });
+
+  console.log(`[Auth] SESSION SUCCESS -> Returning user: ${user.email}, workspace: ${workspace?.id || 'none'}`);
 
   return c.json(
     {
       user,
       workspace,
+      token: sessionToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       csrfToken,
     },

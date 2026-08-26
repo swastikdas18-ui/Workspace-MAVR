@@ -463,8 +463,17 @@ export class WorkspaceWebSocketServer {
     PresenceManager.reset();
 
     if (this.wss) {
+      try {
+        for (const client of this.wss.clients) {
+          try {
+            client.terminate();
+          } catch {}
+        }
+      } catch {}
+
       await new Promise<void>((resolve) => {
         this.wss?.close(() => resolve());
+        setTimeout(resolve, 200);
       });
       this.wss = null;
     }

@@ -62,14 +62,45 @@ async function startServer() {
 
   const honoListener = getRequestListener(honoApp.fetch);
 
+  const apiRoutePrefixes = [
+    '/api',
+    '/auth',
+    '/workspace',
+    '/health',
+    '/invites',
+    '/members',
+    '/projects',
+    '/tasks',
+    '/teams',
+    '/documents',
+    '/crm',
+    '/notifications',
+    '/activity',
+    '/search',
+    '/automations',
+    '/presence',
+    '/analytics',
+    '/billing',
+    '/founding-partner',
+    '/executive',
+    '/admin',
+    '/wiki',
+    '/time',
+    '/portal',
+    '/integrations',
+    '/onboarding',
+    '/portability',
+    '/audit',
+    '/beta',
+    '/nps',
+  ];
+
   // 1. Mount Backend API Routes & Health Check (Hono Engine)
   app.use((req, res, next) => {
-    if (
-      req.path.startsWith('/api') ||
-      req.path.startsWith('/auth') ||
-      req.path.startsWith('/workspace') ||
-      req.path.startsWith('/health')
-    ) {
+    const isApiRequest = apiRoutePrefixes.some(
+      (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`)
+    );
+    if (isApiRequest) {
       return honoListener(req, res);
     }
     next();

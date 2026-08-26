@@ -19,6 +19,7 @@ export interface VerificationResult {
   filename: string;
   verified: boolean;
   status: 'verified' | 'failed';
+  integrityCheck?: 'PASSED' | 'FAILED';
   checksumValid: boolean;
   uncompressedSizeBytes: number;
   tablesFoundCount: number;
@@ -164,6 +165,7 @@ export class BackupVerificationService {
       filename: meta.filename,
       verified,
       status,
+      integrityCheck: (verified ? 'PASSED' : 'FAILED') as any,
       checksumValid,
       uncompressedSizeBytes: Buffer.byteLength(uncompressedSql, 'utf-8'),
       tablesFoundCount: tablesVerified.length,

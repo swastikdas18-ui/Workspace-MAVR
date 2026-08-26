@@ -53,8 +53,13 @@ export function setStoredSessionToken(token: string | null) {
 }
 
 async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const storedToken = getStoredSessionToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(storedToken ? {
+      'Authorization': `Bearer ${storedToken}`,
+      'x-session-token': storedToken,
+    } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -72,7 +77,7 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
   const response = await fetch(fullUrl, {
     ...options,
     headers,
-    // Cookie-based session transport (httpOnly ws_session)
+    // Dual transport: cookie-based session transport (ws_session) + Authorization Bearer header
     credentials: 'include',
   });
 
@@ -92,27 +97,30 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
 export const api = {
   // Auth API
   async register(data: { name: string; email: string; password: string; workspaceName?: string; workspaceId?: string; role?: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
+    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string; token?: string }>(
       '/api/auth/register',
       {
         method: 'POST',
         body: JSON.stringify(data),
       }
     );
-    // Phase 17: session arrives as httpOnly cookie; drop any legacy token.
-    setStoredSessionToken(null);
+    if (res?.token) {
+      setStoredSessionToken(res.token);
+    }
     return res;
   },
 
   async login(credentials: { email: string; password: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
+    const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string; token?: string }>(
       '/api/auth/login',
       {
         method: 'POST',
         body: JSON.stringify(credentials),
       }
     );
-    setStoredSessionToken(null);
+    if (res?.token) {
+      setStoredSessionToken(res.token);
+    }
     return res;
   },
 
@@ -126,9 +134,12 @@ export const api = {
 
   async getSession() {
     try {
-      const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string }>(
+      const res = await fetchApi<{ user: any; workspace: any; expiresAt: string; csrfToken?: string; token?: string }>(
         '/api/auth/session'
       );
+      if (res?.token) {
+        setStoredSessionToken(res.token);
+      }
       return res;
     } catch {
       return null;

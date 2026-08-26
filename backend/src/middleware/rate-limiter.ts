@@ -12,7 +12,7 @@ export function resetRateLimits() {
 }
 
 // Clean up expired buckets every 5 minutes
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of rateLimitStore.entries()) {
     if (now > record.resetTime) {
@@ -20,6 +20,9 @@ setInterval(() => {
     }
   }
 }, 300_000);
+if (cleanupInterval && typeof cleanupInterval.unref === 'function') {
+  cleanupInterval.unref();
+}
 
 export interface RateLimitOptions {
   windowMs?: number; // Time window in milliseconds (default 60s)

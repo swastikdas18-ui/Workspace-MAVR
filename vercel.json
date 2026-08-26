@@ -10,7 +10,99 @@
       "destination": "/api"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/auth/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/auth",
+      "destination": "/api"
+    },
+    {
+      "source": "/workspace/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/health/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/health",
+      "destination": "/api"
+    },
+    {
+      "source": "/projects/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/projects",
+      "destination": "/api"
+    },
+    {
+      "source": "/tasks/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/tasks",
+      "destination": "/api"
+    },
+    {
+      "source": "/teams/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/teams",
+      "destination": "/api"
+    },
+    {
+      "source": "/documents/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/documents",
+      "destination": "/api"
+    },
+    {
+      "source": "/crm/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/crm",
+      "destination": "/api"
+    },
+    {
+      "source": "/members/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/members",
+      "destination": "/api"
+    },
+    {
+      "source": "/billing/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/billing",
+      "destination": "/api"
+    },
+    {
+      "source": "/automations/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/automations",
+      "destination": "/api"
+    },
+    {
+      "source": "/analytics/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/analytics",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api|auth|workspace|health|projects|tasks|teams|documents|crm|members|billing|automations|analytics).*)",
       "destination": "/index.html"
     }
   ],

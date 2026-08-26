@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+
 import { runAllTests } from './auth-rbac.test';
 import { runSearchTests } from './search-intelligence.test';
 import { runAutomationTests } from './automation-engine.test';
@@ -11,15 +13,25 @@ import { runPhase19bTests } from './phase19b-production-validation';
 
 async function main() {
   try {
+    console.log('\n>>> Starting Suite 1: Auth & RBAC');
     await runAllTests();
+    console.log('\n>>> Starting Suite 2: Search Intelligence');
     await runSearchTests();
+    console.log('\n>>> Starting Suite 3: Automation Engine');
     await runAutomationTests();
+    console.log('\n>>> Starting Suite 4: Command Palette');
     await runCommandPaletteRegressionTests();
+    console.log('\n>>> Starting Suite 5: Infrastructure Hardening');
     await runInfrastructureHardeningTests();
+    console.log('\n>>> Starting Suite 6: Revenue Operations');
     await runRevenueOperationsTests();
+    console.log('\n>>> Starting Suite 7: Beta Acceptance');
     await runBetaUserAcceptanceTests();
+    console.log('\n>>> Starting Suite 8: B2 Storage');
     await runB2StorageTests();
+    console.log('\n>>> Starting Suite 9: Realtime Collaboration');
     await runRealtimeTests();
+    console.log('\n>>> Starting Suite 10: Phase 19B Production Validation');
     await runPhase19bTests();
     console.log('\n🌟 ALL 10 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

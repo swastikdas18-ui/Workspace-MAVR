@@ -45,6 +45,7 @@ export class TeamService {
       lead_id: t.leadId,
       color: t.color || '#3b82f6',
       created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      member_count: t.memberIds.length,
       members_count: t.memberIds.length,
       members: t.memberIds,
     }));

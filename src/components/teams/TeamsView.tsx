@@ -190,7 +190,12 @@ export const TeamsView: React.FC = () => {
           ) : (
             visibleTeams.map((team) => {
               const lead = users.find((u) => u.id === team.lead_id);
-              const members = users.filter((u) => u.teamId === team.id);
+              const members = users.filter(
+                (u) =>
+                  u.teamId === team.id ||
+                  ((team as any).members && (team as any).members.includes(u.id)) ||
+                  ((team as any).memberIds && (team as any).memberIds.includes(u.id))
+              );
 
               return (
                 <motion.div

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
+import { WorkspaceSelector } from '../workspace/WorkspaceSelector';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SidebarProps {
@@ -89,28 +90,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#0F172A] border-r border-white/[0.08] text-slate-300 select-none">
-      {/* TOP SECTION: Workspace Brand & Role Badge */}
-      <div className="p-4 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#111827]">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] via-[#9333EA] to-[#A855F7] flex items-center justify-center font-bold text-white shadow-[0_0_20px_-3px_rgba(124,58,237,0.4)] shrink-0">
-            {currentWorkspace.name.substring(0, 2).toUpperCase()}
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold text-white truncate tracking-tight">
-                {currentWorkspace.name}
-              </h2>
-              <div className="mt-1">
-                <RoleBadge role={currentRole} size="sm" />
-              </div>
-            </div>
-          )}
+      {/* TOP SECTION: Workspace Brand & Switcher */}
+      <div className="p-3 border-b border-white/[0.08] flex items-center justify-between gap-2 bg-[#111827]">
+        <div className="flex-1 min-w-0">
+          <WorkspaceSelector compact={isCollapsed} />
         </div>
 
         {/* Collapse toggle on desktop */}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

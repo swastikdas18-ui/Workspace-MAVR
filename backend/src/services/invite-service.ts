@@ -1,9 +1,12 @@
-import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember } from '../../packages/database';
+import { eq, and } from 'drizzle-orm';
+import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember, getDb, schema } from '../../packages/database';
 import { hashPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
 import { sanitizeUser, sanitizeWorkspace, determinePlatformRole } from './auth-service';
 import { EventService } from './event-service';
 import { EmailService } from './email-service';
+import { WorkspaceRepository } from '../repositories/workspace-repository';
+import { TeamRepository } from '../repositories/team-repository';
 // SECURITY (Phase 17 — Fix #3): all bearer credentials share one CSPRNG source.
 import { generateSecureToken } from '../lib/secure-token';
 
@@ -37,8 +40,30 @@ export class InviteService {
     const normalizedEmail = input.email.toLowerCase().trim();
     const assignedRole = input.role === 'intern' ? 'intern' : 'employee'; // Never admin
 
-    // Verify workspace exists
-    const workspace = inMemoryDb.workspaces.get(input.workspaceId);
+    // Verify workspace exists in-memory or database
+    let workspace = inMemoryDb.workspaces.get(input.workspaceId);
+    const db = getDb();
+    if (!workspace && db) {
+      try {
+        const dbWs = await WorkspaceRepository.getWorkspaceById(input.workspaceId);
+        if (dbWs) {
+          workspace = {
+            id: dbWs.id,
+            name: dbWs.name,
+            slug: dbWs.slug,
+            ownerId: dbWs.ownerId,
+            plan: dbWs.plan,
+            logo: dbWs.logo || null,
+            createdAt: dbWs.createdAt,
+            updatedAt: dbWs.updatedAt,
+          };
+          inMemoryDb.workspaces.set(workspace.id, workspace);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
     if (!workspace) {
       throw new Error('WORKSPACE_NOT_FOUND');
     }
@@ -68,6 +93,26 @@ export class InviteService {
 
     inMemoryDb.workspaceInvites.set(token, newInvite);
     inMemoryDb.workspaceInvites.set(inviteId, newInvite);
+
+    // Persist to PostgreSQL if connected
+    if (db) {
+      try {
+        await db.insert(schema.workspaceInvites).values({
+          id: inviteId,
+          workspaceId: input.workspaceId,
+          email: normalizedEmail,
+          role: assignedRole,
+          token,
+          invitedBy: input.invitedBy,
+          teamId: input.teamId || null,
+          expiresAt,
+          acceptedAt: null,
+          createdAt: now,
+        });
+      } catch (err: any) {
+        console.warn('[InviteService] PostgreSQL insert failed for invite:', err.message);
+      }
+    }
 
     // Send invitation email
     try {
@@ -128,6 +173,18 @@ export class InviteService {
 
     inMemoryDb.workspaceInvites.set(inviteId, invite);
     inMemoryDb.workspaceInvites.set(invite.token, invite);
+
+    const db = getDb();
+    if (db) {
+      try {
+        await db
+          .update(schema.workspaceInvites)
+          .set({ expiresAt: newExpiry })
+          .where(eq(schema.workspaceInvites.id, inviteId));
+      } catch (err: any) {
+        console.warn('[InviteService] PostgreSQL update failed on resend:', err.message);
+      }
+    }
 
     const workspace = inMemoryDb.workspaces.get(workspaceId);
     const inviteUrl = `${process.env.FRONTEND_URL || 'https://workspace-mavr.onrender.com'}/invites/accept?token=${invite.token}`;
@@ -265,6 +322,16 @@ export class InviteService {
     }
     inMemoryDb.workspaceInvites.delete(inviteId);
     inMemoryDb.workspaceInvites.delete(invite.token);
+
+    const db = getDb();
+    if (db) {
+      try {
+        await db.delete(schema.workspaceInvites).where(eq(schema.workspaceInvites.id, inviteId));
+      } catch (err: any) {
+        console.warn('[InviteService] PostgreSQL delete failed for invite:', err.message);
+      }
+    }
+
     return { success: true };
   }
 
@@ -272,6 +339,50 @@ export class InviteService {
    * Get all invites for a specific workspace
    */
   static async getWorkspaceInvites(workspaceId: string): Promise<any[]> {
+    const db = getDb();
+    if (db) {
+      try {
+        const dbInvites = await db
+          .select()
+          .from(schema.workspaceInvites)
+          .where(and(eq(schema.workspaceInvites.workspaceId, workspaceId)));
+        
+        if (dbInvites.length > 0) {
+          const now = new Date();
+          return dbInvites
+            .filter((inv) => !inv.acceptedAt)
+            .map((inv) => {
+              const isExpired = new Date(inv.expiresAt) < now;
+              const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'sent';
+              return {
+                id: inv.id,
+                workspace_id: inv.workspaceId,
+                workspaceId: inv.workspaceId,
+                email: inv.email,
+                role: inv.role,
+                token: inv.token,
+                invited_by: inv.invitedBy,
+                invitedBy: inv.invitedBy,
+                team_id: inv.teamId,
+                teamId: inv.teamId,
+                expires_at: inv.expiresAt.toISOString(),
+                expiresAt: inv.expiresAt.toISOString(),
+                accepted_at: inv.acceptedAt ? inv.acceptedAt.toISOString() : null,
+                acceptedAt: inv.acceptedAt ? inv.acceptedAt.toISOString() : null,
+                created_at: inv.createdAt.toISOString(),
+                createdAt: inv.createdAt.toISOString(),
+                status,
+                openedAt: null,
+                sentAt: inv.createdAt.toISOString(),
+                resendCount: 0,
+              };
+            });
+        }
+      } catch (err: any) {
+        // Fallback to in-memory
+      }
+    }
+
     const invites = Array.from(inMemoryDb.workspaceInvites.values()).filter(
       (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt
     );
@@ -319,9 +430,26 @@ export class InviteService {
    * Get invite details by token (for public preview before accepting)
    */
   static async getInviteByToken(token: string): Promise<{ invite: any; workspace: SafeWorkspace }> {
-    const invite = Array.from(inMemoryDb.workspaceInvites.values()).find(
+    let invite: any = inMemoryDb.workspaceInvites.get(token) || Array.from(inMemoryDb.workspaceInvites.values()).find(
       (inv) => inv.token === token
     );
+
+    const db = getDb();
+    if (!invite && db) {
+      try {
+        const [dbInvite] = await db
+          .select()
+          .from(schema.workspaceInvites)
+          .where(eq(schema.workspaceInvites.token, token));
+        if (dbInvite) {
+          invite = dbInvite;
+          inMemoryDb.workspaceInvites.set(token, dbInvite as any);
+          inMemoryDb.workspaceInvites.set(dbInvite.id, dbInvite as any);
+        }
+      } catch {
+        // Fallback
+      }
+    }
 
     if (!invite) {
       throw new Error('INVITE_NOT_FOUND');
@@ -338,7 +466,24 @@ export class InviteService {
     // Mark as opened
     this.markInviteOpened(token);
 
-    const workspace = inMemoryDb.workspaces.get(invite.workspaceId);
+    let workspace: any = inMemoryDb.workspaces.get(invite.workspaceId);
+    if (!workspace) {
+      const wsEntity = await WorkspaceRepository.getWorkspaceById(invite.workspaceId);
+      if (wsEntity) {
+        workspace = {
+          id: wsEntity.id,
+          name: wsEntity.name,
+          slug: wsEntity.slug,
+          ownerId: wsEntity.ownerId,
+          plan: wsEntity.plan,
+          logo: wsEntity.logo || null,
+          createdAt: wsEntity.createdAt,
+          updatedAt: wsEntity.updatedAt,
+        };
+        inMemoryDb.workspaces.set(workspace.id, workspace);
+      }
+    }
+
     if (!workspace) {
       throw new Error('WORKSPACE_NOT_FOUND');
     }
@@ -369,18 +514,34 @@ export class InviteService {
   }
 
   /**
-   * Accept an invitation and create user / session in target workspace
+   * Accept an invitation and create user / session / memberships in target workspace
    */
   static async acceptInvite(input: AcceptInviteInput): Promise<AuthSessionResponse> {
     const { token, name, password } = input;
     const { invite, workspace } = await this.getInviteByToken(token);
 
     const normalizedEmail = invite.email.toLowerCase().trim();
+    const db = getDb();
 
-    // Check if user with this email already exists
-    let existingUser = Array.from(inMemoryDb.users.values()).find(
+    // Check if user with this email already exists in-memory or PostgreSQL
+    let existingUser: any = Array.from(inMemoryDb.users.values()).find(
       (u) => u.email.toLowerCase() === normalizedEmail
     );
+
+    if (!existingUser && db) {
+      try {
+        const [dbUser] = await db
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.email, normalizedEmail));
+        if (dbUser) {
+          existingUser = dbUser;
+          inMemoryDb.users.set(dbUser.id, dbUser as any);
+        }
+      } catch {
+        // Fallback
+      }
+    }
 
     const now = new Date();
     let userId: string;
@@ -391,10 +552,42 @@ export class InviteService {
     if (existingUser) {
       userId = existingUser.id;
       user = existingUser;
+
+      // Update user teamId if invite specified a team
+      if (invite.team_id && user.teamId !== invite.team_id) {
+        user.teamId = invite.team_id;
+        inMemoryDb.users.set(userId, user);
+        if (db) {
+          try {
+            await db.update(schema.users).set({ teamId: invite.team_id }).where(eq(schema.users.id, userId));
+          } catch (err: any) {
+            console.warn('[InviteService] PostgreSQL update user teamId warning:', err.message);
+          }
+        }
+      }
+
       // Check if already in workspace
-      const existingMembership = Array.from(inMemoryDb.workspaceMembers.values()).find(
+      let existingMembership: any = Array.from(inMemoryDb.workspaceMembers.values()).find(
         (m) => m.workspaceId === invite.workspace_id && m.userId === userId
       );
+
+      if (!existingMembership && db) {
+        try {
+          const [dbMem] = await db
+            .select()
+            .from(schema.workspaceMembers)
+            .where(
+              and(
+                eq(schema.workspaceMembers.workspaceId, invite.workspace_id),
+                eq(schema.workspaceMembers.userId, userId)
+              )
+            );
+          if (dbMem) existingMembership = dbMem;
+        } catch {
+          // Fallback
+        }
+      }
+
       if (!existingMembership) {
         const membershipId = crypto.randomUUID();
         const membership: WorkspaceMember = {
@@ -405,6 +598,20 @@ export class InviteService {
           joinedAt: now,
         };
         inMemoryDb.workspaceMembers.set(membershipId, membership);
+
+        if (db) {
+          try {
+            await db.insert(schema.workspaceMembers).values({
+              id: membershipId,
+              workspaceId: invite.workspace_id,
+              userId,
+              role: assignedRole,
+              joinedAt: now,
+            });
+          } catch (err: any) {
+            console.warn('[InviteService] PostgreSQL insert workspaceMember warning:', err.message);
+          }
+        }
       }
     } else {
       userId = crypto.randomUUID();
@@ -428,6 +635,26 @@ export class InviteService {
       };
       inMemoryDb.users.set(userId, user);
 
+      if (db) {
+        try {
+          await db.insert(schema.users).values({
+            id: userId,
+            name: user.name,
+            email: user.email,
+            password: user.password,
+            role: user.role,
+            platformRole: user.platformRole,
+            title: user.title,
+            avatar: user.avatar,
+            teamId: user.teamId,
+            createdAt: now,
+            updatedAt: now,
+          });
+        } catch (err: any) {
+          console.warn('[InviteService] PostgreSQL insert user warning:', err.message);
+        }
+      }
+
       // Create workspace membership
       const membershipId = crypto.randomUUID();
       const membership: WorkspaceMember = {
@@ -438,13 +665,45 @@ export class InviteService {
         joinedAt: now,
       };
       inMemoryDb.workspaceMembers.set(membershipId, membership);
+
+      if (db) {
+        try {
+          await db.insert(schema.workspaceMembers).values({
+            id: membershipId,
+            workspaceId: invite.workspace_id,
+            userId,
+            role: assignedRole,
+            joinedAt: now,
+          });
+        } catch (err: any) {
+          console.warn('[InviteService] PostgreSQL insert workspaceMember warning:', err.message);
+        }
+      }
     }
 
     // If invite had a teamId, join team
     if (invite.team_id) {
-      const existingTeamMember = Array.from(inMemoryDb.teamMembers.values()).find(
+      let existingTeamMember: any = Array.from(inMemoryDb.teamMembers.values()).find(
         (tm) => tm.teamId === invite.team_id && tm.userId === userId
       );
+
+      if (!existingTeamMember && db) {
+        try {
+          const [dbTm] = await db
+            .select()
+            .from(schema.teamMembers)
+            .where(
+              and(
+                eq(schema.teamMembers.teamId, invite.team_id),
+                eq(schema.teamMembers.userId, userId)
+              )
+            );
+          if (dbTm) existingTeamMember = dbTm;
+        } catch {
+          // Fallback
+        }
+      }
+
       if (!existingTeamMember) {
         const teamMemberId = crypto.randomUUID();
         const teamMember: TeamMember = {
@@ -455,6 +714,20 @@ export class InviteService {
           joinedAt: now,
         };
         inMemoryDb.teamMembers.set(teamMemberId, teamMember);
+
+        if (db) {
+          try {
+            await db.insert(schema.teamMembers).values({
+              id: teamMemberId,
+              teamId: invite.team_id,
+              userId,
+              roleInTeam: 'member',
+              joinedAt: now,
+            });
+          } catch (err: any) {
+            console.warn('[InviteService] PostgreSQL insert teamMember warning:', err.message);
+          }
+        }
       }
     }
 
@@ -465,6 +738,17 @@ export class InviteService {
       (rawInvite as InviteWithStatus).status = 'accepted';
       inMemoryDb.workspaceInvites.set(rawInvite.id, rawInvite);
       inMemoryDb.workspaceInvites.set(token, rawInvite);
+    }
+
+    if (db) {
+      try {
+        await db
+          .update(schema.workspaceInvites)
+          .set({ acceptedAt: now })
+          .where(eq(schema.workspaceInvites.token, token));
+      } catch (err: any) {
+        console.warn('[InviteService] PostgreSQL mark invite accepted warning:', err.message);
+      }
     }
 
     // Emit event: Invite Accepted
@@ -495,13 +779,46 @@ export class InviteService {
     };
     inMemoryDb.sessions.set(sessionToken, newSession);
 
-    const fullWorkspace = inMemoryDb.workspaces.get(invite.workspace_id)!;
+    if (db) {
+      try {
+        await db.insert(schema.sessions).values({
+          id: newSession.id,
+          userId: newSession.userId,
+          workspaceId: newSession.workspaceId,
+          token: newSession.token,
+          expiresAt: newSession.expiresAt,
+          createdAt: newSession.createdAt,
+          lastActiveAt: newSession.lastActiveAt,
+        });
+      } catch (err: any) {
+        console.warn('[InviteService] PostgreSQL insert session warning:', err.message);
+      }
+    }
+
+    let fullWorkspace = inMemoryDb.workspaces.get(invite.workspace_id);
+    if (!fullWorkspace) {
+      const wsEntity = await WorkspaceRepository.getWorkspaceById(invite.workspace_id);
+      if (wsEntity) {
+        fullWorkspace = {
+          id: wsEntity.id,
+          name: wsEntity.name,
+          slug: wsEntity.slug,
+          ownerId: wsEntity.ownerId,
+          plan: wsEntity.plan,
+          logo: wsEntity.logo || null,
+          createdAt: wsEntity.createdAt,
+          updatedAt: wsEntity.updatedAt,
+        };
+        inMemoryDb.workspaces.set(fullWorkspace.id, fullWorkspace);
+      }
+    }
 
     return {
       user: sanitizeUser(user),
-      workspace: sanitizeWorkspace(fullWorkspace, assignedRole),
+      workspace: sanitizeWorkspace(fullWorkspace!, assignedRole),
       token: sessionToken,
       expiresAt: expiresAt.toISOString(),
     };
   }
 }
+

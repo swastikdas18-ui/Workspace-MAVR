@@ -576,6 +576,58 @@ export class AuthService {
       }
     }
 
+    // Fallback: If workspace not resolved from session.workspaceId, resolve user's primary workspace
+    if (!workspace) {
+      if (db) {
+        try {
+          const owned = await db.select().from(schema.workspaces).where(eq(schema.workspaces.ownerId, user.id)).limit(1);
+          if (owned.length > 0) {
+            workspace = owned[0] as Workspace;
+            roleInWorkspace = 'admin';
+            inMemoryDb.workspaces.set(workspace.id, workspace);
+          } else {
+            const mems = await db.select().from(schema.workspaceMembers).where(eq(schema.workspaceMembers.userId, user.id)).limit(1);
+            if (mems.length > 0) {
+              const ws = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, mems[0].workspaceId)).limit(1);
+              if (ws.length > 0) {
+                workspace = ws[0] as Workspace;
+                roleInWorkspace = mems[0].role as UserRole;
+                inMemoryDb.workspaces.set(workspace.id, workspace);
+                inMemoryDb.workspaceMembers.set(mems[0].id, mems[0] as WorkspaceMember);
+              }
+            }
+          }
+        } catch (err: any) {
+          console.warn('[AuthService] Fallback workspace lookup note:', err.message);
+        }
+      }
+
+      if (!workspace) {
+        const ownedInMemory = Array.from(inMemoryDb.workspaces.values()).find((w) => w.ownerId === user.id);
+        if (ownedInMemory) {
+          workspace = ownedInMemory;
+          roleInWorkspace = 'admin';
+        } else {
+          const mem = Array.from(inMemoryDb.workspaceMembers.values()).find((m) => m.userId === user.id);
+          if (mem) {
+            workspace = inMemoryDb.workspaces.get(mem.workspaceId) || null;
+            roleInWorkspace = mem.role as UserRole;
+          }
+        }
+      }
+
+      // If workspace resolved via fallback, update session.workspaceId
+      if (workspace && !session.workspaceId) {
+        session.workspaceId = workspace.id;
+        inMemoryDb.sessions.set(session.token, session);
+        if (db) {
+          try {
+            await db.update(schema.sessions).set({ workspaceId: workspace.id }).where(eq(schema.sessions.token, session.token));
+          } catch {}
+        }
+      }
+    }
+
     return {
       user: sanitizeUser(user),
       workspace: workspace ? sanitizeWorkspace(workspace, roleInWorkspace) : null,

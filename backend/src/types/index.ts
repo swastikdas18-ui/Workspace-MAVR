@@ -23,6 +23,7 @@ export interface SafeWorkspace {
   logo?: string | null;
   createdAt: Date | string;
   roleInWorkspace?: UserRole;
+  memberCount?: number;
 }
 
 export interface AuthSessionResponse {

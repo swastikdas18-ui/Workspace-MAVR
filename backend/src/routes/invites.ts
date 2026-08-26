@@ -4,23 +4,45 @@ import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
 import { InviteService } from '../services/invite-service';
 import { generateSecureToken } from '../lib/secure-token';
-import { WORKSPACE_SESSION_COOKIE, CSRF_COOKIE } from '../lib/session-cookies';
+import {
+  WORKSPACE_SESSION_COOKIE,
+  CSRF_COOKIE,
+  isSecureRequestContext,
+} from '../lib/session-cookies';
 import type { Context } from 'hono';
 
 export const inviteRouter = new Hono();
 
-const COOKIE_BASE = {
-  path: '/',
-  sameSite: 'Strict' as const,
-  secure: process.env.NODE_ENV === 'production',
-};
-
-/** SECURITY (Phase 17 — Fix #5): invite acceptance issues httpOnly cookies; the session token never appears in JSON. */
+/**
+ * Dual Transport Authentication:
+ * Session tokens are set as httpOnly cookies AND returned in the JSON payload
+ * to guarantee session resilience across all browser environments, serverless proxies,
+ * and iframe previews.
+ */
 function issueSessionCookies(c: Context, result: { token: string; expiresAt: string }): string {
-  const maxAge = Math.max(60, Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000));
-  setCookie(c, WORKSPACE_SESSION_COOKIE, result.token, { ...COOKIE_BASE, httpOnly: true, maxAge });
+  const isSecure = isSecureRequestContext(c);
+  const maxAge = Math.max(
+    60,
+    Math.floor((new Date(result.expiresAt).getTime() - Date.now()) / 1000)
+  );
+
+  setCookie(c, WORKSPACE_SESSION_COOKIE, result.token, {
+    path: '/',
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
+    maxAge,
+  });
+
   const csrfToken = generateSecureToken();
-  setCookie(c, CSRF_COOKIE, csrfToken, { ...COOKIE_BASE, httpOnly: false, maxAge });
+  setCookie(c, CSRF_COOKIE, csrfToken, {
+    path: '/',
+    httpOnly: false,
+    secure: isSecure,
+    sameSite: isSecure ? 'None' : 'Lax',
+    maxAge,
+  });
+
   return csrfToken;
 }
 
@@ -140,6 +162,7 @@ inviteRouter.post('/accept', async (c) => {
       {
         user: result.user,
         workspace: result.workspace,
+        token: result.token,
         expiresAt: result.expiresAt,
         csrfToken,
       },

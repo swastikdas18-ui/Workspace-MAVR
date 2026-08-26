@@ -172,8 +172,12 @@ app.route('/invites', inviteRouter);
 
 app.use('/api/workspace/*', workspaceRateLimiter);
 app.use('/workspace/*', workspaceRateLimiter);
+app.use('/api/workspaces/*', workspaceRateLimiter);
+app.use('/workspaces/*', workspaceRateLimiter);
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
+app.route('/api/workspaces', workspaceRouter);
+app.route('/workspaces', workspaceRouter);
 
 // Direct /members and /api/members route aliases for workspace member directory
 const getMembersHandler = async (c: any) => {

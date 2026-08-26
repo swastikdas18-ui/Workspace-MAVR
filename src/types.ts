@@ -21,6 +21,8 @@ export interface Workspace {
   plan: 'free' | 'starter' | 'business' | 'scale' | 'enterprise' | 'pro';
   created_at: string;
   logo?: string;
+  role?: UserRole;
+  member_count?: number;
 }
 
 export interface Team {

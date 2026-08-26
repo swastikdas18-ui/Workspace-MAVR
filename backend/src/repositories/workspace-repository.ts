@@ -333,6 +333,125 @@ export class WorkspaceRepository {
   }
 
   /**
+   * Get all workspaces accessible by a user (both owned and via membership)
+   */
+  static async getUserWorkspaces(
+    userId: string
+  ): Promise<Array<WorkspaceEntity & { role: UserRole; memberCount: number }>> {
+    const workspaceMap = new Map<string, WorkspaceEntity & { role: UserRole; memberCount: number }>();
+
+    try {
+      const db = getDb();
+      if (db) {
+        // 1. Workspaces owned by user
+        const ownedWorkspaces = await db
+          .select()
+          .from(schema.workspaces)
+          .where(eq(schema.workspaces.ownerId, userId));
+
+        for (const ws of ownedWorkspaces) {
+          // Count members in this workspace
+          const memberRows = await db
+            .select({ id: schema.workspaceMembers.id })
+            .from(schema.workspaceMembers)
+            .where(eq(schema.workspaceMembers.workspaceId, ws.id));
+
+          workspaceMap.set(ws.id, {
+            id: ws.id,
+            name: ws.name,
+            slug: ws.slug,
+            ownerId: ws.ownerId,
+            plan: (ws.plan as 'free' | 'pro' | 'enterprise') || 'pro',
+            logo: ws.logo,
+            createdAt: ws.createdAt,
+            updatedAt: ws.updatedAt,
+            role: 'admin',
+            memberCount: Math.max(1, memberRows.length),
+          });
+        }
+
+        // 2. Workspaces where user has a membership
+        const userMemberships = await db
+          .select({
+            member: schema.workspaceMembers,
+            workspace: schema.workspaces,
+          })
+          .from(schema.workspaceMembers)
+          .innerJoin(schema.workspaces, eq(schema.workspaceMembers.workspaceId, schema.workspaces.id))
+          .where(eq(schema.workspaceMembers.userId, userId));
+
+        for (const row of userMemberships) {
+          if (!workspaceMap.has(row.workspace.id)) {
+            const memberRows = await db
+              .select({ id: schema.workspaceMembers.id })
+              .from(schema.workspaceMembers)
+              .where(eq(schema.workspaceMembers.workspaceId, row.workspace.id));
+
+            workspaceMap.set(row.workspace.id, {
+              id: row.workspace.id,
+              name: row.workspace.name,
+              slug: row.workspace.slug,
+              ownerId: row.workspace.ownerId,
+              plan: (row.workspace.plan as 'free' | 'pro' | 'enterprise') || 'pro',
+              logo: row.workspace.logo,
+              createdAt: row.workspace.createdAt,
+              updatedAt: row.workspace.updatedAt,
+              role: row.member.role as UserRole,
+              memberCount: Math.max(1, memberRows.length),
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('[WorkspaceRepository] PostgreSQL getUserWorkspaces note:', err.message);
+    }
+
+    // Also check in-memory store for any offline/cached workspaces
+    const ownedInMemory = Array.from(inMemoryDb.workspaces.values()).filter((w) => w.ownerId === userId);
+    for (const ws of ownedInMemory) {
+      if (!workspaceMap.has(ws.id)) {
+        const memCount = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.workspaceId === ws.id).length;
+        workspaceMap.set(ws.id, {
+          id: ws.id,
+          name: ws.name,
+          slug: ws.slug,
+          ownerId: ws.ownerId,
+          plan: (ws.plan as 'free' | 'pro' | 'enterprise') || 'pro',
+          logo: ws.logo,
+          createdAt: ws.createdAt ? new Date(ws.createdAt) : new Date(),
+          updatedAt: ws.updatedAt ? new Date(ws.updatedAt) : new Date(),
+          role: 'admin',
+          memberCount: Math.max(1, memCount),
+        });
+      }
+    }
+
+    const membershipsInMemory = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.userId === userId);
+    for (const mem of membershipsInMemory) {
+      if (!workspaceMap.has(mem.workspaceId)) {
+        const ws = inMemoryDb.workspaces.get(mem.workspaceId);
+        if (ws) {
+          const memCount = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.workspaceId === ws.id).length;
+          workspaceMap.set(ws.id, {
+            id: ws.id,
+            name: ws.name,
+            slug: ws.slug,
+            ownerId: ws.ownerId,
+            plan: (ws.plan as 'free' | 'pro' | 'enterprise') || 'pro',
+            logo: ws.logo,
+            createdAt: ws.createdAt ? new Date(ws.createdAt) : new Date(),
+            updatedAt: ws.updatedAt ? new Date(ws.updatedAt) : new Date(),
+            role: mem.role as UserRole,
+            memberCount: Math.max(1, memCount),
+          });
+        }
+      }
+    }
+
+    return Array.from(workspaceMap.values());
+  }
+
+  /**
    * Update workspace
    */
   static async updateWorkspace(

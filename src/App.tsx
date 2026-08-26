@@ -17,6 +17,8 @@ import { AdminToolsView } from './components/admin/AdminToolsView';
 import { WorkspaceView } from './components/workspace/WorkspaceView';
 import { AutomationsView } from './components/automations/AutomationsView';
 import { AcceptInviteView } from './components/invites/AcceptInviteView';
+import { OnboardingPage } from './components/onboarding/OnboardingPage';
+import { WorkspacesSelectionPage } from './components/workspace/WorkspacesSelectionPage';
 import { WikiView } from './components/wiki/WikiView';
 import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
@@ -27,6 +29,7 @@ import { ForbiddenPage } from './components/common/ForbiddenPage';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const pathToTabMap: Record<string, string> = {
+  '/workspaces': 'workspaces',
   '/admin': 'admin_tools',
   '/admin/dashboard': 'dashboard',
   '/admin/workspace': 'workspace',
@@ -60,6 +63,7 @@ const pathToTabMap: Record<string, string> = {
   '/teams': 'teams',
   '/workspace': 'workspace',
   '/dashboard': 'dashboard',
+  '/onboarding': 'onboarding',
 };
 
 const tabToPathMap: Record<string, string> = {
@@ -75,10 +79,12 @@ const tabToPathMap: Record<string, string> = {
   teams: '/teams',
   workspace: '/workspace',
   dashboard: '/dashboard',
+  onboarding: '/onboarding',
+  workspaces: '/workspaces',
 };
 
 const MainAppContent: React.FC = () => {
-  const { isLandingPage, isAuthBootstrapping, currentRole, activeTab, setActiveTab } = useWorkspace();
+  const { isLandingPage, isAuthBootstrapping, currentRole, activeTab, setActiveTab, userWorkspaces, currentWorkspace } = useWorkspace();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   // Check URL on initial load and handle invite tokens or deep paths
@@ -121,8 +127,14 @@ const MainAppContent: React.FC = () => {
   useEffect(() => {
     if (isLandingPage || isAuthBootstrapping || inviteToken) return;
 
-    let targetPath = tabToPathMap[activeTab] || `/${currentRole}/dashboard`;
+    let targetPath = tabToPathMap[activeTab];
     if (activeTab === 'dashboard') {
+      targetPath = `/${currentRole}/dashboard`;
+    } else if (activeTab === 'workspaces') {
+      targetPath = '/workspaces';
+    } else if (activeTab === 'onboarding') {
+      targetPath = '/onboarding';
+    } else if (!targetPath) {
       targetPath = `/${currentRole}/dashboard`;
     }
 
@@ -163,6 +175,21 @@ const MainAppContent: React.FC = () => {
     return <LandingPage />;
   }
 
+  // If authenticated user has no workspaces, present onboarding setup
+  if (userWorkspaces.length === 0 && (!currentWorkspace || !currentWorkspace.id)) {
+    return <OnboardingPage />;
+  }
+
+  // If user explicitly navigated to /onboarding
+  if (activeTab === 'onboarding') {
+    return <OnboardingPage />;
+  }
+
+  // If user is selecting workspaces
+  if (activeTab === 'workspaces') {
+    return <WorkspacesSelectionPage />;
+  }
+
   const renderActiveView = () => {
     // Render Dashboard based on role
     if (activeTab === 'dashboard') {
@@ -173,6 +200,10 @@ const MainAppContent: React.FC = () => {
 
     // Role-Guarded Views
     switch (activeTab) {
+      case 'workspaces':
+        return <WorkspacesSelectionPage />;
+      case 'onboarding':
+        return <OnboardingPage />;
       case 'workspace':
         return (
           <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workspace configuration and member management is restricted to Company Administrators." />}>

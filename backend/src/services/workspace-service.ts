@@ -3,11 +3,13 @@ import { TeamRepository } from '../repositories/team-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { TaskRepository } from '../repositories/task-repository';
 import { SafeWorkspace, SafeUser, UserRole } from '../types';
-import { inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb, WorkspaceMember, Session } from '../../packages/database';
+import { eq } from 'drizzle-orm';
 
 export function sanitizeWorkspaceEntity(
   workspace: WorkspaceEntity,
-  roleInWorkspace?: UserRole
+  roleInWorkspace?: UserRole,
+  memberCount?: number
 ): SafeWorkspace {
   return {
     id: workspace.id,
@@ -18,16 +20,26 @@ export function sanitizeWorkspaceEntity(
     logo: workspace.logo || null,
     createdAt: workspace.createdAt ? new Date(workspace.createdAt) : new Date(),
     roleInWorkspace,
+    memberCount: memberCount || 1,
   };
 }
 
 export class WorkspaceService {
+  /**
+   * Get all workspaces accessible by a user
+   */
+  static async getUserWorkspaces(userId: string): Promise<SafeWorkspace[]> {
+    const workspaces = await WorkspaceRepository.getUserWorkspaces(userId);
+    return workspaces.map((ws) => sanitizeWorkspaceEntity(ws, ws.role, ws.memberCount));
+  }
+
   /**
    * Get workspace details for an authenticated user with membership verification
    */
   static async getWorkspace(userId: string, requestedWorkspaceId?: string): Promise<SafeWorkspace> {
     let targetWorkspace: WorkspaceEntity | null = null;
     let userRoleInWorkspace: UserRole = 'employee';
+    let memberCount = 1;
 
     if (requestedWorkspaceId) {
       // Find requested workspace
@@ -46,20 +58,13 @@ export class WorkspaceService {
       targetWorkspace = workspace;
       userRoleInWorkspace = membership ? membership.role : 'admin';
     } else {
-      // Find default user's workspace
-      const user = inMemoryDb.users.get(userId);
-      userRoleInWorkspace = (user?.role as UserRole) || 'employee';
-
-      // Check if user owns any workspace
-      const allMemberships = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.userId === userId);
-      const owned = Array.from(inMemoryDb.workspaces.values()).find((w) => w.ownerId === userId);
-
-      if (owned) {
-        targetWorkspace = await WorkspaceRepository.getWorkspaceById(owned.id);
-        userRoleInWorkspace = 'admin';
-      } else if (allMemberships.length > 0) {
-        targetWorkspace = await WorkspaceRepository.getWorkspaceById(allMemberships[0].workspaceId);
-        userRoleInWorkspace = allMemberships[0].role as UserRole;
+      // Find user's accessible workspaces (PostgreSQL + In-Memory)
+      const userWorkspaces = await WorkspaceRepository.getUserWorkspaces(userId);
+      if (userWorkspaces.length > 0) {
+        const primary = userWorkspaces[0];
+        targetWorkspace = primary;
+        userRoleInWorkspace = primary.role;
+        memberCount = primary.memberCount;
       }
     }
 
@@ -67,7 +72,90 @@ export class WorkspaceService {
       throw new Error('NO_ACTIVE_WORKSPACE');
     }
 
-    return sanitizeWorkspaceEntity(targetWorkspace, userRoleInWorkspace);
+    return sanitizeWorkspaceEntity(targetWorkspace, userRoleInWorkspace, memberCount);
+  }
+
+  /**
+   * Create a new workspace and automatically bind user as owner & admin
+   */
+  static async createWorkspace(
+    userId: string,
+    data: { name: string; slug?: string; plan?: 'free' | 'pro' | 'enterprise' }
+  ): Promise<SafeWorkspace> {
+    const rawSlug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slug = rawSlug || `workspace-${Date.now().toString(36)}`;
+
+    // Create workspace record
+    const workspace = await WorkspaceRepository.createWorkspace({
+      name: data.name.trim(),
+      slug,
+      ownerId: userId,
+      plan: data.plan || 'pro',
+    });
+
+    // Create workspace membership for owner as ADMIN
+    const membershipId = crypto.randomUUID();
+    const now = new Date();
+    const membership: WorkspaceMember = {
+      id: membershipId,
+      workspaceId: workspace.id,
+      userId,
+      role: 'admin',
+      joinedAt: now,
+    };
+
+    inMemoryDb.workspaceMembers.set(membershipId, membership);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.workspaceMembers).values({
+          id: membershipId,
+          workspaceId: workspace.id,
+          userId,
+          role: 'admin',
+          joinedAt: now,
+        });
+      }
+    } catch (err: any) {
+      console.warn('[WorkspaceService] Membership insert note:', err.message);
+    }
+
+    return sanitizeWorkspaceEntity(workspace, 'admin', 1);
+  }
+
+  /**
+   * Switch the active workspace for the session
+   */
+  static async switchWorkspace(
+    userId: string,
+    sessionToken: string,
+    workspaceId: string
+  ): Promise<SafeWorkspace> {
+    // Verify membership in target workspace
+    const workspace = await this.getWorkspace(userId, workspaceId);
+
+    // Update active session in memory and PostgreSQL
+    const session = inMemoryDb.sessions.get(sessionToken);
+    if (session) {
+      session.workspaceId = workspace.id;
+      session.lastActiveAt = new Date();
+      inMemoryDb.sessions.set(sessionToken, session);
+    }
+
+    try {
+      const db = getDb();
+      if (db && sessionToken) {
+        await db
+          .update(schema.sessions)
+          .set({ workspaceId: workspace.id, lastActiveAt: new Date() })
+          .where(eq(schema.sessions.token, sessionToken));
+      }
+    } catch (err: any) {
+      console.warn('[WorkspaceService] Session update note:', err.message);
+    }
+
+    return workspace;
   }
 
   /**

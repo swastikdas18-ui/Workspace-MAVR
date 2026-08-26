@@ -20,6 +20,7 @@ interface WorkspaceContextType {
   currentUser: User;
   users: User[];
   currentWorkspace: Workspace;
+  userWorkspaces: Workspace[];
   teams: Team[];
   projects: Project[];
   tasks: Task[];
@@ -33,6 +34,7 @@ interface WorkspaceContextType {
   activeTab: string;
   isLandingPage: boolean;
   isAuthBootstrapping: boolean;
+  isWorkspaceLoading: boolean;
   searchQuery: string;
   toasts: ToastMessage[];
 
@@ -45,6 +47,8 @@ interface WorkspaceContextType {
   addToast: (toast: Omit<ToastMessage, 'id'>) => void;
   removeToast: (id: string) => void;
   refreshWorkspaceData: () => Promise<void>;
+  switchWorkspace: (workspaceId: string) => Promise<boolean>;
+  createNewWorkspace: (name: string, plan?: string) => Promise<Workspace | null>;
 
   // Projects
   createProject: (project: Omit<Project, 'id' | 'created_by' | 'progress'>) => Promise<boolean>;
@@ -93,6 +97,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(INITIAL_WORKSPACE);
+  const [userWorkspaces, setUserWorkspaces] = useState<Workspace[]>([]);
   const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
@@ -104,6 +109,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [isLandingPage, setIsLandingPage] = useState<boolean>(true);
   const [isAuthBootstrapping, setIsAuthBootstrapping] = useState<boolean>(true);
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -189,6 +195,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const fetchedUsers = membersRes.value.members.map((m: any) => ({
           ...m.member,
           role: m.role || m.member.role,
+          teamId: m.member.teamId || m.member.team_id || null,
         }));
         if (fetchedUsers.length > 0) {
           setUsers((prev) => {
@@ -203,38 +210,142 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
-  // Sync session with backend API on mount
+  // Sync session and workspaces with backend API on mount
   useEffect(() => {
     async function loadBackendSession() {
+      setIsAuthBootstrapping(true);
+      const initialPath = window.location.pathname;
+
       try {
         const session = await api.getSession();
-        if (session?.user) {
-          const authUser = normalizeFrontendUser(session.user as User);
-          setCurrentUser(authUser);
-          setUsers((prev) => {
-            if (!prev.some((u) => u.id === authUser.id)) {
-              return [authUser, ...prev];
-            }
-            return prev.map((u) => (u.id === authUser.id ? { ...u, ...authUser } : u));
-          });
+        if (!session?.user) {
+          console.log('[Bootstrap] Session found: none');
+          console.log('[Bootstrap] Workspace memberships count: 0');
+          console.log('[Bootstrap] Active workspace: none');
+          console.log('[Bootstrap] Final redirect target: / (Landing Page)');
+          setIsLandingPage(true);
+          return;
+        }
 
-          if (session.workspace) {
-            setCurrentWorkspace({
+        // Session found
+        console.log('[Bootstrap] Session found:', session.user.email);
+        const authUser = normalizeFrontendUser(session.user as User);
+        setCurrentUser(authUser);
+        setUsers((prev) => {
+          if (!prev.some((u) => u.id === authUser.id)) {
+            return [authUser, ...prev];
+          }
+          return prev.map((u) => (u.id === authUser.id ? { ...u, ...authUser } : u));
+        });
+
+        // Hydrate all workspaces accessible by user
+        let userWsList: Workspace[] = [];
+        try {
+          const wsRes = await api.getWorkspaces();
+          if (wsRes?.workspaces && wsRes.workspaces.length > 0) {
+            userWsList = wsRes.workspaces.map((w: any) => ({
+              id: w.id,
+              name: w.name,
+              slug: w.slug,
+              owner_id: w.ownerId || w.owner_id,
+              plan: w.plan || 'pro',
+              created_at: w.createdAt || new Date().toISOString(),
+              logo: w.logo || undefined,
+              role: w.roleInWorkspace || w.role || (authUser.role as UserRole),
+              member_count: w.memberCount || 1,
+            }));
+          } else if (session.workspace) {
+            userWsList = [{
               id: session.workspace.id,
               name: session.workspace.name,
               slug: session.workspace.slug,
-              owner_id: session.workspace.ownerId,
-              plan: session.workspace.plan,
+              owner_id: session.workspace.ownerId || session.workspace.owner_id,
+              plan: session.workspace.plan || 'pro',
               created_at: session.workspace.createdAt || new Date().toISOString(),
-            });
+              role: session.workspace.roleInWorkspace || (authUser.role as UserRole),
+              member_count: 1,
+            }];
           }
-          setIsLandingPage(false);
+        } catch (wsErr) {
+          console.warn('[Workspace OS] Workspace hydration note:', wsErr);
+          if (session.workspace) {
+            userWsList = [{
+              id: session.workspace.id,
+              name: session.workspace.name,
+              slug: session.workspace.slug,
+              owner_id: session.workspace.ownerId || session.workspace.owner_id,
+              plan: session.workspace.plan || 'pro',
+              created_at: session.workspace.createdAt || new Date().toISOString(),
+              role: session.workspace.roleInWorkspace || (authUser.role as UserRole),
+              member_count: 1,
+            }];
+          }
+        }
+
+        setUserWorkspaces(userWsList);
+        const membershipsCount = userWsList.length;
+        console.log('[Bootstrap] Workspace memberships count:', membershipsCount);
+
+        setIsLandingPage(false);
+
+        // CASE B: Authenticated & Workspace memberships = 0
+        if (membershipsCount === 0) {
+          console.log('[Bootstrap] Active workspace: none');
+          console.log('[Bootstrap] Final redirect target: /onboarding');
+          setActiveTab('onboarding');
+        } 
+        // CASE C: Authenticated & Workspace memberships = 1
+        else if (membershipsCount === 1) {
+          const activeWs = userWsList[0];
+          setCurrentWorkspace(activeWs);
+          if (activeWs.role) {
+            setCurrentUser((prev) => ({ ...prev, role: activeWs.role as UserRole }));
+          }
+          console.log('[Bootstrap] Active workspace:', `${activeWs.name} (${activeWs.id})`);
+
+          const rolePrefix = activeWs.role || authUser.role || 'employee';
+          if (initialPath === '/' || initialPath === '/onboarding' || initialPath === '/workspaces') {
+            const target = `/${rolePrefix}/dashboard`;
+            console.log('[Bootstrap] Final redirect target:', target);
+            setActiveTab('dashboard');
+          } else {
+            // Keep deep path if requested
+            console.log('[Bootstrap] Final redirect target:', initialPath);
+          }
+
           await refreshWorkspaceData();
-        } else {
-          setIsLandingPage(true);
+        } 
+        // CASE D: Authenticated & Workspace memberships > 1
+        else {
+          const activeWs = session.workspace
+            ? userWsList.find((w) => w.id === session.workspace.id) || userWsList[0]
+            : userWsList[0];
+
+          setCurrentWorkspace(activeWs);
+          if (activeWs?.role) {
+            setCurrentUser((prev) => ({ ...prev, role: activeWs.role as UserRole }));
+          }
+          console.log('[Bootstrap] Active workspace:', `${activeWs.name} (${activeWs.id})`);
+
+          // If visiting root '/', direct to workspace selector
+          if (initialPath === '/' || initialPath === '/workspaces') {
+            console.log('[Bootstrap] Final redirect target: /workspaces');
+            setActiveTab('workspaces');
+          } else if (initialPath === '/onboarding') {
+            console.log('[Bootstrap] Final redirect target: /onboarding');
+            setActiveTab('onboarding');
+          } else {
+            console.log('[Bootstrap] Final redirect target:', initialPath);
+          }
+
+          await refreshWorkspaceData();
         }
       } catch (err) {
-        console.warn('[Workspace OS] Session bootstrap note:', err);
+        console.warn('[Workspace OS] Session bootstrap error:', err);
+        console.log('[Bootstrap] Session found: none');
+        console.log('[Bootstrap] Workspace memberships count: 0');
+        console.log('[Bootstrap] Active workspace: none');
+        console.log('[Bootstrap] Final redirect target: / (Landing Page)');
         setIsLandingPage(true);
       } finally {
         setIsAuthBootstrapping(false);
@@ -244,23 +355,151 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     loadBackendSession();
   }, [refreshWorkspaceData]);
 
+  // Switch workspace action
+  const switchWorkspace = async (workspaceId: string): Promise<boolean> => {
+    setIsWorkspaceLoading(true);
+    try {
+      const res = await api.switchWorkspace(workspaceId);
+      if (res?.workspace) {
+        const w = res.workspace;
+        const switchedWs: Workspace = {
+          id: w.id,
+          name: w.name,
+          slug: w.slug,
+          owner_id: w.ownerId || w.owner_id,
+          plan: w.plan || 'pro',
+          created_at: w.createdAt || new Date().toISOString(),
+          logo: w.logo || undefined,
+          role: w.roleInWorkspace || 'employee',
+        };
+        setCurrentWorkspace(switchedWs);
+        if (w.roleInWorkspace) {
+          setCurrentUser((prev) => ({ ...prev, role: w.roleInWorkspace as UserRole }));
+        }
+        await refreshWorkspaceData();
+        addToast({
+          type: 'success',
+          title: 'Switched Workspace',
+          message: `Active workspace changed to ${switchedWs.name}.`,
+        });
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Switch Failed',
+        message: err.message || 'Could not switch workspace.',
+      });
+      return false;
+    } finally {
+      setIsWorkspaceLoading(false);
+    }
+  };
+
+  // Create workspace action
+  const createNewWorkspace = async (name: string, plan: string = 'pro'): Promise<Workspace | null> => {
+    setIsWorkspaceLoading(true);
+    try {
+      const res = await api.createWorkspace({ name, plan });
+      if (res?.workspace) {
+        const w = res.workspace;
+        const newWs: Workspace = {
+          id: w.id,
+          name: w.name,
+          slug: w.slug,
+          owner_id: w.ownerId || w.owner_id,
+          plan: w.plan || 'pro',
+          created_at: w.createdAt || new Date().toISOString(),
+          logo: w.logo || undefined,
+          role: 'admin',
+          member_count: 1,
+        };
+        setUserWorkspaces((prev) => [newWs, ...prev]);
+        setCurrentWorkspace(newWs);
+        setCurrentUser((prev) => ({ ...prev, role: 'admin' }));
+        await refreshWorkspaceData();
+        addToast({
+          type: 'success',
+          title: 'Workspace Created',
+          message: `Created "${newWs.name}" successfully.`,
+        });
+        return newWs;
+      }
+      return null;
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Creation Failed',
+        message: err.message || 'Failed to create workspace.',
+      });
+      return null;
+    } finally {
+      setIsWorkspaceLoading(false);
+    }
+  };
+
   const currentRole = currentUser?.role || 'employee';
   const permissions = ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.employee;
 
-  const setAuthUser = (user: User, workspace?: Partial<Workspace>) => {
+  const setAuthUser = async (user: User, workspace?: Partial<Workspace>) => {
     const normalizedUser = normalizeFrontendUser(user);
     setCurrentUser(normalizedUser);
-    if (workspace) {
-      setCurrentWorkspace((prev) => ({
-        ...prev,
-        ...workspace,
-        name: workspace.name || prev.name,
-        id: workspace.id || prev.id,
-      }));
+
+    let currentWsList: Workspace[] = [];
+    try {
+      const wsRes = await api.getWorkspaces();
+      if (wsRes?.workspaces && wsRes.workspaces.length > 0) {
+        currentWsList = wsRes.workspaces.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          slug: w.slug,
+          owner_id: w.ownerId || w.owner_id,
+          plan: w.plan || 'pro',
+          created_at: w.createdAt || new Date().toISOString(),
+          logo: w.logo || undefined,
+          role: w.roleInWorkspace || w.role || (normalizedUser.role as UserRole),
+          member_count: w.memberCount || 1,
+        }));
+        setUserWorkspaces(currentWsList);
+      }
+    } catch (e) {
+      console.warn('[Workspace OS] Workspace sync on login:', e);
     }
+
+    if (workspace && workspace.id) {
+      const wsObj: Workspace = {
+        id: workspace.id,
+        name: workspace.name || 'Workspace OS',
+        slug: workspace.slug || 'workspace',
+        owner_id: workspace.owner_id || user.id,
+        plan: workspace.plan || 'pro',
+        created_at: workspace.created_at || new Date().toISOString(),
+        role: (user.role as UserRole) || 'admin',
+      };
+      setCurrentWorkspace(wsObj);
+      if (!currentWsList.some((w) => w.id === wsObj.id)) {
+        currentWsList = [wsObj, ...currentWsList];
+        setUserWorkspaces(currentWsList);
+      }
+    }
+
     setIsLandingPage(false);
-    setActiveTab('dashboard');
-    refreshWorkspaceData();
+
+    const membershipsCount = currentWsList.length || (workspace?.id ? 1 : 0);
+    if (membershipsCount === 0) {
+      setActiveTab('onboarding');
+      window.history.pushState(null, '', '/onboarding');
+    } else if (membershipsCount === 1 || (workspace && workspace.id)) {
+      setActiveTab('dashboard');
+      const targetRole = workspace?.role || normalizedUser.role || 'employee';
+      window.history.pushState(null, '', `/${targetRole}/dashboard`);
+    } else {
+      setActiveTab('workspaces');
+      window.history.pushState(null, '', '/workspaces');
+    }
+
+    await refreshWorkspaceData();
     logAction(`User authenticated with role [${normalizedUser.role.toUpperCase()}]`, 'AUTH');
   };
 
@@ -270,8 +509,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (err) {
       console.warn('[Workspace OS] Logout notification note:', err);
     }
+    setUserWorkspaces([]);
     setIsLandingPage(true);
     setActiveTab('dashboard');
+    window.history.pushState(null, '', '/');
     addToast({
       type: 'info',
       title: 'Signed Out',
@@ -705,6 +946,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentUser,
         users,
         currentWorkspace,
+        userWorkspaces,
         teams,
         projects,
         tasks,
@@ -718,6 +960,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeTab,
         isLandingPage,
         isAuthBootstrapping,
+        isWorkspaceLoading,
         searchQuery,
         toasts,
         setAuthUser,
@@ -728,6 +971,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addToast,
         removeToast,
         refreshWorkspaceData,
+        switchWorkspace,
+        createNewWorkspace,
         createProject,
         updateProject,
         deleteProject,

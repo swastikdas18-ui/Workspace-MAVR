@@ -147,9 +147,31 @@ export const api = {
   },
 
   // Workspace API
+  async getWorkspaces() {
+    return await fetchApi<{ workspaces: any[] }>('/api/workspaces/all');
+  },
+
+  async getCurrentWorkspace() {
+    return await fetchApi<{ workspace: any; role?: string }>('/api/workspace/current');
+  },
+
   async getWorkspace(workspaceId?: string) {
     const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : '';
     return await fetchApi<{ workspace: any }>(`/api/workspace${query}`);
+  },
+
+  async switchWorkspace(workspaceId: string) {
+    return await fetchApi<{ success: boolean; workspace: any }>('/api/workspace/switch', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId }),
+    });
+  },
+
+  async createWorkspace(data: { name: string; slug?: string; plan?: string }) {
+    return await fetchApi<{ workspace: any }>('/api/workspace', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   async getWorkspaceMembers() {

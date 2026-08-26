@@ -10,6 +10,7 @@ import { runRevenueOperationsTests } from './revenue-operations.test';
 import { runBetaUserAcceptanceTests } from './beta-acceptance.test';
 import { runB2StorageTests } from './b2-storage.test';
 import { runPhase19bTests } from './phase19b-production-validation';
+import { runInviteMembershipAuditTests } from './invite-membership-audit.test';
 
 async function main() {
   try {
@@ -33,7 +34,9 @@ async function main() {
     await runRealtimeTests();
     console.log('\n>>> Starting Suite 10: Phase 19B Production Validation');
     await runPhase19bTests();
-    console.log('\n🌟 ALL 10 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 11: Invite Lifecycle & Membership Audit');
+    await runInviteMembershipAuditTests();
+    console.log('\n🌟 ALL 11 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

@@ -9,6 +9,10 @@
     "start": "node dist/server.cjs",
     "test": "tsx backend/tests/run-tests.ts",
     "db:migrate": "tsx backend/packages/database/migrate.ts",
+    "db:seed": "tsx scripts/seed-production.ts",
+    "db:verify": "tsx scripts/verify-production-db.ts",
+    "db:recovery": "tsx scripts/execute-neon-recovery.ts",
+    "auth:verify": "tsx scripts/verify-live-auth.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

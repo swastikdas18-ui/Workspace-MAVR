@@ -427,27 +427,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => handleQuickDemoLogin('swastik@polotech.com')}
+              onClick={() => handleQuickDemoLogin('admin@polotechnologies.com')}
               className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 text-left transition-colors group"
             >
               <div className="text-[10px] font-bold text-purple-400">ADMIN</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">Swastik</div>
+              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Admin</div>
             </button>
             <button
               type="button"
-              onClick={() => handleQuickDemoLogin('frontend@polotech.com')}
+              onClick={() => handleQuickDemoLogin('employee@polotechnologies.com')}
               className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 text-left transition-colors group"
             >
               <div className="text-[10px] font-bold text-blue-400">EMPLOYEE</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">Frontend Dev</div>
+              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Employee</div>
             </button>
             <button
               type="button"
-              onClick={() => handleQuickDemoLogin('ui.intern@polotech.com')}
+              onClick={() => handleQuickDemoLogin('intern@polotechnologies.com')}
               className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition-colors group"
             >
               <div className="text-[10px] font-bold text-emerald-400">INTERN</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">UI Intern</div>
+              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Intern</div>
             </button>
           </div>
         </div>

@@ -145,13 +145,14 @@ let dbInstance: NeonHttpDatabase<typeof schema> | null = null;
 export function getDb(): NeonHttpDatabase<typeof schema> | null {
   if (dbInstance) return dbInstance;
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_ENV;
+  const isProduction = process.env.NODE_ENV === 'production' || isVercel;
   const isTest = process.env.NODE_ENV === 'test';
   const databaseUrl = process.env.DATABASE_URL;
 
   if (isProduction) {
     if (!databaseUrl) {
-      throw new Error('[Workspace OS Fatal] DATABASE_URL is required in production. In-memory fallback is strictly forbidden.');
+      throw new Error('[Workspace OS Fatal] DATABASE_URL is required in production/Vercel. In-memory fallback is strictly forbidden.');
     }
     try {
       const sql = neon(databaseUrl);

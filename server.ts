@@ -10,20 +10,54 @@ import { AuthService } from './backend/src/services/auth-service';
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
+  const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_ENV;
+  const isProduction = process.env.NODE_ENV === 'production' || isVercel;
+  const databaseUrl = process.env.DATABASE_URL;
+
+  // Telemetry: Parse Database Lineage (strictly sanitize credentials)
+  let dbHost = 'none (in-memory)';
+  let dbName = 'in-memory-store';
+  let dbMode: 'postgres' | 'memory' = 'memory';
+
+  if (databaseUrl) {
+    try {
+      const parsedUrl = new URL(databaseUrl);
+      dbHost = parsedUrl.host;
+      dbName = parsedUrl.pathname.replace(/^\//, '') || 'neondb';
+      dbMode = 'postgres';
+    } catch {
+      dbHost = 'postgres-configured';
+      dbName = 'custom-db';
+      dbMode = 'postgres';
+    }
+  }
+
+  console.log('================================================================================');
+  console.log(' WORKSPACE OS STARTUP TELEMETRY');
+  console.log('================================================================================');
+  console.log(` DATABASE MODE:      ${dbMode}`);
+  console.log(` DATABASE HOST:      ${dbHost}`);
+  console.log(` DATABASE NAME:      ${dbName}`);
+  console.log(` VERCEL ENVIRONMENT: ${isVercel ? `Detected (${process.env.VERCEL_ENV || 'production'})` : 'Standalone'}`);
+  console.log(` DATABASE_URL SET:   ${!!databaseUrl}`);
+  console.log('================================================================================');
+
+  // Strict Production Safety: Fail fast if DATABASE_URL is missing in production or Vercel
+  if (isProduction && !databaseUrl) {
+    throw new Error(
+      '[Workspace OS Fatal] DATABASE_URL is missing in production/Vercel environment. ' +
+      'Silent in-memory fallback is strictly prohibited in production. ' +
+      'Please configure DATABASE_URL in your deployment environment variables.'
+    );
+  }
 
   // SECURITY (Phase 17 — Fix #6): Fail fast when required secrets are absent.
-  // The application never boots with placeholder or missing credentials.
   assertProductionSecrets();
 
   // SECURITY (Phase 17 — Fix #4): promote configured platform administrators.
   const { promoted } = await AuthService.bootstrapPlatformAdmins();
   if (promoted.length > 0) {
     console.log(`[Workspace OS] Platform admins provisioned: ${promoted.join(', ')}`);
-  }
-
-  // Strict Production Safety: Fail fast if DATABASE_URL is missing in production
-  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-    throw new Error('[Workspace OS Fatal] DATABASE_URL is missing in production. In-memory persistence fallback is strictly prohibited.');
   }
 
   const honoListener = getRequestListener(honoApp.fetch);

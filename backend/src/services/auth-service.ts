@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { inMemoryDb, User, Workspace, WorkspaceMember, Session } from '../../packages/database';
+import { inMemoryDb, User, Workspace, WorkspaceMember, Session, getDb, schema } from '../../packages/database';
+import { eq, and } from 'drizzle-orm';
 import { hashPassword, verifyPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole, PlatformRole } from '../types';
 import { generateUniqueId } from '../lib/secure-token';
@@ -78,11 +79,20 @@ export class AuthService {
   static async registerAdmin(input: z.infer<typeof registerAdminSchema>): Promise<AuthSessionResponse> {
     const data = registerAdminSchema.parse(input);
     const normalizedEmail = data.email.toLowerCase().trim();
+    const db = getDb();
 
-    // Check if user already exists
-    const existing = Array.from(inMemoryDb.users.values()).find(
+    // Check if user already exists in-memory or in database
+    let existing: any = Array.from(inMemoryDb.users.values()).find(
       (u) => u.email.toLowerCase() === normalizedEmail
     );
+    if (!existing && db) {
+      try {
+        const dbUsers = await db.select().from(schema.users).where(eq(schema.users.email, normalizedEmail)).limit(1);
+        if (dbUsers.length > 0) existing = dbUsers[0];
+      } catch (err) {
+        // Fallback
+      }
+    }
     if (existing) {
       throw new Error('USER_EXISTS');
     }
@@ -156,6 +166,18 @@ export class AuthService {
     };
     inMemoryDb.sessions.set(token, newSession);
 
+    // Persist to PostgreSQL if connected
+    if (db) {
+      try {
+        await db.insert(schema.users).values(newUser as any);
+        await db.insert(schema.workspaces).values(newWorkspace as any);
+        await db.insert(schema.workspaceMembers).values(membership as any);
+        await db.insert(schema.sessions).values(newSession as any);
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL insert failed during registerAdmin:', err.message);
+      }
+    }
+
     return {
       user: sanitizeUser(newUser),
       workspace: sanitizeWorkspace(newWorkspace, 'admin'),
@@ -172,17 +194,37 @@ export class AuthService {
   ): Promise<AuthSessionResponse> {
     const data = registerMemberSchema.parse(input);
     const normalizedEmail = data.email.toLowerCase().trim();
+    const db = getDb();
 
-    // Verify workspace exists
-    const workspace = inMemoryDb.workspaces.get(data.workspaceId);
+    // Verify workspace exists in-memory or db
+    let workspace = inMemoryDb.workspaces.get(data.workspaceId);
+    if (!workspace && db) {
+      try {
+        const dbWs = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, data.workspaceId)).limit(1);
+        if (dbWs.length > 0) {
+          workspace = dbWs[0] as Workspace;
+          inMemoryDb.workspaces.set(workspace.id, workspace);
+        }
+      } catch (err) {
+        // Fallback
+      }
+    }
     if (!workspace) {
       throw new Error('WORKSPACE_NOT_FOUND');
     }
 
     // Check if user already exists
-    const existing = Array.from(inMemoryDb.users.values()).find(
+    let existing: any = Array.from(inMemoryDb.users.values()).find(
       (u) => u.email.toLowerCase() === normalizedEmail
     );
+    if (!existing && db) {
+      try {
+        const dbUsers = await db.select().from(schema.users).where(eq(schema.users.email, normalizedEmail)).limit(1);
+        if (dbUsers.length > 0) existing = dbUsers[0];
+      } catch (err) {
+        // Fallback
+      }
+    }
     if (existing) {
       throw new Error('USER_EXISTS');
     }
@@ -237,6 +279,17 @@ export class AuthService {
     };
     inMemoryDb.sessions.set(token, newSession);
 
+    // Persist to PostgreSQL if connected
+    if (db) {
+      try {
+        await db.insert(schema.users).values(newUser as any);
+        await db.insert(schema.workspaceMembers).values(membership as any);
+        await db.insert(schema.sessions).values(newSession as any);
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL insert failed during registerMember:', err.message);
+      }
+    }
+
     return {
       user: sanitizeUser(newUser),
       workspace: sanitizeWorkspace(workspace, assignedRole),
@@ -251,21 +304,58 @@ export class AuthService {
   static async login(input: z.infer<typeof loginSchema>): Promise<AuthSessionResponse> {
     const data = loginSchema.parse(input);
     const normalizedEmail = data.email.toLowerCase().trim();
+    const db = getDb();
 
-    const user = Array.from(inMemoryDb.users.values()).find(
-      (u) => u.email.toLowerCase() === normalizedEmail
-    );
+    console.log('[AuthService] ============================================================');
+    console.log(`[AuthService] [LOGIN ATTEMPT] Incoming email: "${normalizedEmail}"`);
+    console.log(`[AuthService] Active Database Connection: ${db ? 'PostgreSQL (Neon Serverless)' : 'In-Memory Store (Local / Test)'}`);
+
+    // 1. Look up user in PostgreSQL FIRST if connected
+    let user: any = null;
+    let userSource = 'none';
+
+    if (db) {
+      try {
+        const dbUsers = await db.select().from(schema.users).where(eq(schema.users.email, normalizedEmail)).limit(1);
+        if (dbUsers.length > 0) {
+          user = dbUsers[0];
+          userSource = 'PostgreSQL (Neon)';
+          inMemoryDb.users.set(user.id, user as User);
+        }
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL user query error:', err.message);
+      }
+    }
+
+    // Fallback to in-memory store if not found in PostgreSQL or offline test mode
+    if (!user) {
+      user = Array.from(inMemoryDb.users.values()).find(
+        (u) => u.email.toLowerCase() === normalizedEmail
+      );
+      if (user) userSource = 'In-Memory Store';
+    }
+
+    console.log(`[AuthService] User lookup result: ${user ? `FOUND in ${userSource} (ID: ${user.id}, Role: ${user.role}, Platform: ${user.platformRole})` : 'NOT FOUND (0 matches)'}`);
 
     if (!user) {
+      console.warn(`[AuthService] Authentication failed: User "${normalizedEmail}" not found in database.`);
+      console.log('[AuthService] ============================================================');
       throw new Error('INVALID_CREDENTIALS');
     }
 
+    console.log(`[AuthService] Stored password hash: ${user.password ? `${user.password.slice(0, 15)}... (len: ${user.password.length})` : 'EMPTY'}`);
+
+    // 2. Validate Password with bcrypt
     const isValidPassword = await verifyPassword(data.password, user.password);
+    console.log(`[AuthService] bcrypt.compare("${data.password ? '***' : ''}", hash) result: ${isValidPassword ? '✅ VALID' : '❌ INVALID'}`);
+
     if (!isValidPassword) {
+      console.warn(`[AuthService] Authentication failed: Password mismatch for user "${normalizedEmail}".`);
+      console.log('[AuthService] ============================================================');
       throw new Error('INVALID_CREDENTIALS');
     }
 
-    // Update platform role if configured in env
+    // 3. Update platform role if configured in env
     const currentPlatformRole = determinePlatformRole(normalizedEmail);
     if (currentPlatformRole !== 'none' && user.platformRole !== currentPlatformRole) {
       user.platformRole = currentPlatformRole;
@@ -274,32 +364,64 @@ export class AuthService {
       }
       user.updatedAt = new Date();
       inMemoryDb.users.set(user.id, user);
-    }
-
-    // Resolve user's workspace membership
-    let userWorkspace: Workspace | null = null;
-    let userRoleInWorkspace: UserRole = user.role as UserRole;
-
-    // Check if user is owner of a workspace
-    const ownedWorkspace = Array.from(inMemoryDb.workspaces.values()).find(
-      (w) => w.ownerId === user.id
-    );
-
-    if (ownedWorkspace) {
-      userWorkspace = ownedWorkspace;
-      userRoleInWorkspace = 'admin';
-    } else {
-      // Find membership
-      const membership = Array.from(inMemoryDb.workspaceMembers.values()).find(
-        (m) => m.userId === user.id
-      );
-      if (membership) {
-        userWorkspace = inMemoryDb.workspaces.get(membership.workspaceId) || null;
-        userRoleInWorkspace = membership.role as UserRole;
+      if (db) {
+        try {
+          await db.update(schema.users).set({ platformRole: currentPlatformRole, role: user.role, updatedAt: user.updatedAt }).where(eq(schema.users.id, user.id));
+        } catch {
+          // Fallback
+        }
       }
     }
 
-    // Create new session
+    // 4. Resolve user's workspace membership (PostgreSQL priority)
+    let userWorkspace: Workspace | null = null;
+    let userRoleInWorkspace: UserRole = user.role as UserRole;
+
+    if (db) {
+      try {
+        const owned = await db.select().from(schema.workspaces).where(eq(schema.workspaces.ownerId, user.id)).limit(1);
+        if (owned.length > 0) {
+          userWorkspace = owned[0] as Workspace;
+          userRoleInWorkspace = 'admin';
+          inMemoryDb.workspaces.set(userWorkspace.id, userWorkspace);
+        } else {
+          const mems = await db.select().from(schema.workspaceMembers).where(eq(schema.workspaceMembers.userId, user.id)).limit(1);
+          if (mems.length > 0) {
+            const ws = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, mems[0].workspaceId)).limit(1);
+            if (ws.length > 0) {
+              userWorkspace = ws[0] as Workspace;
+              userRoleInWorkspace = mems[0].role as UserRole;
+              inMemoryDb.workspaces.set(userWorkspace.id, userWorkspace);
+              inMemoryDb.workspaceMembers.set(mems[0].id, mems[0] as WorkspaceMember);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL workspace lookup error:', err.message);
+      }
+    }
+
+    if (!userWorkspace) {
+      const ownedWorkspace = Array.from(inMemoryDb.workspaces.values()).find(
+        (w) => w.ownerId === user.id
+      );
+      if (ownedWorkspace) {
+        userWorkspace = ownedWorkspace;
+        userRoleInWorkspace = 'admin';
+      } else {
+        const membership = Array.from(inMemoryDb.workspaceMembers.values()).find(
+          (m) => m.userId === user.id
+        );
+        if (membership) {
+          userWorkspace = inMemoryDb.workspaces.get(membership.workspaceId) || null;
+          userRoleInWorkspace = membership.role as UserRole;
+        }
+      }
+    }
+
+    console.log(`[AuthService] Workspace lookup result: ${userWorkspace ? `FOUND "${userWorkspace.name}" (ID: ${userWorkspace.id}, Role: ${userRoleInWorkspace})` : 'NONE'}`);
+
+    // 5. Create new session
     const now = new Date();
     const token = generateSessionToken();
     const expiresAt = calculateSessionExpiry(7);
@@ -315,6 +437,18 @@ export class AuthService {
       userAgent: null,
     };
     inMemoryDb.sessions.set(token, session);
+
+    if (db) {
+      try {
+        await db.insert(schema.sessions).values(session as any);
+        console.log(`[AuthService] Session row persisted in PostgreSQL (Token: ${token.slice(0, 12)}...)`);
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL session insert failed during login:', err.message);
+      }
+    }
+
+    console.log(`[AuthService] Login successful for "${normalizedEmail}". Session active.`);
+    console.log('[AuthService] ============================================================');
 
     return {
       user: sanitizeUser(user),
@@ -332,8 +466,21 @@ export class AuthService {
    */
   static async getSession(token: string, options?: { maxIdleMs?: number }): Promise<AuthSessionResponse | null> {
     if (!token) return null;
+    const db = getDb();
 
-    const session = inMemoryDb.sessions.get(token);
+    let session = inMemoryDb.sessions.get(token);
+    if (!session && db) {
+      try {
+        const dbSessions = await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1);
+        if (dbSessions.length > 0) {
+          session = dbSessions[0] as Session;
+          inMemoryDb.sessions.set(token, session);
+        }
+      } catch (err: any) {
+        console.error('[AuthService] PostgreSQL session lookup error:', err.message);
+      }
+    }
+
     if (!session) return null;
 
     const now = Date.now();
@@ -342,6 +489,11 @@ export class AuthService {
     // 1. Absolute Expiration Check (7 days maximum)
     if (now > expiryTime) {
       inMemoryDb.sessions.delete(token);
+      if (db) {
+        try {
+          await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+        } catch {}
+      }
       return null;
     }
 
@@ -350,13 +502,33 @@ export class AuthService {
     const lastActiveTime = session.lastActiveAt ? new Date(session.lastActiveAt).getTime() : new Date(session.createdAt).getTime();
     if (now - lastActiveTime > maxIdleMs) {
       inMemoryDb.sessions.delete(token);
+      if (db) {
+        try {
+          await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+        } catch {}
+      }
       return null;
     }
 
     // Update lastActiveAt to slide the idle window
     session.lastActiveAt = new Date();
+    if (db) {
+      try {
+        await db.update(schema.sessions).set({ lastActiveAt: session.lastActiveAt }).where(eq(schema.sessions.token, token));
+      } catch {}
+    }
 
-    const user = inMemoryDb.users.get(session.userId);
+    let user = inMemoryDb.users.get(session.userId);
+    if (!user && db) {
+      try {
+        const dbUsers = await db.select().from(schema.users).where(eq(schema.users.id, session.userId)).limit(1);
+        if (dbUsers.length > 0) {
+          user = dbUsers[0] as User;
+          inMemoryDb.users.set(user.id, user);
+        }
+      } catch {}
+    }
+
     if (!user) {
       inMemoryDb.sessions.delete(token);
       return null;
@@ -367,20 +539,37 @@ export class AuthService {
 
     if (session.workspaceId) {
       workspace = inMemoryDb.workspaces.get(session.workspaceId) || null;
+      if (!workspace && db) {
+        try {
+          const dbWs = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, session.workspaceId)).limit(1);
+          if (dbWs.length > 0) {
+            workspace = dbWs[0] as Workspace;
+            inMemoryDb.workspaces.set(workspace.id, workspace);
+          }
+        } catch {}
+      }
+
       if (workspace) {
-        // SECURITY (Phase 17 — Fix #7): role MUST come from the workspace
-        // membership store. A session pointing at a workspace where the user
-        // holds no membership and does not own the workspace yields NO
-        // workspace context — the global role must never leak in.
-        const member = Array.from(inMemoryDb.workspaceMembers.values()).find(
-          (m) => m.workspaceId === workspace!.id && m.userId === user.id
+        let member: any = Array.from(inMemoryDb.workspaceMembers.values()).find(
+          (m) => m.workspaceId === workspace!.id && m.userId === user!.id
         );
+        if (!member && db) {
+          try {
+            const dbMems = await db.select().from(schema.workspaceMembers).where(
+              and(eq(schema.workspaceMembers.workspaceId, workspace.id), eq(schema.workspaceMembers.userId, user.id))
+            ).limit(1);
+            if (dbMems.length > 0) {
+              member = dbMems[0];
+              inMemoryDb.workspaceMembers.set(member.id, member as WorkspaceMember);
+            }
+          } catch {}
+        }
+
         if (member) {
           roleInWorkspace = member.role as UserRole;
         } else if (workspace.ownerId === user.id) {
           roleInWorkspace = 'admin';
         } else {
-          // No membership + not owner: deny workspace-scoped access entirely.
           workspace = null;
           roleInWorkspace = user.role as UserRole;
         }
@@ -400,7 +589,14 @@ export class AuthService {
    */
   static async logout(token: string): Promise<boolean> {
     if (!token) return false;
-    return inMemoryDb.sessions.delete(token);
+    inMemoryDb.sessions.delete(token);
+    const db = getDb();
+    if (db) {
+      try {
+        await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+      } catch {}
+    }
+    return true;
   }
 
   /**

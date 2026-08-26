@@ -12,7 +12,12 @@ export const InternDashboard: React.FC = () => {
     currentUser, tasks, documents, setActiveTab, updateTaskStatus, incrementDocDownload 
   } = useWorkspace();
 
-  const myTasks = tasks.filter((t) => t.assigned_to === currentUser.id);
+  const myTasks = tasks.filter(
+    (t) =>
+      t.assigned_to === currentUser.id ||
+      (t as any).assignedTo === currentUser.id ||
+      t.assignee?.id === currentUser.id
+  );
   const pendingTasks = myTasks.filter((t) => t.status !== 'completed');
   const inProgressTasks = myTasks.filter((t) => t.status === 'in_progress');
   const completedTasks = myTasks.filter((t) => t.status === 'completed');

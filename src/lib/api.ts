@@ -338,4 +338,54 @@ export const api = {
   async getAdminTools() {
     return await fetchApi<any>('/api/admin/tools');
   },
+
+  // Automations API
+  async getAutomations() {
+    return await fetchApi<{ rules: any[]; total: number }>('/api/automations');
+  },
+
+  async createAutomation(data: {
+    name: string;
+    description?: string;
+    entityType: string;
+    triggerType: string;
+    isActive?: boolean;
+    actions: Array<{ actionType: string; actionConfig: Record<string, any> }>;
+  }) {
+    return await fetchApi<{ rule: any }>('/api/automations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateAutomation(id: string, data: Partial<{
+    name: string;
+    description?: string;
+    entityType: string;
+    triggerType: string;
+    isActive?: boolean;
+    actions: Array<{ actionType: string; actionConfig: Record<string, any> }>;
+  }>) {
+    return await fetchApi<{ rule: any }>(`/api/automations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleAutomation(id: string) {
+    return await fetchApi<{ rule: any }>(`/api/automations/${id}/toggle`, {
+      method: 'PATCH',
+    });
+  },
+
+  async deleteAutomation(id: string) {
+    return await fetchApi<{ success: boolean; message: string }>(`/api/automations/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getAutomationExecutions(ruleId?: string) {
+    const query = ruleId ? `?ruleId=${encodeURIComponent(ruleId)}` : '';
+    return await fetchApi<{ executions: any[]; total: number }>(`/api/automations/executions${query}`);
+  },
 };

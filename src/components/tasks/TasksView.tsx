@@ -72,10 +72,36 @@ export const TasksView: React.FC = () => {
     }
   }, [selectedTask, getTaskComments]);
 
+  // Resilient Assignee lookup helper
+  const getTaskAssignee = (t: Task | null | undefined) => {
+    if (!t) return null;
+    if (t.assignee && typeof t.assignee === 'object' && t.assignee.name) {
+      return t.assignee;
+    }
+    const targetId = t.assigned_to || (t as any).assignedTo;
+    if (targetId) {
+      const found = users.find((u) => u.id === targetId);
+      if (found) return found;
+      if (currentUser && (currentUser.id === targetId || t.assigned_to === currentUser.id)) {
+        return currentUser;
+      }
+    }
+    if (t.assignee_name) {
+      return { id: targetId || '', name: t.assignee_name, avatar: t.assignee_avatar || undefined };
+    }
+    return null;
+  };
+
   // Filter tasks based on role and active filters
   const visibleTasks = tasks.filter((t) => {
-    if (currentRole === 'intern' && t.assigned_to !== currentUser.id) {
-      return false;
+    if (currentRole === 'intern') {
+      const isAssigned =
+        t.assigned_to === currentUser.id ||
+        (t as any).assignedTo === currentUser.id ||
+        t.assignee?.id === currentUser.id;
+      if (!isAssigned) {
+        return false;
+      }
     }
     if (filterPriority !== 'all' && t.priority !== filterPriority) {
       return false;
@@ -251,7 +277,7 @@ export const TasksView: React.FC = () => {
                 {/* Column Tasks */}
                 <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                   {columnTasks.map((task) => {
-                    const assignee = users.find((u) => u.id === task.assigned_to);
+                    const assignee = getTaskAssignee(task);
                     const project = projects.find((p) => p.id === task.project_id);
 
                     return (
@@ -379,7 +405,7 @@ export const TasksView: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-white/[0.04] text-slate-300">
               {visibleTasks.map((task) => {
-                const assignee = users.find((u) => u.id === task.assigned_to);
+                const assignee = getTaskAssignee(task);
                 return (
                   <tr 
                     key={task.id} 
@@ -430,9 +456,10 @@ export const TasksView: React.FC = () => {
                       {permissions.tasks.delete && (
                         <button
                           onClick={() => deleteTask(task.id)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Delete task"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </td>
@@ -444,48 +471,42 @@ export const TasksView: React.FC = () => {
         </div>
       )}
 
-      {/* Task Details & Thread Drawer / Slide-Over */}
+      {/* Task Details Drawer */}
       <AnimatePresence>
         {selectedTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex justify-end">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTask(null)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] z-10"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-[#0F172A] border-l border-white/[0.08] h-full shadow-2xl z-10 flex flex-col"
             >
               {/* Drawer Header */}
-              <div className="p-6 border-b border-white/[0.08] flex items-start justify-between bg-[#111827]">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase border font-mono tracking-wider flex items-center gap-1 ${getPriorityBadge(selectedTask.priority)}`}>
-                      {selectedTask.priority === 'critical' && <Flame className="w-2.5 h-2.5 text-rose-400" />}
-                      {selectedTask.priority}
-                    </span>
-                    <span className="text-xs capitalize px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/[0.06]">
-                      {selectedTask.status.replace('_', ' ')}
-                    </span>
-                    {selectedTask.is_learning_task && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                        Intern Task
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">{selectedTask.title}</h2>
+              <div className="p-6 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border font-mono tracking-wider flex items-center gap-1 ${getPriorityBadge(selectedTask.priority)}`}>
+                    {selectedTask.priority === 'critical' && <Flame className="w-3 h-3 text-rose-400" />}
+                    {selectedTask.priority}
+                  </span>
+                  <span className="capitalize px-2.5 py-0.5 rounded-full bg-slate-800 text-[11px] font-medium border border-white/[0.04] text-slate-300">
+                    {selectedTask.status.replace('_', ' ')}
+                  </span>
                 </div>
+
                 <button
                   onClick={() => setSelectedTask(null)}
-                  className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 cursor-pointer"
+                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -503,7 +524,7 @@ export const TasksView: React.FC = () => {
                     <span className="text-[10px] text-slate-500 block mb-1">Assignee</span>
                     <div className="flex items-center gap-1.5 font-medium text-slate-200">
                       <User className="w-3.5 h-3.5 text-purple-400" />
-                      <span>{users.find((u) => u.id === selectedTask.assigned_to)?.name || 'Unassigned'}</span>
+                      <span>{getTaskAssignee(selectedTask)?.name || 'Unassigned'}</span>
                     </div>
                   </div>
 

@@ -1,11 +1,40 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { SearchService } from '../services/search-service';
+import { SearchV2Service } from '../services/search-v2-service';
 
 export const searchRouter = new Hono();
 
 // All search endpoints require authentication and active workspace
 searchRouter.use('*', authMiddleware);
+
+/**
+ * GET /v2 - Search v2 with tokenized filters (type:, assignee:, status:, priority:)
+ */
+searchRouter.get('/v2', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const q = c.req.query('q') || '';
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
+
+    const result = await SearchV2Service.search({
+      workspaceId: workspace.id,
+      userId: user.id,
+      query: q,
+      limit,
+    });
+
+    return c.json(result, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Search failed' } }, 500);
+  }
+});
 
 /**
  * GET / - Unified Global Search across Projects, Tasks, Teams, Documents, CRM, Users

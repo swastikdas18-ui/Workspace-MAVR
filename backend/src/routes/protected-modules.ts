@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { AuditRepository } from '../repositories/audit-repository';
+import { ProductAnalyticsService } from '../services/product-analytics-service';
 
 export const analyticsRouter = new Hono();
 export const billingRouter = new Hono();
@@ -10,6 +11,56 @@ export const adminRouter = new Hono();
 
 // Analytics (Admin only)
 analyticsRouter.use('*', authMiddleware, requireWorkspaceRole(['admin']));
+
+/**
+ * POST /api/analytics/events - Track product lifecycle event
+ */
+analyticsRouter.post('/events', async (c) => {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+  const body = await c.req.json().catch(() => ({}));
+  const { eventName, entityType, entityId, metadata } = body;
+
+  if (!eventName) {
+    return c.json({ error: { code: 'BAD_REQUEST', message: 'eventName is required' } }, 400);
+  }
+
+  const record = await ProductAnalyticsService.trackEvent({
+    workspaceId: workspace?.id || 'ws-default',
+    userId: user?.id,
+    eventName,
+    entityType,
+    entityId,
+    metadata,
+  });
+
+  return c.json({ success: true, event: record }, 201);
+});
+
+/**
+ * GET /api/analytics/events - Query event telemetry streams
+ */
+analyticsRouter.get('/events', async (c) => {
+  const workspace = c.get('workspace');
+  const eventName = c.req.query('eventName');
+  const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 100;
+
+  const events = await ProductAnalyticsService.getEvents({
+    workspaceId: workspace?.id,
+    eventName,
+    limit,
+  });
+
+  return c.json({ events }, 200);
+});
+
+/**
+ * GET /api/analytics/founder - Founder Usage & Cohort Intelligence
+ */
+analyticsRouter.get('/founder', async (c) => {
+  const analytics = await ProductAnalyticsService.getFounderAnalytics();
+  return c.json(analytics, 200);
+});
 
 analyticsRouter.post('/track', async (c) => {
   const user = c.get('user');

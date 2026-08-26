@@ -540,6 +540,30 @@ founderConsoleRouter.get('/observability', requirePlatformAdmin(), async (c) => 
   }
 });
 
+/**
+ * POST /api/admin/observability/client-error — Intake client-side Sentry error reports
+ */
+founderConsoleRouter.post('/observability/client-error', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const message = body.message || 'Client-side error';
+    const reportId = SentryService.captureException(
+      new Error(message),
+      {
+        extra: {
+          clientPayload: body,
+          userAgent: c.req.header('user-agent'),
+          ip: c.req.header('x-forwarded-for') || 'unknown',
+        },
+      },
+      body.level || 'error'
+    );
+    return c.json({ success: true, reportId }, 201);
+  } catch {
+    return c.json({ success: false }, 200);
+  }
+});
+
 // ============================================================================
 // Register all sub-routers in phase16Router
 // ============================================================================

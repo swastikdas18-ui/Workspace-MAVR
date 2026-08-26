@@ -973,6 +973,66 @@ export const emailHealthMetrics = pgTable(
   })
 );
 
+// 15. Product Analytics Events (events) — Phase 21A
+export const events = pgTable(
+  'events',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    eventName: text('event_name').notNull(),
+    entityType: text('entity_type'),
+    entityId: text('entity_id'),
+    metadata: jsonb('metadata').default({}),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: index('idx_events_ws').on(table.workspaceId),
+    userIdx: index('idx_events_user').on(table.userId),
+    eventNameIdx: index('idx_events_name').on(table.eventName),
+    createdIdx: index('idx_events_created').on(table.createdAt),
+  })
+);
+
+// 16. Workspace Onboarding State (onboarding_state) — Phase 21B
+export const onboardingState = pgTable(
+  'onboarding_state',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    completedSteps: jsonb('completed_steps').$type<string[]>().default([]),
+    dismissed: boolean('dismissed').notNull().default(false),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsIdx: uniqueIndex('idx_onboarding_ws').on(table.workspaceId),
+  })
+);
+
+// 17. Notification Preferences (notification_preferences) — Phase 21C
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    emailDigest: boolean('email_digest').notNull().default(true),
+    taskAssigned: boolean('task_assigned').notNull().default(true),
+    taskDue: boolean('task_due').notNull().default(true),
+    taskCompleted: boolean('task_completed').notNull().default(true),
+    projectUpdated: boolean('project_updated').notNull().default(true),
+    documentMention: boolean('document_mention').notNull().default(true),
+    crmStageChanged: boolean('crm_stage_changed').notNull().default(true),
+    automationExecuted: boolean('automation_executed').notNull().default(true),
+    invoicePaid: boolean('invoice_paid').notNull().default(true),
+    workspaceInvite: boolean('workspace_invite').notNull().default(true),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userWsIdx: uniqueIndex('idx_notif_pref_user_ws').on(table.userId, table.workspaceId),
+  })
+);
+
 // Relational Definitions
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

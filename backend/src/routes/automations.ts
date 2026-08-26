@@ -13,9 +13,9 @@ automationRouter.use('*', authMiddleware);
 
 /**
  * GET / - List all automation rules for active workspace
- * Allowed: ADMIN, EMPLOYEE. Forbidden: INTERN
+ * Allowed: ADMIN only.
  */
-automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -39,7 +39,7 @@ automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c)
 /**
  * GET /rules - Alias for list rules
  */
-automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/rules', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -61,9 +61,84 @@ automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), asyn
 });
 
 /**
- * GET /rules/:id - Get rule by ID
+ * GET /executions - List execution history
+ * Allowed: ADMIN only
  */
-automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/executions', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json(
+        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
+        404
+      );
+    }
+
+    const ruleId = c.req.query('ruleId');
+    const limit = Number(c.req.query('limit')) || 50;
+    const offset = Number(c.req.query('offset')) || 0;
+
+    const executions = await AutomationRepository.listExecutions(workspace.id, {
+      ruleId,
+      limit,
+      offset,
+    });
+
+    return c.json({ executions, total: executions.length }, 200);
+  } catch (err: any) {
+    console.error('[Automation List Executions API Error]:', err);
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list executions.' } },
+      500
+    );
+  }
+});
+
+/**
+ * GET /metrics - Get automation metrics
+ * Allowed: ADMIN only
+ */
+automationRouter.get('/metrics', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json(
+        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
+        404
+      );
+    }
+
+    const rules = await AutomationRepository.listRules(workspace.id);
+    const executions = await AutomationRepository.listExecutions(workspace.id, { limit: 100 });
+
+    const activeRulesCount = rules.filter((r) => r.isActive).length;
+    const successfulExecutions = executions.filter((e) => e.status === 'success').length;
+    const successRate = executions.length > 0 ? (successfulExecutions / executions.length) * 100 : 100;
+
+    return c.json(
+      {
+        metrics: {
+          totalRules: rules.length,
+          activeRules: activeRulesCount,
+          totalExecutions: executions.length,
+          successRate: Math.round(successRate * 10) / 10,
+        },
+      },
+      200
+    );
+  } catch (err: any) {
+    console.error('[Automation Metrics API Error]:', err);
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get automation metrics.' } },
+      500
+    );
+  }
+});
+
+/**
+ * GET /:id & GET /rules/:id - Get rule by ID
+ */
+const getRuleHandler = async (c: any) => {
   try {
     const workspace = c.get('workspace');
     const id = c.req.param('id');
@@ -91,7 +166,10 @@ automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), 
       500
     );
   }
-});
+};
+
+automationRouter.get('/:id', requireWorkspaceRole(['admin']), getRuleHandler);
+automationRouter.get('/rules/:id', requireWorkspaceRole(['admin']), getRuleHandler);
 
 /**
  * POST / - Create a new automation rule
@@ -226,11 +304,7 @@ automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
   }
 });
 
-/**
- * PUT /rules/:id - Update an automation rule
- * Allowed: ADMIN only.
- */
-automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
+const updateRuleHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -281,13 +355,12 @@ automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), async (c) =>
       500
     );
   }
-});
+};
 
-/**
- * PATCH /rules/:id/toggle - Toggle rule active/inactive
- * Allowed: ADMIN only.
- */
-automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.put('/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
+automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
+
+const toggleRuleHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -331,13 +404,12 @@ automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), asy
       500
     );
   }
-});
+};
 
-/**
- * DELETE /rules/:id - Delete an automation rule
- * Allowed: ADMIN only.
- */
-automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.patch('/:id/toggle', requireWorkspaceRole(['admin']), toggleRuleHandler);
+automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), toggleRuleHandler);
+
+const deleteRuleHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -381,66 +453,10 @@ automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), async (c)
       500
     );
   }
-});
+};
 
-/**
- * GET /executions - List execution history
- * Allowed: ADMIN, EMPLOYEE. Forbidden: INTERN
- */
-automationRouter.get('/executions', requireWorkspaceRole(['admin', 'employee']), async (c) => {
-  try {
-    const workspace = c.get('workspace');
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const ruleId = c.req.query('ruleId');
-    const limit = Number(c.req.query('limit')) || 50;
-    const offset = Number(c.req.query('offset')) || 0;
-
-    const executions = await AutomationRepository.listExecutions(workspace.id, {
-      ruleId,
-      limit,
-      offset,
-    });
-
-    return c.json({ executions, total: executions.length }, 200);
-  } catch (err: any) {
-    console.error('[Automation List Executions API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list executions.' } },
-      500
-    );
-  }
-});
-
-/**
- * GET /metrics - Get automation metrics
- * Allowed: ADMIN, EMPLOYEE
- */
-automationRouter.get('/metrics', requireWorkspaceRole(['admin', 'employee']), async (c) => {
-  try {
-    const workspace = c.get('workspace');
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const metrics = await AnalyticsRepository.getAutomationMetrics(workspace.id);
-    return c.json(metrics, 200);
-  } catch (err: any) {
-    console.error('[Automation Metrics API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get automation metrics.' } },
-      500
-    );
-  }
-});
+automationRouter.delete('/:id', requireWorkspaceRole(['admin']), deleteRuleHandler);
+automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), deleteRuleHandler);
 
 /**
  * POST /trigger - Test execution / manual trigger

@@ -3,6 +3,8 @@ import { can, normalizeRole } from '../lib/permissions';
 import { TaskRepository, TaskEntity, TaskCommentEntity } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { EventService } from './event-service';
+import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { inArray } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
@@ -28,6 +30,54 @@ export interface UpdateTaskInput {
 
 export class TaskService {
   /**
+   * Helper to batch resolve assignee user records from database/in-memory
+   */
+  private static async resolveAssigneeMap(
+    userIds: string[]
+  ): Promise<Map<string, { id: string; name: string; email: string; role: string; avatar?: string | null }>> {
+    const userMap = new Map<string, any>();
+    const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+    if (uniqueIds.length === 0) return userMap;
+
+    const db = getDb();
+    if (db) {
+      try {
+        const rows = await db
+          .select({
+            id: schema.users.id,
+            name: schema.users.name,
+            email: schema.users.email,
+            role: schema.users.role,
+            avatar: schema.users.avatar,
+          })
+          .from(schema.users)
+          .where(inArray(schema.users.id, uniqueIds));
+
+        rows.forEach((r) => userMap.set(r.id, r));
+      } catch {
+        // Fallback to inMemoryDb
+      }
+    }
+
+    uniqueIds.forEach((id) => {
+      if (!userMap.has(id)) {
+        const memUser = inMemoryDb.users.get(id);
+        if (memUser) {
+          userMap.set(id, {
+            id: memUser.id,
+            name: memUser.name,
+            email: memUser.email,
+            role: memUser.role,
+            avatar: (memUser as any).avatar || null,
+          });
+        }
+      }
+    });
+
+    return userMap;
+  }
+
+  /**
    * List tasks for the active workspace, filtered by user role
    */
   static async getTasks(
@@ -41,20 +91,29 @@ export class TaskService {
       role,
     });
 
-    return tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description || '',
-      status: t.status || 'todo',
-      priority: t.priority || 'medium',
-      assigned_to: t.assignedTo,
-      project_id: t.projectId || '',
-      workspace_id: t.workspaceId,
-      due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      is_learning_task: t.isLearningTask || false,
-      comments_count: t.commentsCount || 0,
-    }));
+    const userMap = await this.resolveAssigneeMap(tasks.map((t) => t.assignedTo));
+
+    return tasks.map((t) => {
+      const assigneeObj = userMap.get(t.assignedTo) || null;
+      return {
+        id: t.id,
+        title: t.title,
+        description: t.description || '',
+        status: t.status || 'todo',
+        priority: t.priority || 'medium',
+        assigned_to: t.assignedTo,
+        assignedTo: t.assignedTo,
+        assignee: assigneeObj,
+        assignee_name: assigneeObj?.name || null,
+        assignee_avatar: assigneeObj?.avatar || null,
+        project_id: t.projectId || '',
+        workspace_id: t.workspaceId,
+        due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        is_learning_task: t.isLearningTask || false,
+        comments_count: t.commentsCount || 0,
+      };
+    });
   }
 
   /**
@@ -126,6 +185,9 @@ export class TaskService {
       }
     );
 
+    const userMap = await this.resolveAssigneeMap([task.assignedTo]);
+    const assigneeObj = userMap.get(task.assignedTo) || null;
+
     return {
       id: task.id,
       title: task.title,
@@ -133,6 +195,10 @@ export class TaskService {
       status: task.status,
       priority: task.priority,
       assigned_to: task.assignedTo,
+      assignedTo: task.assignedTo,
+      assignee: assigneeObj,
+      assignee_name: assigneeObj?.name || null,
+      assignee_avatar: assigneeObj?.avatar || null,
       project_id: task.projectId,
       workspace_id: task.workspaceId,
       due_date: task.dueDate.toISOString().substring(0, 10),
@@ -193,6 +259,9 @@ export class TaskService {
       }
     }
 
+    const userMap = await this.resolveAssigneeMap([existing.assignedTo]);
+    const assigneeObj = userMap.get(existing.assignedTo) || null;
+
     return {
       id: existing.id,
       title: existing.title,
@@ -200,6 +269,10 @@ export class TaskService {
       status: existing.status || 'todo',
       priority: existing.priority || 'medium',
       assigned_to: existing.assignedTo,
+      assignedTo: existing.assignedTo,
+      assignee: assigneeObj,
+      assignee_name: assigneeObj?.name || null,
+      assignee_avatar: assigneeObj?.avatar || null,
       project_id: existing.projectId || '',
       workspace_id: existing.workspaceId,
       due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
@@ -324,6 +397,9 @@ export class TaskService {
       );
     }
 
+    const userMap = await this.resolveAssigneeMap([updatedTask.assignedTo]);
+    const assigneeObj = userMap.get(updatedTask.assignedTo) || null;
+
     return {
       id: updatedTask.id,
       title: updatedTask.title,
@@ -331,6 +407,10 @@ export class TaskService {
       status: updatedTask.status,
       priority: updatedTask.priority,
       assigned_to: updatedTask.assignedTo,
+      assignedTo: updatedTask.assignedTo,
+      assignee: assigneeObj,
+      assignee_name: assigneeObj?.name || null,
+      assignee_avatar: assigneeObj?.avatar || null,
       project_id: updatedTask.projectId,
       workspace_id: updatedTask.workspaceId,
       due_date: updatedTask.dueDate ? new Date(updatedTask.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),

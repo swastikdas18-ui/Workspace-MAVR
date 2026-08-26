@@ -117,6 +117,28 @@ healthRouter.get('/observability', async (c) => {
   return c.json(observabilityReport, 200);
 });
 
+// Client-side error telemetry ingestion
+healthRouter.post('/client-error', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const message = body.message || 'Client-side component error';
+    const reportId = SentryService.captureException(
+      new Error(message),
+      {
+        extra: {
+          clientPayload: body,
+          userAgent: c.req.header('user-agent'),
+          ip: c.req.header('x-forwarded-for') || 'unknown',
+        },
+      },
+      body.level || 'error'
+    );
+    return c.json({ success: true, reportId }, 201);
+  } catch {
+    return c.json({ success: false }, 200);
+  }
+});
+
 // 6. Infrastructure Metrics & Telemetry
 healthRouter.get('/metrics', (c) => {
   const memoryUsage = process.memoryUsage();

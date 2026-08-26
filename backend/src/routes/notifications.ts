@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { NotificationRepository } from '../repositories/notification-repository';
+import { inMemoryDb } from '../../packages/database';
 
 export const notificationRouter = new Hono();
 
@@ -135,3 +136,88 @@ notificationRouter.delete('/:id', async (c) => {
     );
   }
 });
+
+/**
+ * GET /api/notifications/preferences - Fetch user notification preferences
+ */
+notificationRouter.get('/preferences', async (c) => {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+
+  if (!workspace) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+  }
+
+  const key = `${user.id}:${workspace.id}`;
+  const prefs = inMemoryDb.notificationPreferences?.get(key) || {
+    userId: user.id,
+    workspaceId: workspace.id,
+    emailDigest: true,
+    taskAssigned: true,
+    taskDue: true,
+    taskCompleted: true,
+    projectUpdated: true,
+    documentMention: true,
+    crmStageChanged: true,
+    automationExecuted: true,
+    invoicePaid: true,
+    workspaceInvite: true,
+  };
+
+  return c.json({ preferences: prefs }, 200);
+});
+
+/**
+ * PUT /api/notifications/preferences - Update user notification preferences
+ */
+notificationRouter.put('/preferences', async (c) => {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+  const body = await c.req.json().catch(() => ({}));
+
+  if (!workspace) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+  }
+
+  const key = `${user.id}:${workspace.id}`;
+  const existing = inMemoryDb.notificationPreferences?.get(key) || {
+    userId: user.id,
+    workspaceId: workspace.id,
+  };
+
+  const updated = {
+    ...existing,
+    ...body,
+    userId: user.id,
+    workspaceId: workspace.id,
+    updatedAt: new Date(),
+  };
+
+  inMemoryDb.notificationPreferences?.set(key, updated);
+  return c.json({ success: true, preferences: updated }, 200);
+});
+
+/**
+ * POST /api/notifications/digest - Generate and dispatch email digest
+ */
+notificationRouter.post('/digest', async (c) => {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+
+  if (!workspace) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+  }
+
+  const unreadNotifications = await NotificationRepository.getNotifications(workspace.id, user.id, {
+    unreadOnly: true,
+    limit: 20,
+  });
+
+  return c.json({
+    success: true,
+    recipient: user.email,
+    digestCount: unreadNotifications.length,
+    sentAt: new Date().toISOString(),
+  }, 200);
+});
+

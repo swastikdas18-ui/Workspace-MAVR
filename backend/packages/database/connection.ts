@@ -56,6 +56,11 @@ export class InMemoryDatabase {
   public webhooks: Map<string, any> = new Map();
   public webhookDeliveries: Map<string, any> = new Map();
 
+  // Phase 21 Maps
+  public events: Map<string, any> = new Map();
+  public onboardingState: Map<string, any> = new Map();
+  public notificationPreferences: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -107,6 +112,11 @@ export class InMemoryDatabase {
     this.apiKeys.clear();
     this.webhooks.clear();
     this.webhookDeliveries.clear();
+
+    // Phase 21 resets
+    this.events.clear();
+    this.onboardingState.clear();
+    this.notificationPreferences.clear();
   }
 }
 

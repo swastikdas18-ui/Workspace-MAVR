@@ -3,7 +3,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock
+  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock, Zap
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
@@ -34,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
         { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
         { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
+        { id: 'automations', label: 'Automations Engine', icon: Zap, badge: 'Auto' },
         { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Notion' },
         { id: 'time', label: 'Time & Utilization', icon: Clock, badge: 'Live' },
         { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },

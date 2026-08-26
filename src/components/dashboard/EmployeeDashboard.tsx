@@ -17,7 +17,12 @@ export const EmployeeDashboard: React.FC = () => {
   const assignedProjects = projects.filter((p) => p.member_ids.includes(currentUser.id));
   
   // Filter assigned tasks
-  const myTasks = tasks.filter((t) => t.assigned_to === currentUser.id);
+  const myTasks = tasks.filter(
+    (t) =>
+      t.assigned_to === currentUser.id ||
+      (t as any).assignedTo === currentUser.id ||
+      t.assignee?.id === currentUser.id
+  );
   const myPendingTasks = myTasks.filter((t) => t.status !== 'completed');
   const myCompletedTasks = myTasks.filter((t) => t.status === 'completed');
   

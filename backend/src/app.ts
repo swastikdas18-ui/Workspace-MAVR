@@ -21,6 +21,9 @@ import { foundingPartnerRouter } from './routes/founding-partner';
 import { wikiRouter, timeRouter, guestPortalRouter, integrationRouter } from './routes/msme-extensions';
 import { phase14Router } from './routes/phase14-routes';
 import { phase16Router } from './routes/phase16-routes';
+import { onboardingRouter } from './routes/onboarding';
+import { portabilityRouter } from './routes/portability';
+import { auditRouter } from './routes/audit';
 import { env } from './config/env';
 import { requestLogger } from './middleware/logger';
 import { securityHeaders } from './middleware/security';
@@ -222,6 +225,16 @@ app.route('/portal', guestPortalRouter);
 
 app.route('/api/integrations', integrationRouter);
 app.route('/integrations', integrationRouter);
+
+// Phase 21: Real World Operations, Portability, Onboarding & Compliance
+app.route('/api/onboarding', onboardingRouter);
+app.route('/onboarding', onboardingRouter);
+
+app.route('/api/portability', portabilityRouter);
+app.route('/portability', portabilityRouter);
+
+app.route('/api/audit', auditRouter);
+app.route('/audit', auditRouter);
 
 // Phase 14: Enterprise Revenue & Beta Readiness Routes
 // (already mounted above, before billingRouter, to avoid /billing/webhook collision)

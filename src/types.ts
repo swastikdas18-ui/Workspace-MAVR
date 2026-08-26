@@ -7,10 +7,10 @@ export interface User {
   email: string;
   role: UserRole;
   platformRole?: PlatformRole;
-  avatar: string;
-  title: string;
+  avatar?: string;
+  title?: string;
   teamId?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface Workspace {
@@ -98,6 +98,10 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   assigned_to: string; // user id
+  assignedTo?: string;
+  assignee?: User | { id: string; name: string; email?: string; role?: string; avatar?: string | null } | null;
+  assignee_name?: string | null;
+  assignee_avatar?: string | null;
   project_id: string;
   due_date: string;
   created_at: string;

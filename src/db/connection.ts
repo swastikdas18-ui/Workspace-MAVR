@@ -8,8 +8,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 
-// Connection String from environment variable
-const sql = neon(process.env.DATABASE_URL || 'postgresql://user:password@host/workspace_os?sslmode=require');
+// Connection String from environment variable (strictly server-side)
+const sql = neon(process.env.DATABASE_URL!);
 
 export const db = drizzle(sql, { schema });
 `;

@@ -15,6 +15,7 @@ import { BillingView } from './components/billing/BillingView';
 import { SettingsView } from './components/settings/SettingsView';
 import { AdminToolsView } from './components/admin/AdminToolsView';
 import { WorkspaceView } from './components/workspace/WorkspaceView';
+import { AutomationsView } from './components/automations/AutomationsView';
 import { AcceptInviteView } from './components/invites/AcceptInviteView';
 import { WikiView } from './components/wiki/WikiView';
 import { TimeTrackingView } from './components/time/TimeTrackingView';
@@ -23,6 +24,7 @@ import { IntegrationsView } from './components/integrations/IntegrationsView';
 import { RoleGuard } from './components/common/RoleGuard';
 import { RequireRole } from './components/common/RequireRole';
 import { ForbiddenPage } from './components/common/ForbiddenPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const pathToTabMap: Record<string, string> = {
   '/admin': 'admin_tools',
@@ -30,6 +32,7 @@ const pathToTabMap: Record<string, string> = {
   '/admin/workspace': 'workspace',
   '/admin/projects': 'projects',
   '/admin/tasks': 'tasks',
+  '/admin/automations': 'automations',
   '/admin/documents': 'documents',
   '/admin/crm': 'crm',
   '/admin/teams': 'teams',
@@ -37,6 +40,7 @@ const pathToTabMap: Record<string, string> = {
   '/admin/billing': 'billing',
   '/admin/settings': 'settings',
   '/admin/tools': 'admin_tools',
+  '/automations': 'automations',
   '/employee/dashboard': 'dashboard',
   '/employee/projects': 'projects',
   '/employee/tasks': 'tasks',
@@ -60,6 +64,7 @@ const pathToTabMap: Record<string, string> = {
 
 const tabToPathMap: Record<string, string> = {
   admin_tools: '/admin/tools',
+  automations: '/admin/automations',
   analytics: '/analytics',
   billing: '/billing',
   settings: '/settings',
@@ -239,6 +244,13 @@ const MainAppContent: React.FC = () => {
           </RequireRole>
         );
 
+      case 'automations':
+        return (
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workflow automations are restricted to Administrators." />}>
+            <AutomationsView />
+          </RequireRole>
+        );
+
       case 'admin_tools':
         return (
           <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="System RBAC diagnostics and PostgreSQL Drizzle ORM tools are restricted to Administrators." />}>
@@ -256,8 +268,10 @@ const MainAppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <WorkspaceProvider>
-      <MainAppContent />
-    </WorkspaceProvider>
+    <ErrorBoundary fallbackTitle="Application Error" onReset={() => window.location.reload()}>
+      <WorkspaceProvider>
+        <MainAppContent />
+      </WorkspaceProvider>
+    </ErrorBoundary>
   );
 }

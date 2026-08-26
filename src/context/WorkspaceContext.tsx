@@ -143,7 +143,31 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setProjects(projectsRes.value.projects);
       }
       if (tasksRes.status === 'fulfilled' && tasksRes.value?.tasks) {
-        setTasks(tasksRes.value.tasks);
+        const fetchedTasks = tasksRes.value.tasks;
+        setTasks(fetchedTasks);
+
+        // Dynamically harvest assignees attached to tasks into user cache
+        const taskAssignees = fetchedTasks
+          .map((t: any) => t.assignee)
+          .filter((a: any) => a && a.id && a.name);
+
+        if (taskAssignees.length > 0) {
+          setUsers((prev) => {
+            const userMap = new Map<string, User>(prev.map((u) => [u.id, u]));
+            taskAssignees.forEach((a: any) => {
+              if (!userMap.has(a.id) || !userMap.get(a.id)?.name) {
+                userMap.set(a.id, {
+                  id: a.id,
+                  name: a.name,
+                  email: a.email || `${a.name.toLowerCase().replace(/\s+/g, '.')}@workspace.dev`,
+                  role: a.role || 'employee',
+                  avatar: a.avatar || undefined,
+                });
+              }
+            });
+            return Array.from(userMap.values());
+          });
+        }
       }
       if (teamsRes.status === 'fulfilled' && teamsRes.value?.teams) {
         setTeams(teamsRes.value.teams);
@@ -160,7 +184,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           role: m.role || m.member.role,
         }));
         if (fetchedUsers.length > 0) {
-          setUsers(fetchedUsers);
+          setUsers((prev) => {
+            const userMap = new Map<string, User>(prev.map((u) => [u.id, u]));
+            fetchedUsers.forEach((u: User) => userMap.set(u.id, u));
+            return Array.from(userMap.values());
+          });
         }
       }
     } catch (err) {
@@ -174,7 +202,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const session = await api.getSession();
         if (session?.user) {
-          setCurrentUser(session.user as User);
+          const authUser = session.user as User;
+          setCurrentUser(authUser);
+          setUsers((prev) => {
+            if (!prev.some((u) => u.id === authUser.id)) {
+              return [authUser, ...prev];
+            }
+            return prev.map((u) => (u.id === authUser.id ? { ...u, ...authUser } : u));
+          });
+
           if (session.workspace) {
             setCurrentWorkspace({
               id: session.workspace.id,
@@ -197,6 +233,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsAuthBootstrapping(false);
       }
     }
+
     loadBackendSession();
   }, [refreshWorkspaceData]);
 

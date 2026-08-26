@@ -4,6 +4,7 @@ import { ActivityRepository } from '../repositories/activity-repository';
 import { AuditRepository } from '../repositories/audit-repository';
 import { TaskRepository } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
+import { CRMRepository } from '../repositories/crm-repository';
 import { WorkspaceRepository } from '../repositories/workspace-repository';
 import { getDb } from '../../packages/database';
 
@@ -243,6 +244,7 @@ export class AutomationService {
             break;
           }
 
+          case 'create_activity_log':
           case 'create_activity': {
             const targetEntityType = config.entityType || entityType;
             const targetEntityId = config.entityId || entityId;
@@ -265,7 +267,7 @@ export class AutomationService {
             );
 
             executedActions.push({
-              actionType: 'create_activity',
+              actionType: 'create_activity_log',
               result: { targetEntityType, targetEntityId, action: actionText },
             });
             break;
@@ -338,9 +340,10 @@ export class AutomationService {
             break;
           }
 
+          case 'assign_user':
           case 'assign_task': {
             const taskId = config.taskId || (entityType === 'task' ? entityId : undefined);
-            let assignedTo = config.assignedTo || eventData.userId || context.actorId;
+            let assignedTo = config.assignedTo || config.userId || eventData.userId || context.actorId;
 
             if (assignedTo === 'actor' || assignedTo === 'current_user') {
               assignedTo = context.actorId;
@@ -353,8 +356,25 @@ export class AutomationService {
                 assignedTo,
               });
               executedActions.push({
-                actionType: 'assign_task',
+                actionType: 'assign_user',
                 result: { taskId, assignedTo },
+              });
+            }
+            break;
+          }
+
+          case 'move_crm_stage':
+          case 'update_crm_stage': {
+            const crmId = config.crmRecordId || (entityType === 'crm' ? entityId : undefined);
+            const targetStage = config.stage || config.status || 'qualified';
+
+            if (crmId) {
+              await CRMRepository.updateRecord(crmId, rule.workspaceId, {
+                status: targetStage,
+              });
+              executedActions.push({
+                actionType: 'move_crm_stage',
+                result: { crmId, status: targetStage },
               });
             }
             break;

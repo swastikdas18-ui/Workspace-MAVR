@@ -41,6 +41,12 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
           icon: UserRound,
           styles: 'bg-slate-500/10 text-slate-300 border-slate-500/20 shadow-[0_0_12px_-3px_rgba(148,163,184,0.25)]',
         };
+      default:
+        return {
+          label: 'Guest',
+          icon: UserRound,
+          styles: 'bg-slate-500/10 text-slate-300 border-slate-500/20 shadow-[0_0_12px_-3px_rgba(148,163,184,0.25)]',
+        };
     }
   };
 

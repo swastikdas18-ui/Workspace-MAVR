@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Briefcase, GraduationCap } from 'lucide-react';
+import { Shield, Briefcase, GraduationCap, UserRound } from 'lucide-react';
 import { UserRole } from '../../types';
 
 interface RoleBadgeProps {
@@ -34,6 +34,12 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
           label: 'Intern',
           icon: GraduationCap,
           styles: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20 shadow-[0_0_12px_-3px_rgba(16,185,129,0.25)]',
+        };
+      case 'guest':
+        return {
+          label: 'Guest',
+          icon: UserRound,
+          styles: 'bg-slate-500/10 text-slate-300 border-slate-500/20 shadow-[0_0_12px_-3px_rgba(148,163,184,0.25)]',
         };
     }
   };

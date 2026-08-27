@@ -11,68 +11,10 @@ import { EmptyState } from '../common/EmptyState';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const WikiView: React.FC = () => {
-  const { currentRole, currentUser } = useWorkspace();
-  const [pages, setPages] = useState<WikiPageItem[]>([
-    {
-      id: 'wiki-1',
-      workspaceId: 'ws-default',
-      parentId: null,
-      title: 'Company Knowledge Base & Culture',
-      icon: '🏢',
-      slug: 'company-knowledge-base',
-      contentJson: {
-        blocks: [
-          { type: 'header', text: 'Welcome to Workspace OS Company Handbook' },
-          { type: 'paragraph', text: 'Our mission is to help growing MSMEs execute at elite speed with zero friction.' },
-          { type: 'checklist', items: ['Zero-Trust RBAC security', '100% On-time deliverable velocity', 'Direct client transparency'] }
-        ]
-      },
-      visibility: 'team',
-      createdBy: 'usr-admin',
-      createdAt: '2026-08-20T10:00:00Z',
-      updatedAt: '2026-08-24T18:30:00Z'
-    },
-    {
-      id: 'wiki-2',
-      workspaceId: 'ws-default',
-      parentId: 'wiki-1',
-      title: 'Engineering Deployment Checklist',
-      icon: '🚀',
-      slug: 'engineering-deployment-checklist',
-      contentJson: {
-        blocks: [
-          { type: 'header', text: 'Production Release Protocol' },
-          { type: 'paragraph', text: 'Always run automated test suites before merging PRs.' },
-          { type: 'checklist', items: ['Run `npm run lint`', 'Run `npx tsx backend/tests/phase13-validation.ts`', 'Verify B2 Object Storage health'] }
-        ]
-      },
-      visibility: 'team',
-      createdBy: 'usr-admin',
-      createdAt: '2026-08-21T12:00:00Z',
-      updatedAt: '2026-08-25T01:15:00Z'
-    },
-    {
-      id: 'wiki-3',
-      workspaceId: 'ws-default',
-      parentId: null,
-      title: 'Intern Onboarding & Learning Curriculum',
-      icon: '🎓',
-      slug: 'intern-onboarding-curriculum',
-      contentJson: {
-        blocks: [
-          { type: 'header', text: 'Trainee Learning Path' },
-          { type: 'paragraph', text: 'Review all public and learning SOPs during your first week.' },
-          { type: 'checklist', items: ['Read Architecture Guide', 'Complete 3 learning tasks', 'Submit deliverable for peer review'] }
-        ]
-      },
-      visibility: 'learning',
-      createdBy: 'usr-admin',
-      createdAt: '2026-08-22T09:00:00Z',
-      updatedAt: '2026-08-24T14:20:00Z'
-    }
-  ]);
+  const { currentRole, currentUser, currentWorkspace } = useWorkspace();
+  const [pages, setPages] = useState<WikiPageItem[]>([]);
 
-  const [selectedPageId, setSelectedPageId] = useState<string>(pages[0]?.id || '');
+  const [selectedPageId, setSelectedPageId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -80,17 +22,7 @@ export const WikiView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'content' | 'comments' | 'versions'>('content');
   
   // Comments state
-  const [comments, setComments] = useState<WikiCommentItem[]>([
-    {
-      id: 'c1',
-      pageId: 'wiki-2',
-      userId: 'usr-emp-1',
-      userName: 'Senior Engineer',
-      comment: 'Verified the Backblaze B2 bucket health checks. All systems green.',
-      resolved: false,
-      createdAt: '2026-08-24T19:00:00Z'
-    }
-  ]);
+  const [comments, setComments] = useState<WikiCommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
 
   const selectedPage = pages.find((p) => p.id === selectedPageId) || pages[0];
@@ -98,7 +30,7 @@ export const WikiView: React.FC = () => {
   const handleCreatePage = (parentId: string | null = null) => {
     const newPage: WikiPageItem = {
       id: `wiki-${Date.now()}`,
-      workspaceId: 'ws-default',
+      workspaceId: currentWorkspace?.id || 'ws-default',
       parentId,
       title: 'Untitled Document',
       icon: '📄',
@@ -220,36 +152,42 @@ export const WikiView: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-            {visiblePages.map((page) => {
-              const isSelected = page.id === selectedPage?.id;
-              const isSubpage = !!page.parentId;
-              return (
-                <div
-                  key={page.id}
-                  onClick={() => {
-                    setSelectedPageId(page.id);
-                    setIsEditing(false);
-                  }}
-                  className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer group ${
-                    isSubpage ? 'ml-3' : ''
-                  } ${
-                    isSelected
-                      ? 'bg-blue-600/15 border border-blue-500/30 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm">{page.icon}</span>
-                    <span className="truncate">{page.title}</span>
+            {visiblePages.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500">
+                No pages created yet.
+              </div>
+            ) : (
+              visiblePages.map((page) => {
+                const isSelected = page.id === selectedPage?.id;
+                const isSubpage = !!page.parentId;
+                return (
+                  <div
+                    key={page.id}
+                    onClick={() => {
+                      setSelectedPageId(page.id);
+                      setIsEditing(false);
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer group ${
+                      isSubpage ? 'ml-3' : ''
+                    } ${
+                      isSelected
+                        ? 'bg-blue-600/15 border border-blue-500/30 text-white shadow-sm'
+                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm">{page.icon}</span>
+                      <span className="truncate">{page.title}</span>
+                    </div>
+                    {page.visibility === 'learning' && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        Learn
+                      </span>
+                    )}
                   </div>
-                  {page.visibility === 'learning' && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      Learn
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           {currentRole !== 'intern' && selectedPage && (
@@ -452,9 +390,11 @@ export const WikiView: React.FC = () => {
             </div>
           ) : (
             <EmptyState
-              title="No Page Selected"
-              description="Select a wiki page from the sidebar or create a new one."
+              title={pages.length === 0 ? "No Wiki Documents Yet" : "No Page Selected"}
+              description={pages.length === 0 ? "Create company playbooks, engineering checklists, or intern onboarding guides." : "Select a wiki page from the sidebar or create a new one."}
               icon={BookOpen}
+              actionLabel={currentRole !== 'intern' ? 'Create First Page' : undefined}
+              onAction={currentRole !== 'intern' ? () => handleCreatePage(null) : undefined}
             />
           )}
         </div>

@@ -58,11 +58,28 @@ export class TeamRepository {
             .from(schema.teamMembers)
             .where(inArray(schema.teamMembers.teamId, teamIds));
 
-          const membersByTeam = new Map<string, string[]>();
+          const userRows = await db
+            .select({ id: schema.users.id, teamId: schema.users.teamId })
+            .from(schema.users)
+            .where(inArray(schema.users.teamId, teamIds));
+
+          const membersByTeam = new Map<string, Set<string>>();
+          teamRows.forEach((t) => {
+            membersByTeam.set(t.id, new Set([t.leadId].filter(Boolean)));
+          });
+
           memberRows.forEach((m) => {
-            const list = membersByTeam.get(m.teamId) || [];
-            list.push(m.userId);
-            membersByTeam.set(m.teamId, list);
+            const set = membersByTeam.get(m.teamId) || new Set<string>();
+            set.add(m.userId);
+            membersByTeam.set(m.teamId, set);
+          });
+
+          userRows.forEach((u) => {
+            if (u.teamId) {
+              const set = membersByTeam.get(u.teamId) || new Set<string>();
+              set.add(u.id);
+              membersByTeam.set(u.teamId, set);
+            }
           });
 
           return teamRows.map((t) => ({
@@ -73,7 +90,7 @@ export class TeamRepository {
             leadId: t.leadId,
             color: t.color || '#3b82f6',
             createdAt: t.createdAt,
-            memberIds: membersByTeam.get(t.id) || [t.leadId],
+            memberIds: Array.from(membersByTeam.get(t.id) || [t.leadId]),
           }));
         }
       }
@@ -87,9 +104,13 @@ export class TeamRepository {
     );
 
     return teams.map((t) => {
-      const members = Array.from(inMemoryDb.teamMembers.values())
+      const explicitMembers = Array.from(inMemoryDb.teamMembers.values())
         .filter((tm) => tm.teamId === t.id)
         .map((tm) => tm.userId);
+      const userAssigned = Array.from(inMemoryDb.users.values())
+        .filter((u) => u.teamId === t.id)
+        .map((u) => u.id);
+      const allMembers = Array.from(new Set([...explicitMembers, ...userAssigned, t.leadId].filter(Boolean)));
 
       return {
         id: t.id,
@@ -99,7 +120,7 @@ export class TeamRepository {
         leadId: t.leadId,
         color: t.color || '#3b82f6',
         createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
-        memberIds: members.length > 0 ? members : [t.leadId],
+        memberIds: allMembers.length > 0 ? allMembers : [t.leadId],
       };
     });
   }

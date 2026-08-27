@@ -287,13 +287,15 @@ export class TaskRepository {
     const now = new Date();
     const dueDate = data.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    const assignedTo = data.assignedTo && data.assignedTo.trim() ? data.assignedTo.trim() : userId;
+
     const newTaskRecord = {
       id: taskId,
       title: data.title,
       description: data.description || '',
       status: data.status || 'todo',
       priority: data.priority || 'medium',
-      assignedTo: data.assignedTo,
+      assignedTo,
       projectId: data.projectId,
       workspaceId,
       createdBy: userId,
@@ -313,7 +315,7 @@ export class TaskRepository {
           description: data.description || '',
           status: data.status || 'todo',
           priority: data.priority || 'medium',
-          assignedTo: data.assignedTo,
+          assignedTo,
           projectId: data.projectId,
           workspaceId,
           dueDate,
@@ -331,7 +333,7 @@ export class TaskRepository {
       description: data.description || '',
       status: data.status || 'todo',
       priority: data.priority || 'medium',
-      assignedTo: data.assignedTo,
+      assignedTo,
       projectId: data.projectId,
       workspaceId,
       createdBy: userId,

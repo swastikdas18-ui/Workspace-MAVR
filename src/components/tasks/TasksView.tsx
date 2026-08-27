@@ -46,13 +46,16 @@ export const TasksView: React.FC = () => {
     const defaultAssignee = currentUser?.id || users[0]?.id || '';
     setAssignedTo(defaultAssignee);
     setProjectId(projects[0]?.id || '');
-    setDueDate('');
+    setDueDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10));
     const targetUser = users.find(u => u.id === defaultAssignee);
     setIsLearningTask(targetUser?.role === 'intern');
   };
 
   const handleOpenCreateModal = () => {
     resetCreateForm();
+    if (projects.length > 0) {
+      setProjectId(projects[0].id);
+    }
     setIsCreateModalOpen(true);
   };
 
@@ -704,12 +707,17 @@ export const TasksView: React.FC = () => {
                     <label className="block text-slate-300 font-medium mb-1">Associated Initiative</label>
                     <select
                       value={projectId}
+                      required
                       onChange={(e) => setProjectId(e.target.value)}
                       className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
                     >
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>{p.title}</option>
-                      ))}
+                      {projects.length === 0 ? (
+                        <option value="">No initiatives found — create a project first</option>
+                      ) : (
+                        projects.map((p) => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>

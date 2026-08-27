@@ -217,11 +217,48 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return Array.from(userMap.values());
           });
         }
+        setCurrentWorkspace((prev) => prev ? { ...prev, member_count: rawMembers.length || 1 } : prev);
       }
+
+      // Also refresh workspace list with live counts
+      try {
+        const wsRes = await api.getWorkspaces();
+        if (wsRes?.workspaces && wsRes.workspaces.length > 0) {
+          setUserWorkspaces(wsRes.workspaces.map((w: any) => ({
+            id: w.id,
+            name: w.name,
+            slug: w.slug,
+            owner_id: w.ownerId || w.owner_id,
+            plan: w.plan || 'pro',
+            created_at: w.createdAt || new Date().toISOString(),
+            logo: w.logo || undefined,
+            role: w.roleInWorkspace || w.role || 'employee',
+            member_count: w.memberCount || 1,
+          })));
+        }
+      } catch (_) {}
     } catch (err) {
       console.warn('[Workspace OS] Background data refresh:', err);
     }
   }, []);
+
+  // Live real-time background synchronization (every 8s and on window focus)
+  useEffect(() => {
+    if (isLandingPage || !currentUser?.id) return;
+    const interval = setInterval(() => {
+      refreshWorkspaceData();
+    }, 8000);
+
+    const onFocus = () => {
+      refreshWorkspaceData();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isLandingPage, currentUser?.id, refreshWorkspaceData]);
 
   // Sync session and workspaces with backend API on mount
   useEffect(() => {

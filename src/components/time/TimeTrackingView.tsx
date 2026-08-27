@@ -9,57 +9,17 @@ import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
 
 export const TimeTrackingView: React.FC = () => {
-  const { currentRole, currentUser, tasks } = useWorkspace();
+  const { currentRole, currentUser, currentWorkspace, tasks } = useWorkspace();
 
   // Stopwatch state
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [activeTaskTitle, setActiveTaskTitle] = useState(tasks[0]?.title || 'Hero Component Refactor');
+  const [activeTaskTitle, setActiveTaskTitle] = useState(tasks[0]?.title || 'Product Development');
   const [isBillable, setIsBillable] = useState(true);
   const [hourlyRate, setHourlyRate] = useState(2000); // ₹2,000 / hr
 
   // Entries state
-  const [entries, setEntries] = useState<TaskTimeEntryItem[]>([
-    {
-      id: 'entry-1',
-      workspaceId: 'ws-default',
-      taskId: tasks[0]?.id || 'task-1',
-      userId: currentUser.id,
-      startTime: '2026-08-25T09:00:00Z',
-      endTime: '2026-08-25T11:30:00Z',
-      durationMinutes: 150,
-      billable: true,
-      hourlyRate: 2000,
-      notes: 'Implemented interactive Wiki view and responsive layout',
-      createdAt: '2026-08-25T11:30:00Z'
-    },
-    {
-      id: 'entry-2',
-      workspaceId: 'ws-default',
-      taskId: tasks[1]?.id || 'task-2',
-      userId: currentUser.id,
-      startTime: '2026-08-25T13:00:00Z',
-      endTime: '2026-08-25T14:15:00Z',
-      durationMinutes: 75,
-      billable: true,
-      hourlyRate: 2000,
-      notes: 'Client deliverable review and feedback updates',
-      createdAt: '2026-08-25T14:15:00Z'
-    },
-    {
-      id: 'entry-3',
-      workspaceId: 'ws-default',
-      taskId: 'task-internal-sync',
-      userId: currentUser.id,
-      startTime: '2026-08-24T16:00:00Z',
-      endTime: '2026-08-24T16:45:00Z',
-      durationMinutes: 45,
-      billable: false,
-      hourlyRate: 0,
-      notes: 'Weekly engineering standup & retrospective',
-      createdAt: '2026-08-24T16:45:00Z'
-    }
-  ]);
+  const [entries, setEntries] = useState<TaskTimeEntryItem[]>([]);
 
   // Stopwatch interval
   useEffect(() => {
@@ -86,15 +46,15 @@ export const TimeTrackingView: React.FC = () => {
     const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
     const newEntry: TaskTimeEntryItem = {
       id: `entry-${Date.now()}`,
-      workspaceId: 'ws-default',
-      taskId: 'task-active',
+      workspaceId: currentWorkspace?.id || 'ws-default',
+      taskId: tasks[0]?.id || 'task-active',
       userId: currentUser.id,
       startTime: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
       endTime: new Date().toISOString(),
       durationMinutes,
       billable: isBillable,
       hourlyRate: isBillable ? hourlyRate : 0,
-      notes: activeTaskTitle,
+      notes: activeTaskTitle || 'Initiative work',
       createdAt: new Date().toISOString()
     };
 
@@ -183,8 +143,8 @@ export const TimeTrackingView: React.FC = () => {
           value={`${(totalMinutes / 60).toFixed(1)} hrs`}
           icon={Clock}
           color="blue"
-          trend={{ value: 'This week', direction: 'neutral', label: 'logged' }}
-          sparklineData={[10, 20, 30, 45, 60, 75, totalMinutes / 60]}
+          trend={{ value: `${entries.length} logs`, direction: 'neutral', label: 'recorded' }}
+          sparklineData={entries.length > 0 ? [0, totalMinutes / 60] : [0]}
         />
         <MetricCard
           label="Billable Hours"
@@ -192,15 +152,15 @@ export const TimeTrackingView: React.FC = () => {
           icon={DollarSign}
           color="emerald"
           trend={{ value: `${((totalMinutes - billableMinutes) / 60).toFixed(1)} non-billable`, direction: 'up', label: 'client focus' }}
-          sparklineData={[15, 25, 35, 50, 65, 80, billableMinutes / 60]}
+          sparklineData={entries.length > 0 ? [0, billableMinutes / 60] : [0]}
         />
         <MetricCard
           label="Billable Revenue"
           value={`₹${Math.round(totalRevenue).toLocaleString()}`}
           icon={TrendingUp}
           color="purple"
-          trend={{ value: `₹${hourlyRate}/hr avg`, direction: 'up', label: 'realized' }}
-          sparklineData={[2000, 4000, 6000, 8000, 10000, totalRevenue]}
+          trend={{ value: `₹${hourlyRate}/hr rate`, direction: 'up', label: 'realized' }}
+          sparklineData={entries.length > 0 ? [0, totalRevenue] : [0]}
         />
         <MetricCard
           label="Team Utilization"
@@ -208,7 +168,7 @@ export const TimeTrackingView: React.FC = () => {
           icon={BarChart3}
           color="amber"
           trend={{ value: 'Target: >75%', direction: 'up', label: 'efficiency' }}
-          sparklineData={[50, 60, 65, 70, 75, 80, utilizationRate]}
+          sparklineData={entries.length > 0 ? [0, utilizationRate] : [0]}
         />
       </div>
 
@@ -223,47 +183,53 @@ export const TimeTrackingView: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-white/[0.04] text-slate-400">
-                <th className="pb-3 font-semibold">Date & Time</th>
-                <th className="pb-3 font-semibold">Task / Initiative</th>
-                <th className="pb-3 font-semibold">Duration</th>
-                <th className="pb-3 font-semibold">Billable</th>
-                <th className="pb-3 font-semibold">Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]">
-              {entries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 text-slate-400 font-mono text-[11px]">
-                    {new Date(entry.startTime).toLocaleDateString()}{' '}
-                    {new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="py-3 font-medium text-white max-w-xs truncate">
-                    {entry.notes || 'Initiative work'}
-                  </td>
-                  <td className="py-3 font-mono font-bold text-slate-200">
-                    {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
-                  </td>
-                  <td className="py-3">
-                    {entry.billable ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        <CheckCircle2 className="w-3 h-3" /> Yes
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
-                        Internal
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 font-mono font-bold text-emerald-400">
-                    {entry.billable ? `₹${Math.round((entry.durationMinutes / 60) * entry.hourlyRate).toLocaleString()}` : '—'}
-                  </td>
+          {entries.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500">
+              No time entries recorded for this workspace yet. Start the stopwatch above or log your billable hours.
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/[0.04] text-slate-400">
+                  <th className="pb-3 font-semibold">Date & Time</th>
+                  <th className="pb-3 font-semibold">Task / Initiative</th>
+                  <th className="pb-3 font-semibold">Duration</th>
+                  <th className="pb-3 font-semibold">Billable</th>
+                  <th className="pb-3 font-semibold">Revenue</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {entries.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 text-slate-400 font-mono text-[11px]">
+                      {new Date(entry.startTime).toLocaleDateString()}{' '}
+                      {new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="py-3 font-medium text-white max-w-xs truncate">
+                      {entry.notes || 'Initiative work'}
+                    </td>
+                    <td className="py-3 font-mono font-bold text-slate-200">
+                      {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
+                    </td>
+                    <td className="py-3">
+                      {entry.billable ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          <CheckCircle2 className="w-3 h-3" /> Yes
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                          Internal
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 font-mono font-bold text-emerald-400">
+                      {entry.billable ? `₹${Math.round((entry.durationMinutes / 60) * entry.hourlyRate).toLocaleString()}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

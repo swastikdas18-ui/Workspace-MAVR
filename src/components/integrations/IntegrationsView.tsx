@@ -8,40 +8,10 @@ import { CalendarEventItemType, EmailLogItemType } from '../../types';
 import { PageHeader } from '../common/PageHeader';
 
 export const IntegrationsView: React.FC = () => {
-  const { currentRole, crmRecords } = useWorkspace();
+  const { currentRole, crmRecords, currentWorkspace } = useWorkspace();
 
-  const [events, setEvents] = useState<CalendarEventItemType[]>([
-    {
-      id: 'cal-1',
-      workspaceId: 'ws-default',
-      crmRecordId: crmRecords[0]?.id || 'crm-1',
-      title: 'Discovery & Proposal Alignment Call',
-      description: 'Discussing scope, timelines, and 12-month Business roadmap.',
-      meetingUrl: 'https://meet.google.com/abc-defg-hij',
-      startTime: '2026-08-25T15:00:00Z',
-      endTime: '2026-08-25T15:45:00Z',
-      attendees: [
-        { email: 'founder@msme.com', name: 'Alice Founder' },
-        { email: 'robert@apexglobal.com', name: 'Robert Vance' }
-      ],
-      status: 'confirmed',
-      createdAt: '2026-08-24T18:00:00Z'
-    }
-  ]);
-
-  const [emails, setEmails] = useState<EmailLogItemType[]>([
-    {
-      id: 'eml-1',
-      workspaceId: 'ws-default',
-      crmRecordId: crmRecords[0]?.id || 'crm-1',
-      from: 'robert@apexglobal.com',
-      to: 'founder@msme.com',
-      subject: 'Re: Workspace OS Implementation Retainer',
-      snippet: 'We have approved the ₹1,50,000 monthly retainer contract. Let us schedule kickoff.',
-      direction: 'inbound',
-      timestamp: '2026-08-25T08:30:00Z'
-    }
-  ]);
+  const [events, setEvents] = useState<CalendarEventItemType[]>([]);
+  const [emails, setEmails] = useState<EmailLogItemType[]>([]);
 
   const [isGoogleConnected, setIsGoogleConnected] = useState(true);
   const [newMeetingTitle, setNewMeetingTitle] = useState('');
@@ -54,7 +24,7 @@ export const IntegrationsView: React.FC = () => {
 
     const newEvt: CalendarEventItemType = {
       id: `cal-${Date.now()}`,
-      workspaceId: 'ws-default',
+      workspaceId: currentWorkspace?.id || 'ws-default',
       title: newMeetingTitle.trim(),
       description: 'Scheduled via Workspace OS Google Calendar sync.',
       meetingUrl: `https://meet.google.com/${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`,

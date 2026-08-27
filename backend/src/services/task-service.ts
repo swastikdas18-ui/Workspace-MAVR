@@ -162,12 +162,14 @@ export class TaskService {
 
     const dueDate = input.dueDate ? new Date(input.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    const assignedTo = input.assignedTo && input.assignedTo.trim() ? input.assignedTo.trim() : userId;
+
     const task = await TaskRepository.createTask(workspaceId, userId, {
       title: input.title.trim(),
       description: input.description?.trim() || '',
       status: input.status || 'todo',
       priority: input.priority || 'medium',
-      assignedTo: input.assignedTo,
+      assignedTo,
       projectId: input.projectId,
       dueDate,
       isLearningTask: input.isLearningTask || false,

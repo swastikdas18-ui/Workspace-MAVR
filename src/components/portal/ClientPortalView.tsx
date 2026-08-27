@@ -8,37 +8,11 @@ import { DeliverableApprovalItem } from '../../types';
 import { PageHeader } from '../common/PageHeader';
 
 export const ClientPortalView: React.FC = () => {
-  const { currentRole, currentUser } = useWorkspace();
+  const { currentRole, currentUser, currentWorkspace } = useWorkspace();
 
-  const [approvals, setApprovals] = useState<DeliverableApprovalItem[]>([
-    {
-      id: 'appr-1',
-      workspaceId: 'ws-default',
-      projectId: 'proj-brand-relaunch',
-      title: 'Brand Identity Design System & Vector Assets (v1.0)',
-      description: 'Complete Figma master design system, color tokens, typography scales, and high-res vector logo variations.',
-      fileUrl: 'https://docs.workspaceos.dev/brand-guidelines-v1.pdf',
-      guestId: 'gst-1',
-      status: 'pending',
-      createdAt: '2026-08-24T10:00:00Z'
-    },
-    {
-      id: 'appr-2',
-      workspaceId: 'ws-default',
-      projectId: 'proj-ecommerce-mvp',
-      title: 'Phase 1 Sprint Deliverables & Architectural Spec',
-      description: 'PostgreSQL database schemas, API contracts, and Render cloud staging URL.',
-      fileUrl: 'https://docs.workspaceos.dev/architecture-spec.pdf',
-      guestId: 'gst-1',
-      status: 'approved',
-      feedback: 'Approved by Robert Vance on Aug 24. Outstanding execution.',
-      signatureHash: 'SIG-Um9iZXJ0IFZhbmNl',
-      signedAt: '2026-08-24T18:45:00Z',
-      createdAt: '2026-08-23T14:00:00Z'
-    }
-  ]);
+  const [approvals, setApprovals] = useState<DeliverableApprovalItem[]>([]);
 
-  const [signerName, setSignerName] = useState('Robert Vance');
+  const [signerName, setSignerName] = useState(currentUser.name || 'Client Reviewer');
   const [feedbackInput, setFeedbackInput] = useState('');
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
 
@@ -109,11 +83,16 @@ export const ClientPortalView: React.FC = () => {
 
       {/* DELIVERABLES LIST */}
       <div className="space-y-4">
-        {approvals.map((approval) => (
-          <div
-            key={approval.id}
-            className="p-6 rounded-2xl bg-[#111827] border border-white/[0.08] shadow-xl space-y-4"
-          >
+        {approvals.length === 0 ? (
+          <div className="p-12 rounded-2xl bg-[#111827] border border-white/[0.08] text-center text-xs text-slate-500">
+            No client deliverable packages or sign-off requests created for this workspace yet.
+          </div>
+        ) : (
+          approvals.map((approval) => (
+            <div
+              key={approval.id}
+              className="p-6 rounded-2xl bg-[#111827] border border-white/[0.08] shadow-xl space-y-4"
+            >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-[#0F172A] border border-white/[0.06] text-blue-400">
@@ -206,8 +185,9 @@ export const ClientPortalView: React.FC = () => {
               )}
             </div>
           </div>
-        ))}
-      </div>
+        ))
+      )}
     </div>
-  );
+  </div>
+);
 };

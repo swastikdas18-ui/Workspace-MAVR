@@ -92,14 +92,17 @@ export const CrmView: React.FC = () => {
   const activeOpportunities = visibleRecords.filter(r => r.status !== 'won' && r.status !== 'lost').length;
   const avgDeal = visibleRecords.length > 0 ? Math.round(totalValue / visibleRecords.length) : 0;
 
-  // Founding Partner Funnel Metrics
+  // Founding Partner Funnel Metrics (100% database-derived)
   const partnerLeads = visibleRecords.filter(r => r.notes?.includes('[Founding Partner Application]') || r.company.toLowerCase().includes('partner') || r.customer_name.toLowerCase().includes('partner'));
-  const appliedCount = Math.max(partnerLeads.length, 3);
-  const qualifiedCount = Math.max(partnerLeads.filter(r => r.status !== 'new_lead').length, 2);
-  const discoveryCount = Math.max(partnerLeads.filter(r => r.status === 'contacted' || r.status === 'proposal_sent' || r.status === 'negotiation' || r.status === 'won').length, 2);
-  const pilotCount = Math.max(partnerLeads.filter(r => r.status === 'negotiation' || r.status === 'won').length, 1);
-  const activeCustomerCount = Math.max(partnerLeads.filter(r => r.status === 'won').length, 1);
-  const testimonialCount = 1;
+  const appliedCount = partnerLeads.length;
+  const qualifiedCount = partnerLeads.filter(r => r.status !== 'new_lead').length;
+  const discoveryCount = partnerLeads.filter(r => r.status === 'contacted' || r.status === 'proposal_sent' || r.status === 'negotiation' || r.status === 'won').length;
+  const pilotCount = partnerLeads.filter(r => r.status === 'negotiation' || r.status === 'won').length;
+  const activeCustomerCount = partnerLeads.filter(r => r.status === 'won').length;
+  const testimonialCount = partnerLeads.filter(r => r.status === 'won' && r.notes?.toLowerCase().includes('testimonial')).length;
+  const passRate = appliedCount > 0 ? Math.round((qualifiedCount / appliedCount) * 100) : 0;
+  const activationRate = appliedCount > 0 ? Math.round((activeCustomerCount / appliedCount) * 100) : 0;
+  const slotsRemaining = Math.max(0, 3 - activeCustomerCount);
 
   return (
     <div className="space-y-6">
@@ -241,31 +244,31 @@ export const CrmView: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
               <div className="text-[11px] font-medium text-slate-400 mb-1">2. Qualified</div>
               <div className="text-2xl font-extrabold text-cyan-400">{qualifiedCount}</div>
-              <div className="text-[10px] text-emerald-400 mt-1">{Math.round((qualifiedCount / appliedCount) * 100)}% Pass</div>
+              <div className="text-[10px] text-emerald-400 mt-1">{passRate}% Pass</div>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
               <div className="text-[11px] font-medium text-slate-400 mb-1">3. Discovery Calls</div>
               <div className="text-2xl font-extrabold text-purple-400">{discoveryCount}</div>
-              <div className="text-[10px] text-slate-400 mt-1">20-min Deepdive</div>
+              <div className="text-[10px] text-slate-400 mt-1">Scheduled</div>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
               <div className="text-[11px] font-medium text-slate-400 mb-1">4. Pilot Started</div>
               <div className="text-2xl font-extrabold text-amber-400">{pilotCount}</div>
-              <div className="text-[10px] text-slate-400 mt-1">Template Active</div>
+              <div className="text-[10px] text-slate-400 mt-1">In Progress</div>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
               <div className="text-[11px] font-medium text-slate-400 mb-1">5. Active Customers</div>
               <div className="text-2xl font-extrabold text-emerald-400">{activeCustomerCount} / 3</div>
-              <div className="text-[10px] text-amber-300 mt-1">2 Slots Open</div>
+              <div className="text-[10px] text-amber-300 mt-1">{slotsRemaining} Slots Open</div>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
               <div className="text-[11px] font-medium text-slate-400 mb-1">6. Testimonials</div>
               <div className="text-2xl font-extrabold text-rose-400">{testimonialCount}</div>
-              <div className="text-[10px] text-emerald-400 mt-1">100% NPS</div>
+              <div className="text-[10px] text-emerald-400 mt-1">Verified</div>
             </div>
           </div>
 
@@ -273,14 +276,14 @@ export const CrmView: React.FC = () => {
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
             <div className="flex justify-between text-xs font-mono">
               <span className="text-slate-400">Founding Partner Funnel Conversion Rate</span>
-              <span className="text-emerald-400 font-bold">Overall Activation: {Math.round((activeCustomerCount / appliedCount) * 100)}%</span>
+              <span className="text-emerald-400 font-bold">Overall Activation: {activationRate}%</span>
             </div>
             <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden flex">
-              <div style={{ width: '30%' }} className="bg-blue-500 h-full" title="Applied" />
-              <div style={{ width: '25%' }} className="bg-cyan-500 h-full" title="Qualified" />
-              <div style={{ width: '20%' }} className="bg-purple-500 h-full" title="Discovery" />
-              <div style={{ width: '15%' }} className="bg-amber-500 h-full" title="Pilot" />
-              <div style={{ width: '10%' }} className="bg-emerald-500 h-full" title="Active" />
+              <div style={{ width: `${Math.min(100, appliedCount * 25)}%` }} className="bg-blue-500 h-full" title="Applied" />
+              <div style={{ width: `${Math.min(100, qualifiedCount * 25)}%` }} className="bg-cyan-500 h-full" title="Qualified" />
+              <div style={{ width: `${Math.min(100, discoveryCount * 25)}%` }} className="bg-purple-500 h-full" title="Discovery" />
+              <div style={{ width: `${Math.min(100, pilotCount * 25)}%` }} className="bg-amber-500 h-full" title="Pilot" />
+              <div style={{ width: `${Math.min(100, activeCustomerCount * 33)}%` }} className="bg-emerald-500 h-full" title="Active" />
             </div>
           </div>
         </div>

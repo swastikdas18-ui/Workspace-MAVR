@@ -23,7 +23,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   icon: Icon,
   trend,
   subtitle,
-  sparklineData = [35, 45, 30, 60, 75, 65, 85, 95],
+  sparklineData,
   color = 'purple',
   onClick,
 }) => {
@@ -68,18 +68,21 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   const currentTheme = colorMap[color];
 
-  // Generate SVG path for mini sparkline
-  const minVal = Math.min(...sparklineData, 0);
-  const maxVal = Math.max(...sparklineData, 100);
+  // Generate SVG path for mini sparkline if real data exists
+  const hasSparkline = sparklineData && sparklineData.length > 1;
+  const minVal = hasSparkline ? Math.min(...sparklineData, 0) : 0;
+  const maxVal = hasSparkline ? Math.max(...sparklineData, 100) : 100;
   const width = 80;
   const height = 28;
-  const points = sparklineData
-    .map((val, i) => {
-      const x = (i / (sparklineData.length - 1)) * width;
-      const y = height - ((val - minVal) / (maxVal - minVal || 1)) * (height - 4) - 2;
-      return `${x},${y}`;
-    })
-    .join(' ');
+  const points = hasSparkline
+    ? sparklineData
+        .map((val, i) => {
+          const x = (i / (sparklineData.length - 1)) * width;
+          const y = height - ((val - minVal) / (maxVal - minVal || 1)) * (height - 4) - 2;
+          return `${x},${y}`;
+        })
+        .join(' ')
+    : '';
 
   return (
     <motion.div
@@ -99,18 +102,20 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         <span className="text-2xl font-bold text-white tracking-tight">{value}</span>
 
         {/* Mini Sparkline Chart */}
-        <div className="opacity-70 group-hover:opacity-100 transition-opacity">
-          <svg width={width} height={height} className="overflow-visible">
-            <polyline
-              fill="none"
-              stroke={currentTheme.sparkline}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              points={points}
-            />
-          </svg>
-        </div>
+        {hasSparkline && (
+          <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+            <svg width={width} height={height} className="overflow-visible">
+              <polyline
+                fill="none"
+                stroke={currentTheme.sparkline}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+              />
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* Trend & Subtitle */}

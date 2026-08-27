@@ -23,7 +23,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
 
   const [mode, setMode] = useState<'create' | 'invite'>('create');
   const [workspaceName, setWorkspaceName] = useState('');
-  const [plan, setPlan] = useState<'free' | 'pro' | 'enterprise'>('pro');
+  const [plan, setPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [inviteToken, setInviteToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

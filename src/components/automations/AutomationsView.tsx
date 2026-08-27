@@ -25,80 +25,18 @@ export const AutomationsView: React.FC = () => {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Fallback starter sample rules for new workspaces
-  const sampleInitialRules = [
-    {
-      id: 'rule-sample-1',
-      name: 'Notify Admins on Task Completion',
-      description: 'Dispatches instant alert when high-priority tasks are marked completed.',
-      entityType: 'task',
-      triggerType: 'task_completed',
-      isActive: true,
-      createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
-      actions: [
-        {
-          id: 'act-1',
-          actionType: 'send_notification',
-          actionConfig: { recipient: 'admin', title: 'Task Completed: {{title}}', message: 'Task marked as done.' },
-        },
-        {
-          id: 'act-2',
-          actionType: 'create_activity_log',
-          actionConfig: { action: 'Task completion broadcast sent to management' },
-        },
-      ],
-    },
-    {
-      id: 'rule-sample-2',
-      name: 'Auto-Assign New Lead Ingestion',
-      description: 'Assigns newly created CRM leads to the account executive.',
-      entityType: 'crm',
-      triggerType: 'crm_stage_changed',
-      isActive: true,
-      createdAt: new Date(Date.now() - 3600000 * 24 * 5).toISOString(),
-      actions: [
-        {
-          id: 'act-3',
-          actionType: 'move_crm_stage',
-          actionConfig: { stage: 'contacted' },
-        },
-        {
-          id: 'act-4',
-          actionType: 'create_task',
-          actionConfig: { title: 'Follow-up with qualified prospect', priority: 'high' },
-        },
-      ],
-    },
-    {
-      id: 'rule-sample-3',
-      name: 'Document Upload Audit Trigger',
-      description: 'Generates activity log and sends notification when new document is vaulted.',
-      entityType: 'document',
-      triggerType: 'document_added',
-      isActive: false,
-      createdAt: new Date(Date.now() - 3600000 * 24 * 8).toISOString(),
-      actions: [
-        {
-          id: 'act-5',
-          actionType: 'create_activity_log',
-          actionConfig: { action: 'Document vaulted in SOC2 encrypted storage' },
-        },
-      ],
-    },
-  ];
-
   const fetchRules = async () => {
     try {
       setIsLoading(true);
       const res = await api.getAutomations();
-      if (res && res.rules && res.rules.length > 0) {
+      if (res && res.rules) {
         setRules(res.rules);
       } else {
-        setRules(sampleInitialRules);
+        setRules([]);
       }
     } catch (err: any) {
-      console.warn('Using client fallback rules:', err);
-      setRules(sampleInitialRules);
+      console.warn('Failed to load automations:', err);
+      setRules([]);
     } finally {
       setIsLoading(false);
     }

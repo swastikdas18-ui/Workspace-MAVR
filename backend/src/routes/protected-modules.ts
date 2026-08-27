@@ -127,7 +127,7 @@ billingRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c
   const workspace = c.get('workspace');
   return c.json({
     billing: {
-      plan: workspace?.plan || 'pro',
+      plan: workspace?.plan || 'free',
       status: 'active',
       currentPeriodEnd: '2026-12-31',
       invoices: [],

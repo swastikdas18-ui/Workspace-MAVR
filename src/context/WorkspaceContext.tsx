@@ -229,7 +229,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             name: w.name,
             slug: w.slug,
             owner_id: w.ownerId || w.owner_id,
-            plan: w.plan || 'pro',
+            plan: w.plan || 'free',
             created_at: w.createdAt || new Date().toISOString(),
             logo: w.logo || undefined,
             role: w.roleInWorkspace || w.role || 'employee',
@@ -298,7 +298,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               name: w.name,
               slug: w.slug,
               owner_id: w.ownerId || w.owner_id,
-              plan: w.plan || 'pro',
+              plan: w.plan || 'free',
               created_at: w.createdAt || new Date().toISOString(),
               logo: w.logo || undefined,
               role: w.roleInWorkspace || w.role || (authUser.role as UserRole),
@@ -310,7 +310,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               name: session.workspace.name,
               slug: session.workspace.slug,
               owner_id: session.workspace.ownerId || session.workspace.owner_id,
-              plan: session.workspace.plan || 'pro',
+              plan: session.workspace.plan || 'free',
               created_at: session.workspace.createdAt || new Date().toISOString(),
               role: session.workspace.roleInWorkspace || (authUser.role as UserRole),
               member_count: 1,
@@ -324,7 +324,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               name: session.workspace.name,
               slug: session.workspace.slug,
               owner_id: session.workspace.ownerId || session.workspace.owner_id,
-              plan: session.workspace.plan || 'pro',
+              plan: session.workspace.plan || 'free',
               created_at: session.workspace.createdAt || new Date().toISOString(),
               role: session.workspace.roleInWorkspace || (authUser.role as UserRole),
               member_count: 1,
@@ -417,7 +417,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           name: w.name,
           slug: w.slug,
           owner_id: w.ownerId || w.owner_id,
-          plan: w.plan || 'pro',
+          plan: w.plan || 'free',
           created_at: w.createdAt || new Date().toISOString(),
           logo: w.logo || undefined,
           role: w.roleInWorkspace || 'employee',
@@ -448,7 +448,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // Create workspace action
-  const createNewWorkspace = async (name: string, plan: string = 'pro'): Promise<Workspace | null> => {
+  const createNewWorkspace = async (name: string, plan: string = 'free'): Promise<Workspace | null> => {
     setIsWorkspaceLoading(true);
     try {
       const res = await api.createWorkspace({ name, plan });
@@ -459,7 +459,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           name: w.name,
           slug: w.slug,
           owner_id: w.ownerId || w.owner_id,
-          plan: w.plan || 'pro',
+          plan: w.plan || 'free',
           created_at: w.createdAt || new Date().toISOString(),
           logo: w.logo || undefined,
           role: 'admin',
@@ -505,7 +505,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           name: w.name,
           slug: w.slug,
           owner_id: w.ownerId || w.owner_id,
-          plan: w.plan || 'pro',
+          plan: w.plan || 'free',
           created_at: w.createdAt || new Date().toISOString(),
           logo: w.logo || undefined,
           role: w.roleInWorkspace || w.role || (normalizedUser.role as UserRole),
@@ -523,7 +523,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         name: workspace.name || 'Workspace OS',
         slug: workspace.slug || 'workspace',
         owner_id: workspace.owner_id || user.id,
-        plan: workspace.plan || 'pro',
+        plan: workspace.plan || 'free',
         created_at: workspace.created_at || new Date().toISOString(),
         role: (user.role as UserRole) || 'admin',
       };

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Shield, User, Calendar, Package, ChevronDown } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { motion } from 'motion/react';
+import { api } from '../../lib/api';
 
 interface AuditLog {
   id: string;
@@ -25,17 +26,6 @@ const ACTION_COLORS: Record<string, string> = {
   EXPORT: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
 };
 
-const DEMO_LOGS: AuditLog[] = [
-  { id: 'aud-1', action: 'CREATE', resource: 'project', resourceId: 'proj-001', user: { name: 'Arjun Mehta', email: 'arjun@acme.com', id: 'u1' }, ipAddress: '103.21.45.1', createdAt: new Date(Date.now() - 300000).toISOString() },
-  { id: 'aud-2', action: 'UPDATE', resource: 'task', resourceId: 'task-092', user: { name: 'Priya Sharma', email: 'priya@acme.com', id: 'u2' }, ipAddress: '103.21.45.2', createdAt: new Date(Date.now() - 1800000).toISOString() },
-  { id: 'aud-3', action: 'DELETE', resource: 'crm', resourceId: 'lead-774', user: { name: 'Arjun Mehta', email: 'arjun@acme.com', id: 'u1' }, ipAddress: '103.21.45.1', createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: 'aud-4', action: 'LOGIN', resource: 'session', resourceId: 'sess-123', user: { name: 'Ravi Teja', email: 'ravi@acme.com', id: 'u3' }, ipAddress: '117.55.12.8', createdAt: new Date(Date.now() - 14400000).toISOString() },
-  { id: 'aud-5', action: 'INVITE', resource: 'workspace', resourceId: 'ws-core', user: { name: 'Arjun Mehta', email: 'arjun@acme.com', id: 'u1' }, ipAddress: '103.21.45.1', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'aud-6', action: 'EXPORT', resource: 'crm', resourceId: 'export-01', user: { name: 'Priya Sharma', email: 'priya@acme.com', id: 'u2' }, ipAddress: '103.21.45.2', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 'aud-7', action: 'UPDATE', resource: 'billing', resourceId: 'sub-001', user: { name: 'Arjun Mehta', email: 'arjun@acme.com', id: 'u1' }, ipAddress: '103.21.45.1', createdAt: new Date(Date.now() - 259200000).toISOString() },
-  { id: 'aud-8', action: 'CREATE', resource: 'document', resourceId: 'doc-441', user: { name: 'Sana Khan', email: 'sana@acme.com', id: 'u4' }, ipAddress: '49.33.10.22', createdAt: new Date(Date.now() - 345600000).toISOString() },
-];
-
 const MODULES = ['All Modules', 'project', 'task', 'crm', 'document', 'billing', 'session', 'workspace', 'team'];
 const ACTIONS = ['All Actions', 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'INVITE', 'EXPORT'];
 
@@ -44,13 +34,50 @@ function formatTime(d: string | Date): string {
 }
 
 export const AuditCenterView: React.FC = () => {
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedModule, setSelectedModule] = useState('All Modules');
   const [selectedAction, setSelectedAction] = useState('All Actions');
   const [selectedActor, setSelectedActor] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const filtered = DEMO_LOGS.filter((log) => {
+  useEffect(() => {
+    const fetchAudit = async () => {
+      try {
+        setIsLoading(true);
+        const res = await api.getAuditLogs();
+        if (res && res.logs) {
+          const mapped: AuditLog[] = res.logs.map((l: any) => ({
+            id: l.id,
+            action: l.action || 'UPDATE',
+            resource: l.module || l.entityType || 'workspace',
+            resourceId: l.entityId || l.id,
+            user: {
+              name: l.actorName || 'User',
+              email: l.actorEmail || '',
+              id: l.actorId || 'u1',
+            },
+            ipAddress: l.ipAddress || null,
+            createdAt: l.createdAt || new Date().toISOString(),
+            oldValues: l.oldValues || null,
+            newValues: l.newValues || null,
+          }));
+          setLogs(mapped);
+        } else {
+          setLogs([]);
+        }
+      } catch (err) {
+        console.warn('Failed to load audit center logs:', err);
+        setLogs([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAudit();
+  }, []);
+
+  const filtered = logs.filter((log) => {
     if (selectedModule !== 'All Modules' && log.resource !== selectedModule) return false;
     if (selectedAction !== 'All Actions' && log.action !== selectedAction) return false;
     if (selectedActor && !log.user.name.toLowerCase().includes(selectedActor.toLowerCase()) && !log.user.email.toLowerCase().includes(selectedActor.toLowerCase())) return false;

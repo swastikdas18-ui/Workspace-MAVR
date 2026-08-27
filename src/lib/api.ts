@@ -550,6 +550,15 @@ export const api = {
   async getMetricLineage() {
     return await fetchApi<any>('/api/analytics/lineage');
   },
+
+  async getAuditLogs(params?: { actorId?: string; action?: string; module?: string; limit?: number }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ logs: any[]; total: number }>(`/api/audit/logs${query ? `?${query}` : ''}`);
+  },
+
+  async getFounderConsole() {
+    return await fetchApi<any>('/api/admin/founder-console').catch(() => null);
+  },
 };
 
 

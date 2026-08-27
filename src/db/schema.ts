@@ -25,7 +25,7 @@ export const workspaces = pgTable("workspaces", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  plan: text("plan", { enum: ["free", "pro", "enterprise"] }).default("pro").notNull(),
+  plan: text("plan", { enum: ["free", "pro", "enterprise"] }).default("free").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });`,
 

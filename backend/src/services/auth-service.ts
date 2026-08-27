@@ -132,7 +132,7 @@ export class AuthService {
       // SECURITY (Phase 17): crypto-random slug suffix instead of Math.random()
       slug: `${slug}-${generateUniqueId().slice(-8)}`,
       ownerId: userId,
-      plan: 'pro',
+      plan: 'free',
       logo: null,
       createdAt: now,
       updatedAt: now,

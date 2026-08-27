@@ -23,7 +23,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
-  const [newPlan, setNewPlan] = useState<'free' | 'pro' | 'enterprise'>('pro');
+  const [newPlan, setNewPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -87,7 +87,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                 {currentWorkspace?.name || 'Workspace OS'}
               </span>
               <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
-                {currentWorkspace?.plan || 'PRO'}
+                {(currentWorkspace?.plan || 'FREE').toUpperCase()}
               </span>
             </div>
             <span className="text-[10px] text-slate-400 font-mono block truncate">

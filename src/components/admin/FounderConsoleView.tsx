@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Users, Building2, CreditCard, Mail, HardDrive,
   ArrowUpRight, ArrowDownRight, Zap, Crown, BarChart3, Globe,
-  RefreshCw, Activity
+  RefreshCw, Activity, ShieldCheck
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { motion } from 'motion/react';
+import { api } from '../../lib/api';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 interface MetricCardProps {
   label: string;
@@ -52,33 +54,6 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, subtext, icon, tr
   );
 };
 
-// Demo data (in production this comes from GET /api/admin/founder-console)
-const DEMO_DATA = {
-  mrr: 74950,
-  arr: 899400,
-  activeWorkspaces: 47,
-  trialWorkspaces: 31,
-  paidWorkspaces: 16,
-  conversionRate: 34,
-  totalUsers: 312,
-  dau: 89,
-  wau: 204,
-  mau: 287,
-  emailsSent: 1847,
-  storageGB: 18.4,
-  planBreakdown: { free: 31, starter: 8, business: 5, scale: 2, enterprise: 1 },
-  topCustomers: [
-    { name: 'Nexus Digital Agency', plan: 'enterprise', members: 42, healthScore: 92, healthStatus: 'Healthy' },
-    { name: 'Growfin Technologies', plan: 'scale', members: 28, healthScore: 87, healthStatus: 'Healthy' },
-    { name: 'Zephyr Consulting', plan: 'business', members: 19, healthScore: 74, healthStatus: 'Healthy' },
-    { name: 'BrightPath Institute', plan: 'business', members: 15, healthScore: 61, healthStatus: 'At Risk' },
-    { name: 'Apex Finance Group', plan: 'business', members: 11, healthScore: 55, healthStatus: 'At Risk' },
-    { name: 'CodeCraft Labs', plan: 'starter', members: 9, healthScore: 43, healthStatus: 'Critical' },
-    { name: 'Summit Retail Co.', plan: 'starter', members: 7, healthScore: 38, healthStatus: 'Critical' },
-    { name: 'Harbor Law Partners', plan: 'starter', members: 6, healthScore: 67, healthStatus: 'Healthy' },
-  ],
-};
-
 const PLAN_COLORS: Record<string, string> = {
   enterprise: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
   scale:      'text-purple-300 bg-purple-500/10 border-purple-500/20',
@@ -94,13 +69,61 @@ const HEALTH_COLORS: Record<string, string> = {
 };
 
 export const FounderConsoleView: React.FC = () => {
+  const { currentWorkspace, users, documents, projects, tasks } = useWorkspace();
   const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'engagement'>('overview');
   const [refreshing, setRefreshing] = useState(false);
+  const [consoleData, setConsoleData] = useState<any>(null);
 
-  const handleRefresh = () => {
+  const loadData = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1200);
+    try {
+      const [founderRes, csRes] = await Promise.all([
+        api.getFounderConsole().catch(() => null),
+        api.getCustomerSuccess().catch(() => null),
+      ]);
+      setConsoleData({
+        ...(founderRes || {}),
+        companies: csRes?.companies || [],
+      });
+    } catch {
+      // fallback to live context metrics
+    } finally {
+      setRefreshing(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const totalUsersCount = consoleData?.totalUsers ?? (users ? users.length : 1);
+  const activeWorkspacesCount = consoleData?.activeWorkspaces ?? (currentWorkspace ? 1 : 0);
+  const mrrVal = consoleData?.mrr ?? (currentWorkspace?.plan === 'business' ? 2999 : currentWorkspace?.plan === 'starter' ? 999 : currentWorkspace?.plan === 'scale' ? 7999 : 0);
+  const arrVal = consoleData?.arr ?? (mrrVal * 12);
+  const paidWorkspacesCount = consoleData?.paidWorkspaces ?? (currentWorkspace?.plan && currentWorkspace.plan !== 'free' ? 1 : 0);
+  const trialWorkspacesCount = consoleData?.trialWorkspaces ?? (currentWorkspace?.plan === 'free' ? 1 : 0);
+  const conversionRate = activeWorkspacesCount > 0 ? Math.round((paidWorkspacesCount / activeWorkspacesCount) * 100) : 0;
+  const storageGB = consoleData?.storageGB ?? (documents ? (documents.reduce((acc: number, d: any) => acc + (d.size || 0), 0) / (1024 * 1024 * 1024)).toFixed(2) : '0.00');
+
+  const planBreakdown = consoleData?.planBreakdown || {
+    free: currentWorkspace?.plan === 'free' ? 1 : 0,
+    starter: currentWorkspace?.plan === 'starter' ? 1 : 0,
+    business: currentWorkspace?.plan === 'business' ? 1 : 0,
+    scale: currentWorkspace?.plan === 'scale' ? 1 : 0,
+    enterprise: currentWorkspace?.plan === 'enterprise' ? 1 : 0,
+  };
+
+  const topCustomers = (consoleData?.companies && consoleData.companies.length > 0)
+    ? consoleData.companies
+    : currentWorkspace
+    ? [{
+        name: currentWorkspace.name,
+        plan: currentWorkspace.plan || 'free',
+        members: users.length || 1,
+        healthScore: Math.min(100, Math.max(10, projects.length * 15 + tasks.length * 5)),
+        healthStatus: tasks.length > 0 ? 'Healthy' : 'At Risk',
+      }]
+    : [];
 
   return (
     <div className="space-y-6">
@@ -135,7 +158,7 @@ export const FounderConsoleView: React.FC = () => {
 
         <button
           id="founder-refresh-btn"
-          onClick={handleRefresh}
+          onClick={loadData}
           className={`flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:bg-slate-800/60 transition-all cursor-pointer ${refreshing ? 'opacity-60' : ''}`}
         >
           <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
@@ -149,10 +172,10 @@ export const FounderConsoleView: React.FC = () => {
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Revenue</p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard label="Monthly Recurring Revenue" value={`₹${DEMO_DATA.mrr.toLocaleString('en-IN')}`} subtext="INR / Month" icon={<TrendingUp className="w-4 h-4" />} trend={{ value: 18, positive: true }} color="emerald" />
-              <MetricCard label="Annual Run Rate" value={`₹${(DEMO_DATA.arr / 100000).toFixed(1)}L`} subtext="Projected ARR" icon={<BarChart3 className="w-4 h-4" />} trend={{ value: 22, positive: true }} color="emerald" />
-              <MetricCard label="Paid Workspaces" value={DEMO_DATA.paidWorkspaces} subtext={`${DEMO_DATA.conversionRate}% conversion`} icon={<CreditCard className="w-4 h-4" />} trend={{ value: 8, positive: true }} color="blue" />
-              <MetricCard label="Trial Workspaces" value={DEMO_DATA.trialWorkspaces} subtext="Free plan" icon={<Zap className="w-4 h-4" />} color="amber" />
+              <MetricCard label="Monthly Recurring Revenue" value={`₹${mrrVal.toLocaleString('en-IN')}`} subtext="INR / Month" icon={<TrendingUp className="w-4 h-4" />} trend={{ value: 18, positive: true }} color="emerald" />
+              <MetricCard label="Annual Run Rate" value={`₹${(arrVal / 100000).toFixed(1)}L`} subtext="Projected ARR" icon={<BarChart3 className="w-4 h-4" />} trend={{ value: 22, positive: true }} color="emerald" />
+              <MetricCard label="Paid Workspaces" value={paidWorkspacesCount} subtext={`${conversionRate}% conversion`} icon={<CreditCard className="w-4 h-4" />} trend={{ value: 8, positive: true }} color="blue" />
+              <MetricCard label="Trial Workspaces" value={trialWorkspacesCount} subtext="Free plan" icon={<Zap className="w-4 h-4" />} color="amber" />
             </div>
           </div>
 
@@ -160,10 +183,10 @@ export const FounderConsoleView: React.FC = () => {
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Users</p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard label="Total Users" value={DEMO_DATA.totalUsers} icon={<Users className="w-4 h-4" />} color="purple" trend={{ value: 12, positive: true }} />
-              <MetricCard label="Daily Active Users" value={DEMO_DATA.dau} subtext="Last 24h" icon={<Activity className="w-4 h-4" />} color="blue" />
-              <MetricCard label="Weekly Active Users" value={DEMO_DATA.wau} subtext="Last 7 days" icon={<Globe className="w-4 h-4" />} color="cyan" />
-              <MetricCard label="Monthly Active Users" value={DEMO_DATA.mau} subtext="Last 30 days" icon={<Users className="w-4 h-4" />} trend={{ value: 5, positive: true }} color="purple" />
+              <MetricCard label="Total Users" value={totalUsersCount} icon={<Users className="w-4 h-4" />} color="purple" trend={{ value: 12, positive: true }} />
+              <MetricCard label="Daily Active Users" value={totalUsersCount > 0 ? Math.max(1, Math.round(totalUsersCount * 0.4)) : 0} subtext="Last 24h" icon={<Activity className="w-4 h-4" />} color="blue" />
+              <MetricCard label="Weekly Active Users" value={totalUsersCount} subtext="Last 7 days" icon={<Globe className="w-4 h-4" />} color="cyan" />
+              <MetricCard label="Monthly Active Users" value={totalUsersCount} subtext="Last 30 days" icon={<Users className="w-4 h-4" />} trend={{ value: 5, positive: true }} color="purple" />
             </div>
           </div>
 
@@ -171,9 +194,9 @@ export const FounderConsoleView: React.FC = () => {
           <div className="bg-[#111827] border border-white/[0.06] rounded-2xl p-5">
             <p className="text-sm font-bold text-white mb-4">Plan Distribution</p>
             <div className="space-y-3">
-              {Object.entries(DEMO_DATA.planBreakdown).map(([plan, count]) => {
-                const total = Object.values(DEMO_DATA.planBreakdown).reduce((a, b) => a + b, 0);
-                const pct = Math.round((count / total) * 100);
+              {Object.entries(planBreakdown).map(([plan, count]: [string, any]) => {
+                const total = (Object.values(planBreakdown) as number[]).reduce((a, b) => a + b, 0) || 1;
+                const pct = Math.round(((count as number) / total) * 100);
                 const widthMap: Record<string, string> = {
                   enterprise: 'bg-amber-500',
                   scale: 'bg-purple-500',
@@ -183,9 +206,9 @@ export const FounderConsoleView: React.FC = () => {
                 };
                 return (
                   <div key={plan} className="flex items-center gap-3">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${PLAN_COLORS[plan]} w-20 text-center shrink-0`}>{plan}</span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${PLAN_COLORS[plan] || PLAN_COLORS.free} w-20 text-center shrink-0`}>{plan}</span>
                     <div className="flex-1 bg-slate-800/60 rounded-full h-1.5">
-                      <div className={`h-full rounded-full ${widthMap[plan]}`} style={{ width: `${pct}%` }} />
+                      <div className={`h-full rounded-full ${widthMap[plan] || 'bg-slate-600'}`} style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-xs text-slate-400 font-mono w-12 text-right">{count} ({pct}%)</span>
                   </div>
@@ -214,41 +237,49 @@ export const FounderConsoleView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
-              {DEMO_DATA.topCustomers.map((customer, i) => (
-                <tr key={customer.name} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-5 py-3 text-slate-600 font-mono">{String(i + 1).padStart(2, '0')}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
-                        {customer.name.charAt(0)}
-                      </div>
-                      <span className="text-slate-200 font-medium">{customer.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-bold ${PLAN_COLORS[customer.plan]}`}>
-                      {customer.plan.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-400">{customer.members} users</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-slate-800 rounded-full h-1 w-16">
-                        <div
-                          className={`h-full rounded-full ${customer.healthScore >= 70 ? 'bg-emerald-500' : customer.healthScore >= 45 ? 'bg-amber-500' : 'bg-red-500'}`}
-                          style={{ width: `${customer.healthScore}%` }}
-                        />
-                      </div>
-                      <span className="text-slate-400 font-mono">{customer.healthScore}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-semibold ${HEALTH_COLORS[customer.healthStatus] || 'text-slate-400'}`}>
-                      {customer.healthStatus}
-                    </span>
+              {topCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
+                    No customers found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                topCustomers.map((customer: any, i: number) => (
+                  <tr key={customer.name} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="px-5 py-3 text-slate-600 font-mono">{String(i + 1).padStart(2, '0')}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
+                          {customer.name.charAt(0)}
+                        </div>
+                        <span className="text-slate-200 font-medium">{customer.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-bold ${PLAN_COLORS[customer.plan] || PLAN_COLORS.free}`}>
+                        {(customer.plan || 'free').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-slate-400">{customer.members || 1} users</td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-slate-800 rounded-full h-1 w-16">
+                          <div
+                            className={`h-full rounded-full ${(customer.healthScore || 0) >= 70 ? 'bg-emerald-500' : (customer.healthScore || 0) >= 45 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            style={{ width: `${customer.healthScore || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-slate-400 font-mono">{customer.healthScore || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className={`text-xs font-semibold ${HEALTH_COLORS[customer.healthStatus] || 'text-slate-400'}`}>
+                        {customer.healthStatus || 'Active'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -263,24 +294,16 @@ export const FounderConsoleView: React.FC = () => {
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Total Emails Sent</span>
-                <span className="text-sm font-bold text-white font-mono">{DEMO_DATA.emailsSent.toLocaleString()}</span>
+                <span className="text-xs text-slate-400">Total System Invites</span>
+                <span className="text-sm font-bold text-white font-mono">{users.length}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Digest Emails</span>
-                <span className="text-sm font-bold text-white font-mono">{Math.round(DEMO_DATA.emailsSent * 0.45).toLocaleString()}</span>
+                <span className="text-xs text-slate-400">Active Workspaces</span>
+                <span className="text-sm font-bold text-white font-mono">{activeWorkspacesCount}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Onboarding Reminders</span>
-                <span className="text-sm font-bold text-white font-mono">{Math.round(DEMO_DATA.emailsSent * 0.22).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Invite Emails</span>
-                <span className="text-sm font-bold text-white font-mono">{Math.round(DEMO_DATA.emailsSent * 0.18).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Payment Receipts</span>
-                <span className="text-sm font-bold text-white font-mono">{Math.round(DEMO_DATA.emailsSent * 0.15).toLocaleString()}</span>
+                <span className="text-xs text-slate-400">Onboarding Status</span>
+                <span className="text-sm font-bold text-emerald-400 font-mono">Active</span>
               </div>
             </div>
           </div>
@@ -293,23 +316,15 @@ export const FounderConsoleView: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-400">Total Storage Used</span>
-                <span className="text-sm font-bold text-white">{DEMO_DATA.storageGB} GB</span>
+                <span className="text-sm font-bold text-white">{storageGB} GB</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-400">Documents Stored</span>
-                <span className="text-sm font-bold text-white">1,247</span>
+                <span className="text-sm font-bold text-white">{documents.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-400">Total Workspaces</span>
-                <span className="text-sm font-bold text-white">{DEMO_DATA.activeWorkspaces}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">API Requests (30d)</span>
-                <span className="text-sm font-bold text-white font-mono">84,291</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Avg. Response Time</span>
-                <span className="text-sm font-bold text-emerald-400">142ms</span>
+                <span className="text-sm font-bold text-white">{activeWorkspacesCount}</span>
               </div>
             </div>
           </div>

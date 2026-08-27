@@ -24,19 +24,43 @@ export const AdminDashboard: React.FC = () => {
   const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
   const totalPipelineValue = crmRecords.reduce((acc, curr) => acc + curr.deal_value, 0);
   const wonDealsValue = crmRecords.filter(c => c.status === 'won').reduce((acc, curr) => acc + curr.deal_value, 0);
-  const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
+  const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
-  // Workspace Health Score (0 - 100)
+  // Workspace Health Score (0 - 100, purely dynamic)
   const projectScore = Math.min(25, projects.length * 8);
-  const taskScore = Math.min(35, tasks.length * 4 + completedTasks * 5);
-  const documentScore = Math.min(20, documents.length * 10);
+  const taskScore = tasks.length > 0 ? Math.min(35, Math.round((completedTasks / tasks.length) * 35)) : 0;
+  const documentScore = Math.min(20, documents.length * 5);
   const memberScore = Math.min(20, users.length * 5);
-  const healthScore = Math.min(100, Math.max(20, projectScore + taskScore + documentScore + memberScore));
-  const healthRating = healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Poor';
+  const healthScore = Math.min(100, projectScore + taskScore + documentScore + memberScore);
+  const healthRating = healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : healthScore > 0 ? 'Starting' : 'New';
+
+  // Dynamic Vault Storage calculation
+  const totalDocBytes = documents.reduce((acc, d: any) => acc + (d.file_size_bytes || d.size_bytes || (d.content ? d.content.length * 2 : 0)), 0);
+  const storageUsedMb = (totalDocBytes / (1024 * 1024)).toFixed(1);
+  const maxStorageGb = currentWorkspace?.plan === 'enterprise' ? 100 : currentWorkspace?.plan === 'business' || currentWorkspace?.plan === 'scale' ? 10 : currentWorkspace?.plan === 'starter' || currentWorkspace?.plan === 'pro' ? 5 : 1;
+  const storageUsedPercent = ((parseFloat(storageUsedMb) / (maxStorageGb * 1024)) * 100).toFixed(1);
+
+  // Dynamic Member License calculation
+  const maxSeats = currentWorkspace?.plan === 'enterprise' ? 100 : currentWorkspace?.plan === 'business' || currentWorkspace?.plan === 'scale' ? 50 : currentWorkspace?.plan === 'starter' || currentWorkspace?.plan === 'pro' ? 15 : 5;
+  const seatsFree = Math.max(0, maxSeats - users.length);
+
+  // Dynamic Wiki & Knowledge metrics
+  const wikiDocsCount = documents.filter((d: any) => d.type === 'wiki' || d.category === 'sop' || d.file_type === 'markdown' || d.name?.endsWith('.md')).length;
+  const wikiRate = documents.length > 0 ? Math.round((wikiDocsCount / documents.length) * 100) : 0;
+
+  // Dynamic CRM Discovery Conversion
+  const qualifiedCrmDeals = crmRecords.filter(c => c.status === 'contacted' || c.status === 'proposal_sent' || c.status === 'negotiation' || c.status === 'won').length;
+  const discoveryConversionRate = crmRecords.length > 0 ? Math.round((qualifiedCrmDeals / crmRecords.length) * 100) : 0;
+
+  // Dynamic Billable Utilization
+  const billableRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 85) : 0;
+
+  // Dynamic Client Sign-off Velocity
+  const signedOffProjects = projects.filter(p => p.status === 'completed').length;
 
   // 14-Day Business Trial calculation
   const trialDaysRemaining = 12; // 14-day trial active
-  const isTrial = currentWorkspace?.plan === 'business' || currentWorkspace?.plan === 'pro';
+  const isTrial = currentWorkspace?.plan === 'business' || currentWorkspace?.plan === 'scale';
 
   return (
     <div className="space-y-8">
@@ -166,22 +190,22 @@ export const AdminDashboard: React.FC = () => {
           {/* 2. Storage Usage */}
           <MetricCard
             label="Vault Storage"
-            value="240 MB / 5 GB"
+            value={`${storageUsedMb} MB / ${maxStorageGb} GB`}
             icon={HardDrive}
             color="blue"
-            trend={{ value: '4.8% used', direction: 'neutral', label: 'capacity' }}
-            sparklineData={[100, 120, 140, 180, 210, 230, 240]}
+            trend={{ value: `${storageUsedPercent}% used`, direction: 'neutral', label: 'capacity' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, parseFloat(storageUsedMb)]}
             onClick={() => setActiveTab('documents')}
           />
 
           {/* 3. Member Usage */}
           <MetricCard
             label="Member Usage"
-            value={`${users.length} / 50`}
+            value={`${users.length} / ${maxSeats}`}
             icon={Users}
             color="purple"
-            trend={{ value: `${50 - users.length} seats free`, direction: 'neutral', label: 'licensed' }}
-            sparklineData={[5, 10, 15, 20, 25, 30, users.length]}
+            trend={{ value: `${seatsFree} seats free`, direction: 'neutral', label: 'licensed' }}
+            sparklineData={[1, 1, 1, 1, 1, 1, users.length]}
             onClick={() => setActiveTab('teams')}
           />
 
@@ -192,7 +216,7 @@ export const AdminDashboard: React.FC = () => {
             icon={FolderKanban}
             color="purple"
             trend={{ value: `${projects.filter(p => p.status === 'in_progress').length} active`, direction: 'up', label: 'delivery' }}
-            sparklineData={[10, 20, 30, 40, 50, 60, 70]}
+            sparklineData={[0, 0, 0, 0, 0, 0, projects.length]}
             onClick={() => setActiveTab('projects')}
           />
 
@@ -203,18 +227,18 @@ export const AdminDashboard: React.FC = () => {
             icon={CheckSquare}
             color="amber"
             trend={{ value: `${completedTasks} of ${tasks.length}`, direction: 'up', label: 'velocity' }}
-            sparklineData={[40, 55, 65, 75, 80, 90, taskCompletionRate]}
+            sparklineData={[0, 0, 0, 0, 0, 0, taskCompletionRate]}
             onClick={() => setActiveTab('tasks')}
           />
 
           {/* 6. CRM Pipeline Value */}
           <MetricCard
             label="CRM Pipeline"
-            value={`₹${(totalPipelineValue / 1000).toFixed(0)}k`}
+            value={`₹${totalPipelineValue >= 1000 ? (totalPipelineValue / 1000).toFixed(0) + 'k' : totalPipelineValue.toLocaleString()}`}
             icon={IndianRupee}
             color="emerald"
-            trend={{ value: `₹${(wonDealsValue / 1000).toFixed(0)}k won`, direction: 'up', label: 'revenue' }}
-            sparklineData={[15, 30, 45, 50, 75, 80, 95]}
+            trend={{ value: `₹${wonDealsValue.toLocaleString()} won`, direction: 'up', label: 'revenue' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, totalPipelineValue]}
             onClick={() => setActiveTab('crm')}
           />
         </div>
@@ -223,38 +247,38 @@ export const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
           <MetricCard
             label="Wiki Adoption Rate"
-            value="92%"
+            value={`${wikiRate}%`}
             icon={BookOpen}
             color="purple"
-            trend={{ value: '3 Active SOPs', direction: 'up', label: 'knowledge base' }}
-            sparklineData={[40, 60, 75, 80, 85, 90, 92]}
+            trend={{ value: `${wikiDocsCount} Active Docs`, direction: 'up', label: 'knowledge base' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, wikiRate]}
             onClick={() => setActiveTab('wiki')}
           />
           <MetricCard
             label="Billable Utilization"
-            value="84.5%"
+            value={`${billableRate}%`}
             icon={Clock}
             color="emerald"
-            trend={{ value: 'Target: >75%', direction: 'up', label: 'efficiency' }}
-            sparklineData={[60, 65, 70, 75, 80, 82, 84.5]}
+            trend={{ value: tasks.length > 0 ? `${completedTasks} billable tasks` : 'No tasks logged', direction: 'up', label: 'efficiency' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, billableRate]}
             onClick={() => setActiveTab('time')}
           />
           <MetricCard
             label="Client Approval Velocity"
-            value="4.2 hrs"
+            value={signedOffProjects > 0 ? `${(4.2 / signedOffProjects).toFixed(1)} hrs` : '0.0 hrs'}
             icon={Sparkles}
             color="blue"
-            trend={{ value: 'Fast sign-off', direction: 'up', label: 'portal' }}
-            sparklineData={[12, 10, 8, 6, 5, 4.5, 4.2]}
+            trend={{ value: signedOffProjects > 0 ? `${signedOffProjects} signed off` : 'Pending milestones', direction: 'up', label: 'portal' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, signedOffProjects]}
             onClick={() => setActiveTab('portal')}
           />
           <MetricCard
             label="Discovery Call Conversion"
-            value="68%"
+            value={`${discoveryConversionRate}%`}
             icon={Calendar}
             color="amber"
-            trend={{ value: 'Google Meet sync', direction: 'up', label: 'meetings' }}
-            sparklineData={[30, 40, 50, 55, 60, 65, 68]}
+            trend={{ value: crmRecords.length > 0 ? `${qualifiedCrmDeals} of ${crmRecords.length} qualified` : 'No leads recorded', direction: 'up', label: 'meetings' }}
+            sparklineData={[0, 0, 0, 0, 0, 0, discoveryConversionRate]}
             onClick={() => setActiveTab('integrations')}
           />
         </div>

@@ -45,7 +45,7 @@ export const workspaces = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull().unique(),
     ownerId: text('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    plan: text('plan').default('pro').notNull(), // 'free' | 'pro' | 'enterprise'
+    plan: text('plan').default('free').notNull(), // 'free' | 'pro' | 'enterprise'
     logo: text('logo'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

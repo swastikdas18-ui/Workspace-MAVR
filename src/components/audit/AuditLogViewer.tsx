@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { PageHeader } from '../common/PageHeader';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
+import { api } from '../../lib/api';
+
 interface AuditRecord {
   id: string;
   action: string;
@@ -26,63 +28,28 @@ export const AuditLogViewer: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Generate initial simulated audit stream
+  const fetchLogs = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.getAuditLogs({
+        module: selectedModule !== 'all' ? selectedModule : undefined,
+      });
+      if (res && res.logs) {
+        setLogs(res.logs);
+      } else {
+        setLogs([]);
+      }
+    } catch (err: any) {
+      console.warn('Failed to load audit logs:', err);
+      setLogs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const mockLogs: AuditRecord[] = [
-      {
-        id: 'aud-101',
-        action: 'auth.login_successful',
-        module: 'auth',
-        actorName: 'Arthur Admin',
-        actorEmail: 'admin@workspace.os',
-        ipAddress: '192.168.1.104',
-        createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-      },
-      {
-        id: 'aud-102',
-        action: 'projects.created',
-        module: 'projects',
-        actorName: 'Arthur Admin',
-        actorEmail: 'admin@workspace.os',
-        ipAddress: '192.168.1.104',
-        entityType: 'project',
-        entityId: 'proj-q3-deployment',
-        createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
-      },
-      {
-        id: 'aud-103',
-        action: 'automations.rule_enabled',
-        module: 'automations',
-        actorName: 'Arthur Admin',
-        actorEmail: 'admin@workspace.os',
-        ipAddress: '192.168.1.104',
-        entityType: 'automation_rule',
-        entityId: 'rule-auto-notify',
-        createdAt: new Date(Date.now() - 55 * 60000).toISOString(),
-      },
-      {
-        id: 'aud-104',
-        action: 'security.secret_rotated',
-        module: 'security',
-        actorName: 'Arthur Admin',
-        actorEmail: 'admin@workspace.os',
-        ipAddress: '192.168.1.104',
-        createdAt: new Date(Date.now() - 120 * 60000).toISOString(),
-      },
-      {
-        id: 'aud-105',
-        action: 'crm.lead_stage_updated',
-        module: 'crm',
-        actorName: 'Emma Employee',
-        actorEmail: 'emma@workspace.os',
-        ipAddress: '10.0.0.45',
-        entityType: 'crm_record',
-        entityId: 'crm-saas-inc',
-        createdAt: new Date(Date.now() - 180 * 60000).toISOString(),
-      },
-    ];
-    setLogs(mockLogs);
-  }, []);
+    fetchLogs();
+  }, [selectedModule]);
 
   const filteredLogs = logs.filter((log) => {
     if (selectedModule !== 'all' && log.module !== selectedModule) return false;
@@ -220,41 +187,49 @@ export const AuditLogViewer: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.06]">
-            {filteredLogs.map((log) => (
-              <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                <td className="p-3.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">
-                  {new Date(log.createdAt).toLocaleString()}
-                </td>
-                <td className="p-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-[10px]">
-                      {log.actorName[0]}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white text-xs">{log.actorName}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{log.actorEmail}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-3.5">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-slate-800 text-slate-300 border border-white/[0.08]">
-                    {log.module}
-                  </span>
-                </td>
-                <td className="p-3.5 text-slate-200 font-mono text-xs">
-                  {log.action}
-                </td>
-                <td className="p-3.5 text-slate-400 font-mono text-[11px]">
-                  {log.ipAddress}
-                </td>
-                <td className="p-3.5 text-right">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    <ShieldCheck className="w-3 h-3" />
-                    Verified
-                  </span>
+            {filteredLogs.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-8 text-center text-xs text-slate-500">
+                  {isLoading ? 'Loading audit records...' : 'No audit records found for the selected filter.'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredLogs.map((log) => (
+                <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="p-3.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                  <td className="p-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-[10px]">
+                        {log.actorName ? log.actorName[0] : 'U'}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white text-xs">{log.actorName || 'User'}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{log.actorEmail || '—'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3.5">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-slate-800 text-slate-300 border border-white/[0.08]">
+                      {log.module}
+                    </span>
+                  </td>
+                  <td className="p-3.5 text-slate-200 font-mono text-xs">
+                    {log.action}
+                  </td>
+                  <td className="p-3.5 text-slate-400 font-mono text-[11px]">
+                    {log.ipAddress || '—'}
+                  </td>
+                  <td className="p-3.5 text-right">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      <ShieldCheck className="w-3 h-3" />
+                      Verified
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

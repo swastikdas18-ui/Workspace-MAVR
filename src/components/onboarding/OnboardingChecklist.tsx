@@ -47,7 +47,7 @@ export const OnboardingChecklist: React.FC = () => {
       id: 'step-wiki',
       title: '3. Create Wiki Page',
       description: 'Draft interactive company SOPs, specs, or handbooks.',
-      completed: true, // Pre-seeded default wiki
+      completed: false,
       actionTab: 'wiki',
       actionLabel: 'Open Wiki',
     },
@@ -55,7 +55,7 @@ export const OnboardingChecklist: React.FC = () => {
       id: 'step-time',
       title: '4. Log First Time Entry',
       description: 'Start live stopwatch or log billable hours for client tasks.',
-      completed: true, // Pre-seeded default time
+      completed: false,
       actionTab: 'time',
       actionLabel: 'Time Tracker',
     },
@@ -87,7 +87,7 @@ export const OnboardingChecklist: React.FC = () => {
       id: 'step-portal',
       title: '8. Invite First Client',
       description: 'Grant secure external magic link access for deliverable sign-offs.',
-      completed: true,
+      completed: false,
       actionTab: 'portal',
       actionLabel: 'Client Portal',
     },

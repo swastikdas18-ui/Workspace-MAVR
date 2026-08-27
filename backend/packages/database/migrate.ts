@@ -52,13 +52,14 @@ export async function runMigrations() {
         name TEXT NOT NULL,
         slug TEXT NOT NULL UNIQUE,
         owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        plan TEXT NOT NULL DEFAULT 'pro',
+        plan TEXT NOT NULL DEFAULT 'free',
         logo TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
-    await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'pro';`;
+    await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';`;
+    await sql`ALTER TABLE workspaces ALTER COLUMN plan SET DEFAULT 'free';`;
     await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS logo TEXT;`;
 
     // 3. Workspace Members table

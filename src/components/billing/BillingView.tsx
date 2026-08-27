@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   CreditCard, Check, Download, Zap, ArrowUpRight, Sparkles,
@@ -121,6 +121,12 @@ export const BillingView: React.FC = () => {
   const [activePlanTier, setActivePlanTier] = useState<PlanTier>(
     (currentWorkspace?.plan as PlanTier) || 'free'
   );
+
+  useEffect(() => {
+    if (currentWorkspace?.plan) {
+      setActivePlanTier(currentWorkspace.plan as PlanTier);
+    }
+  }, [currentWorkspace?.id, currentWorkspace?.plan]);
 
   const handleDownloadInvoice = (invNumber: string) => {
     addToast({ type: 'success', title: 'Invoice Downloaded', message: `Tax receipt PDF for ${invNumber} generated.` });

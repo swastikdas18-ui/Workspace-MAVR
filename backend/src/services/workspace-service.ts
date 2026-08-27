@@ -90,7 +90,7 @@ export class WorkspaceService {
       name: data.name.trim(),
       slug,
       ownerId: userId,
-      plan: data.plan || 'pro',
+      plan: data.plan || 'free',
     });
 
     // Create workspace membership for owner as ADMIN

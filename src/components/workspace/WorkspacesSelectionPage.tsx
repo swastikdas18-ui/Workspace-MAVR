@@ -21,7 +21,7 @@ export const WorkspacesSelectionPage: React.FC = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
-  const [newPlan, setNewPlan] = useState<'free' | 'pro' | 'enterprise'>('pro');
+  const [newPlan, setNewPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
 

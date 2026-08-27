@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { WorkspaceService } from '../services/workspace-service';
+import { WorkspaceRepository } from '../repositories/workspace-repository';
 
 export const workspaceRouter = new Hono();
 
@@ -161,11 +162,21 @@ workspaceRouter.post('/switch', switchHandler);
 workspaceRouter.post('/select', switchHandler);
 
 /**
- * POST /workspace - Create new workspace
+ * POST /workspace - Create new workspace (Admin only)
  */
 workspaceRouter.post('/', async (c) => {
   try {
     const user = c.get('user');
+    const workspaceCtx = c.get('workspace');
+    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+
+    if (effectiveRole === 'employee' || effectiveRole === 'intern') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: `Role [${effectiveRole.toUpperCase()}] is forbidden from creating workspaces.` } },
+        403
+      );
+    }
+
     const body = await c.req.json();
     if (!body.name || !body.name.trim()) {
       return c.json(
@@ -196,9 +207,96 @@ workspaceRouter.post('/', async (c) => {
 });
 
 /**
+ * PATCH /workspace/settings or /settings - Update workspace settings (Admin only)
+ */
+const updateSettingsHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspaceCtx = c.get('workspace');
+    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+
+    if (effectiveRole === 'employee' || effectiveRole === 'intern') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: `Role [${effectiveRole.toUpperCase()}] is forbidden from updating workspace settings.` } },
+        403
+      );
+    }
+
+    if (!workspaceCtx) {
+      return c.json(
+        { error: { code: 'NOT_FOUND', message: 'No active workspace found for session.' } },
+        404
+      );
+    }
+
+    const body = await c.req.json();
+    const updated = await WorkspaceRepository.updateWorkspace(workspaceCtx.id, {
+      name: body.name?.trim(),
+      slug: body.slug?.trim(),
+      plan: body.plan,
+      logo: body.logo,
+    });
+
+    return c.json({ success: true, workspace: updated }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to update workspace settings.' } },
+      400
+    );
+  }
+};
+
+workspaceRouter.patch('/settings', updateSettingsHandler);
+workspaceRouter.patch('/', updateSettingsHandler);
+
+/**
+ * DELETE /workspace/members/:id - Remove member from workspace (Admin only)
+ */
+const deleteMemberHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspaceCtx = c.get('workspace');
+    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+
+    if (effectiveRole === 'employee' || effectiveRole === 'intern') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: `Role [${effectiveRole.toUpperCase()}] is forbidden from removing workspace members.` } },
+        403
+      );
+    }
+
+    if (!workspaceCtx) {
+      return c.json(
+        { error: { code: 'NOT_FOUND', message: 'No active workspace found for session.' } },
+        404
+      );
+    }
+
+    const targetUserId = c.req.param('id');
+    if (!targetUserId) {
+      return c.json(
+        { error: { code: 'BAD_REQUEST', message: 'Target user ID is required.' } },
+        400
+      );
+    }
+
+    await WorkspaceRepository.removeWorkspaceMember(workspaceCtx.id, targetUserId);
+    return c.json({ success: true, message: 'Member removed from workspace successfully.' }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to remove member.' } },
+      400
+    );
+  }
+};
+
+workspaceRouter.delete('/members/:id', deleteMemberHandler);
+
+/**
  * GET /workspace/members - List members of current workspace
  */
 workspaceRouter.get('/members', async (c) => {
+
   try {
     const user = c.get('user');
     let workspace = c.get('workspace');

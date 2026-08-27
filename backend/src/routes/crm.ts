@@ -72,12 +72,13 @@ const createLeadHandler = async (c: any) => {
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
 
-    if (!body.customer_name && !body.customerName) {
+    const customerName = body.customer_name || body.customerName || body.name;
+    if (!customerName || !customerName.trim()) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Customer name is required.' } }, 400);
     }
 
     const lead = await CrmService.createCrmRecord(workspace.id, user.id, role, {
-      customerName: body.customer_name || body.customerName,
+      customerName: customerName.trim(),
       company: body.company || '',
       email: body.email || '',
       phone: body.phone || '',

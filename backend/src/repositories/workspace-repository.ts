@@ -333,6 +333,62 @@ export class WorkspaceRepository {
   }
 
   /**
+   * Add member to workspace
+   */
+  static async addWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+    role: UserRole = 'employee'
+  ): Promise<WorkspaceMemberEntity> {
+    const memId = crypto.randomUUID();
+    const now = new Date();
+    inMemoryDb.workspaceMembers.set(memId, {
+      id: memId,
+      workspaceId,
+      userId,
+      role,
+      joinedAt: now,
+    });
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.workspaceMembers).values({
+          id: memId,
+          workspaceId,
+          userId,
+          role,
+          joinedAt: now,
+        }).onConflictDoUpdate({
+          target: [schema.workspaceMembers.workspaceId, schema.workspaceMembers.userId],
+          set: { role, joinedAt: now },
+        });
+      }
+    } catch {}
+
+    const u = inMemoryDb.users.get(userId);
+    return {
+      id: memId,
+      workspaceId,
+      userId,
+      role,
+      joinedAt: now,
+      user: u
+        ? {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role as UserRole,
+            title: u.title,
+            avatar: u.avatar,
+            teamId: u.teamId,
+            createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
+          }
+        : undefined,
+    };
+  }
+
+  /**
    * Get all workspaces accessible by a user (both owned and via membership)
    */
   static async getUserWorkspaces(
@@ -513,4 +569,37 @@ export class WorkspaceRepository {
       updatedAt: existing.updatedAt ? new Date(existing.updatedAt) : new Date(),
     };
   }
+
+  /**
+   * Remove member from workspace
+   */
+  static async removeWorkspaceMember(
+    workspaceId: string,
+    targetUserId: string
+  ): Promise<boolean> {
+    // In-memory removal
+    for (const [id, mem] of inMemoryDb.workspaceMembers.entries()) {
+      if (mem.workspaceId === workspaceId && mem.userId === targetUserId) {
+        inMemoryDb.workspaceMembers.delete(id);
+      }
+    }
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db
+          .delete(schema.workspaceMembers)
+          .where(
+            and(
+              eq(schema.workspaceMembers.workspaceId, workspaceId),
+              eq(schema.workspaceMembers.userId, targetUserId)
+            )
+          );
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  }
 }
+

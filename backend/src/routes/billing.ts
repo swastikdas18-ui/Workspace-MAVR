@@ -135,10 +135,13 @@ billingRouter.post('/cancel', requireWorkspaceRole(['admin']), async (c) => {
 });
 
 /**
- * Legacy root GET /api/billing
+ * Root GET /api/billing - Billing overview & subscription (Admin only)
  */
-billingRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+billingRouter.get('/', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
+  if (!workspace) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
+  }
   const sub = await BillingRepository.getSubscription(workspace.id);
   return c.json({ billing: sub }, 200);
 });

@@ -45,7 +45,7 @@ teamRouter.get('/:id', requirePermission('teams:read'), async (c) => {
     const teamId = c.req.param('id');
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
 
-    const team = await TeamService.getTeamById(workspace.id, user.id, role, teamId);
+    const team = await TeamService.getTeamById(workspace.id, teamId, user.id, role);
     return c.json({ team }, 200);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TEAM_NOT_FOUND' ? 404 : 400);
@@ -270,4 +270,38 @@ teamRouter.patch('/:id/lead', requirePermission('teams:update'), async (c) => {
     );
   }
 });
+
+/**
+ * PATCH /api/teams/:id - Update team metadata (Admin only)
+ */
+teamRouter.patch('/:id', requirePermission('teams:update'), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const teamId = c.req.param('id');
+    const body = await c.req.json();
+
+    const team = await TeamService.updateTeam(
+      workspace.id,
+      teamId,
+      user.id,
+      role,
+      body
+    );
+
+    return c.json({ success: true, team }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'TEAM_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'TEAM_ERROR', message: err.message } },
+      status
+    );
+  }
+});
+
 

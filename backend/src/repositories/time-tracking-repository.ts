@@ -1,4 +1,5 @@
-import { inMemoryDb } from '../../packages/database';
+import { eq, and, desc } from 'drizzle-orm';
+import { getDb, schema, inMemoryDb } from '../../packages/database';
 
 export interface TaskTimeEntry {
   id: string;
@@ -30,21 +31,42 @@ export class TimeTrackingRepository {
     await this.stopActiveTimer(data.workspaceId, data.userId);
 
     const id = `time-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const now = new Date();
     const entry: TaskTimeEntry = {
       id,
       workspaceId: data.workspaceId,
       taskId: data.taskId,
       userId: data.userId,
-      startTime: new Date(),
+      startTime: now,
       endTime: null,
       durationMinutes: 0,
       billable: data.billable !== undefined ? data.billable : true,
       hourlyRate: data.hourlyRate || 1500,
       notes: data.notes || '',
-      createdAt: new Date(),
+      createdAt: now,
     };
 
     inMemoryDb.taskTimeEntries.set(id, entry);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.taskTimeEntries).values({
+          id,
+          workspaceId: data.workspaceId,
+          taskId: data.taskId,
+          userId: data.userId,
+          startTime: now,
+          endTime: null,
+          durationMinutes: 0,
+          billable: entry.billable,
+          hourlyRate: entry.hourlyRate,
+          notes: entry.notes,
+          createdAt: now,
+        });
+      }
+    } catch {}
+
     return entry;
   }
 
@@ -64,6 +86,20 @@ export class TimeTrackingRepository {
         };
 
         inMemoryDb.taskTimeEntries.set(entry.id, updated);
+
+        try {
+          const db = getDb();
+          if (db) {
+            await db
+              .update(schema.taskTimeEntries)
+              .set({
+                endTime: now,
+                durationMinutes,
+              })
+              .where(eq(schema.taskTimeEntries.id, entry.id));
+          }
+        } catch {}
+
         return updated;
       }
     }
@@ -97,6 +133,7 @@ export class TimeTrackingRepository {
   }): Promise<TaskTimeEntry> {
     const id = `time-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const endTime = new Date(data.startTime.getTime() + data.durationMinutes * 60000);
+    const now = new Date();
 
     const entry: TaskTimeEntry = {
       id,
@@ -109,10 +146,30 @@ export class TimeTrackingRepository {
       billable: data.billable !== undefined ? data.billable : true,
       hourlyRate: data.hourlyRate || 1500,
       notes: data.notes || '',
-      createdAt: new Date(),
+      createdAt: now,
     };
 
     inMemoryDb.taskTimeEntries.set(id, entry);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.taskTimeEntries).values({
+          id,
+          workspaceId: data.workspaceId,
+          taskId: data.taskId,
+          userId: data.userId,
+          startTime: data.startTime,
+          endTime,
+          durationMinutes: data.durationMinutes,
+          billable: entry.billable,
+          hourlyRate: entry.hourlyRate,
+          notes: entry.notes,
+          createdAt: now,
+        });
+      }
+    } catch {}
+
     return entry;
   }
 
@@ -120,6 +177,52 @@ export class TimeTrackingRepository {
    * Get time entries for workspace
    */
   public static async getEntries(workspaceId: string, filters?: { userId?: string; taskId?: string }): Promise<TaskTimeEntry[]> {
+    try {
+      const db = getDb();
+      if (db) {
+        let query = db
+          .select()
+          .from(schema.taskTimeEntries)
+          .where(
+            filters?.userId && filters?.taskId
+              ? and(
+                  eq(schema.taskTimeEntries.workspaceId, workspaceId),
+                  eq(schema.taskTimeEntries.userId, filters.userId),
+                  eq(schema.taskTimeEntries.taskId, filters.taskId)
+                )
+              : filters?.userId
+              ? and(
+                  eq(schema.taskTimeEntries.workspaceId, workspaceId),
+                  eq(schema.taskTimeEntries.userId, filters.userId)
+                )
+              : filters?.taskId
+              ? and(
+                  eq(schema.taskTimeEntries.workspaceId, workspaceId),
+                  eq(schema.taskTimeEntries.taskId, filters.taskId)
+                )
+              : eq(schema.taskTimeEntries.workspaceId, workspaceId)
+          )
+          .orderBy(desc(schema.taskTimeEntries.startTime));
+
+        const rows = await query;
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            workspaceId: r.workspaceId,
+            taskId: r.taskId,
+            userId: r.userId,
+            startTime: r.startTime,
+            endTime: r.endTime,
+            durationMinutes: r.durationMinutes,
+            billable: r.billable,
+            hourlyRate: r.hourlyRate,
+            notes: r.notes || '',
+            createdAt: r.createdAt,
+          }));
+        }
+      }
+    } catch {}
+
     const list: TaskTimeEntry[] = [];
     for (const entry of inMemoryDb.taskTimeEntries.values()) {
       if (entry.workspaceId === workspaceId) {

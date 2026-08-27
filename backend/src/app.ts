@@ -196,6 +196,41 @@ const getMembersHandler = async (c: any) => {
 app.get('/api/members', authMiddleware, getMembersHandler);
 app.get('/members', authMiddleware, getMembersHandler);
 
+const deleteDirectMemberHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspaceCtx = c.get('workspace');
+    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+
+    if (effectiveRole === 'employee' || effectiveRole === 'intern') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: `Role [${effectiveRole.toUpperCase()}] is forbidden from removing workspace members.` } },
+        403
+      );
+    }
+
+    if (!workspaceCtx) {
+      return c.json(
+        { error: { code: 'NOT_FOUND', message: 'No active workspace found for session.' } },
+        404
+      );
+    }
+
+    const targetUserId = c.req.param('id');
+    const { WorkspaceRepository } = await import('./repositories/workspace-repository');
+    await WorkspaceRepository.removeWorkspaceMember(workspaceCtx.id, targetUserId);
+    return c.json({ success: true, message: 'Member removed from workspace successfully.' }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to remove member.' } },
+      400
+    );
+  }
+};
+app.delete('/api/members/:id', authMiddleware, deleteDirectMemberHandler);
+app.delete('/members/:id', authMiddleware, deleteDirectMemberHandler);
+
+
 app.use('/api/*', apiRateLimiter);
 
 app.route('/api/projects', projectRouter);

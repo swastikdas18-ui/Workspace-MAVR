@@ -66,3 +66,21 @@ auditRouter.get('/export/json', async (c) => {
   c.header('Content-Disposition', `attachment; filename="audit_trail_${workspace.id}_${Date.now()}.json"`);
   return c.text(jsonData, 200);
 });
+
+/**
+ * GET /api/audit - Audit trail summary & overview
+ */
+auditRouter.get('/', async (c) => {
+  const workspace = c.get('workspace');
+  if (!workspace) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+  }
+
+  const result = await AuditService.getLogs({
+    workspaceId: workspace.id,
+    limit: 50,
+  });
+
+  return c.json({ status: 'active', ...result }, 200);
+});
+

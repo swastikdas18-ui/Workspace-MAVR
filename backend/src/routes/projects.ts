@@ -73,11 +73,16 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
-    if (!body.title || !body.title.trim()) {
+    const title = (body.title || body.name || '').trim();
+    if (!title) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Project title is required.' } }, 400);
     }
 
-    const project = await ProjectService.createProject(workspace.id, user.id, role, body);
+    const project = await ProjectService.createProject(workspace.id, user.id, role, {
+      ...body,
+      title,
+      dueDate: body.dueDate || body.due_date || new Date(Date.now() + 30 * 86400000).toISOString(),
+    });
     return c.json({ project }, 201);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : 400);

@@ -111,9 +111,11 @@ export const TeamsView: React.FC = () => {
   const getTeamMembers = (team: Team) => {
     return users.filter(
       (u) =>
-        u.teamId === team.id ||
+        u.team_id === team.id ||
+        (u as any).teamId === team.id ||
         ((team as any).members && (team as any).members.includes(u.id)) ||
-        ((team as any).memberIds && (team as any).memberIds.includes(u.id))
+        ((team as any).memberIds && (team as any).memberIds.includes(u.id)) ||
+        ((team as any).member_ids && (team as any).member_ids.includes(u.id))
     );
   };
 

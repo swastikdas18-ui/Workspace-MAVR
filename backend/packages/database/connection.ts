@@ -13,6 +13,7 @@ export class InMemoryDatabase {
   public teamMembers: Map<string, any> = new Map();
   public projects: Map<string, any> = new Map();
   public projectMembers: Map<string, any> = new Map();
+  public projectTeams: Map<string, any> = new Map();
   public tasks: Map<string, any> = new Map();
   public taskComments: Map<string, any> = new Map();
   public documents: Map<string, any> = new Map();
@@ -77,6 +78,7 @@ export class InMemoryDatabase {
     this.teamMembers.clear();
     this.projects.clear();
     this.projectMembers.clear();
+    this.projectTeams.clear();
     this.tasks.clear();
     this.taskComments.clear();
     this.documents.clear();

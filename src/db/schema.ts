@@ -71,6 +71,13 @@ export const projectMembers = pgTable("project_members", {
   role: text("role", { enum: ["owner", "contributor", "viewer"] }).default("contributor").notNull(),
 });`,
 
+  projectTeams: `
+export const projectTeams = pgTable("project_teams", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+});`,
+
   tasks: `
 export const tasks = pgTable("tasks", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

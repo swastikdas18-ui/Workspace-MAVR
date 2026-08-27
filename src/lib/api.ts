@@ -334,6 +334,35 @@ export const api = {
     });
   },
 
+  async uploadDocumentFile(formData: FormData) {
+    const storedToken = getStoredSessionToken();
+    const headers: Record<string, string> = {
+      ...(storedToken ? {
+        'Authorization': `Bearer ${storedToken}`,
+        'x-session-token': storedToken,
+      } : {}),
+    };
+    const csrfToken = readCsrfCookie();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+    const response = await fetch(`${API_BASE_URL}/api/documents`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const errorMsg = json?.error?.message || `HTTP error ${response.status}`;
+      const errorObj = new Error(errorMsg);
+      (errorObj as any).code = json?.error?.code || 'API_ERROR';
+      (errorObj as any).status = response.status;
+      throw errorObj;
+    }
+    return json as { document: any };
+  },
+
   async deleteDocument(id: string) {
     return await fetchApi<{ success: boolean }>(`/api/documents/${id}`, {
       method: 'DELETE',
@@ -341,9 +370,12 @@ export const api = {
   },
 
   async downloadDocument(id: string) {
-    return await fetchApi<{ success: boolean; downloadCount: number }>(`/api/documents/${id}/download`, {
-      method: 'POST',
-    });
+    return await fetchApi<{ success: boolean; downloadCount: number; downloadUrl: string; signedUrl: string; title: string; fileType: string }>(
+      `/api/documents/${id}/download`,
+      {
+        method: 'POST',
+      }
+    );
   },
 
   // CRM API

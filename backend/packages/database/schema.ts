@@ -173,6 +173,21 @@ export const projectMembers = pgTable(
   })
 );
 
+// Project Teams table
+export const projectTeams = pgTable(
+  'project_teams',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    projectIdx: index('idx_project_teams_project_id').on(table.projectId),
+    teamIdx: index('idx_project_teams_team_id').on(table.teamId),
+    projTeamIdx: index('idx_project_teams_proj_team').on(table.projectId, table.teamId),
+  })
+);
+
 // Tasks table
 export const tasks = pgTable(
   'tasks',

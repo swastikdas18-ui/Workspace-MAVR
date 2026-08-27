@@ -14,6 +14,7 @@ export interface ProjectEntity {
   budget?: string | null;
   createdAt: Date;
   memberIds: string[];
+  teamIds: string[];
   tags?: string[];
 }
 
@@ -30,6 +31,7 @@ export interface CreateProjectParams {
   budget?: string;
   tags?: string[];
   memberIds?: string[];
+  teamIds?: string[];
 }
 
 export interface UpdateProjectParams {
@@ -42,6 +44,7 @@ export interface UpdateProjectParams {
   budget?: string;
   tags?: string[];
   memberIds?: string[];
+  teamIds?: string[];
 }
 
 export class ProjectRepository {
@@ -79,6 +82,19 @@ export class ProjectRepository {
             membersByProject.set(m.projectId, list);
           });
 
+          // Fetch project teams
+          const teamRows = await db
+            .select()
+            .from(schema.projectTeams)
+            .where(inArray(schema.projectTeams.projectId, projectIds));
+
+          const teamsByProject = new Map<string, string[]>();
+          teamRows.forEach((t) => {
+            const list = teamsByProject.get(t.projectId) || [];
+            list.push(t.teamId);
+            teamsByProject.set(t.projectId, list);
+          });
+
           let filteredProjects = projectRows;
 
           if (role === 'employee' && userId) {
@@ -86,6 +102,20 @@ export class ProjectRepository {
             const userProjectIds = new Set(
               memberRows.filter((m) => m.userId === userId).map((m) => m.projectId)
             );
+
+            // Find teams the user belongs to
+            const userTeamMemberships = await db
+              .select()
+              .from(schema.teamMembers)
+              .where(eq(schema.teamMembers.userId, userId));
+            const userTeamIds = new Set(userTeamMemberships.map((tm) => tm.teamId));
+
+            // Find projects assigned to the user's teams
+            teamRows.forEach((tr) => {
+              if (userTeamIds.has(tr.teamId)) {
+                userProjectIds.add(tr.projectId);
+              }
+            });
 
             // Find projects where user is assigned or created tasks
             const taskRows = await db
@@ -101,8 +131,8 @@ export class ProjectRepository {
 
             filteredProjects = projectRows.filter((p) => {
               const isOwner = p.createdBy === userId;
-              const isMember = userProjectIds.has(p.id);
-              return isOwner || isMember;
+              const isMemberOrTeam = userProjectIds.has(p.id);
+              return isOwner || isMemberOrTeam;
             });
           }
 
@@ -119,6 +149,7 @@ export class ProjectRepository {
             budget: p.budget,
             createdAt: p.createdAt,
             memberIds: membersByProject.get(p.id) || [p.createdBy],
+            teamIds: teamsByProject.get(p.id) || [],
             tags: ['Enterprise', 'Core'],
           }));
         }
@@ -139,12 +170,6 @@ export class ProjectRepository {
           .map((pm) => pm.projectId)
       );
 
-      Array.from(inMemoryDb.tasks.values()).forEach((task) => {
-        if (task.workspaceId === workspaceId && (task.assignedTo === userId || task.createdBy === userId)) {
-          userProjectIds.add(task.projectId);
-        }
-      });
-
       const userTeamIds = new Set(
         Array.from(inMemoryDb.teamMembers.values())
           .filter((tm) => tm.userId === userId)
@@ -152,6 +177,18 @@ export class ProjectRepository {
       );
       Array.from(inMemoryDb.teams.values()).forEach((t) => {
         if (t.leadId === userId) userTeamIds.add(t.id);
+      });
+
+      Array.from(inMemoryDb.projectTeams.values()).forEach((pt) => {
+        if (userTeamIds.has(pt.teamId)) {
+          userProjectIds.add(pt.projectId);
+        }
+      });
+
+      Array.from(inMemoryDb.tasks.values()).forEach((task) => {
+        if (task.workspaceId === workspaceId && (task.assignedTo === userId || task.createdBy === userId)) {
+          userProjectIds.add(task.projectId);
+        }
       });
 
       allProjects = allProjects.filter((p) => {
@@ -167,6 +204,10 @@ export class ProjectRepository {
         .filter((pm) => pm.projectId === p.id)
         .map((pm) => pm.userId);
 
+      const teams = Array.from(inMemoryDb.projectTeams.values())
+        .filter((pt) => pt.projectId === p.id)
+        .map((pt) => pt.teamId);
+
       return {
         id: p.id,
         title: p.title,
@@ -180,6 +221,7 @@ export class ProjectRepository {
         budget: p.budget || undefined,
         createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
         memberIds: members.length > 0 ? members : [p.createdBy],
+        teamIds: teams.length > 0 ? teams : ((p as any).teamIds || []),
         tags: p.tags || ['Enterprise', 'Core'],
       };
     });
@@ -214,6 +256,13 @@ export class ProjectRepository {
 
           const memberIds = memberRows.map((m) => m.userId);
 
+          const teamRows = await db
+            .select()
+            .from(schema.projectTeams)
+            .where(eq(schema.projectTeams.projectId, projectId));
+
+          const teamIds = teamRows.map((t) => t.teamId);
+
           return {
             id: project.id,
             title: project.title,
@@ -227,6 +276,7 @@ export class ProjectRepository {
             budget: project.budget,
             createdAt: project.createdAt,
             memberIds: memberIds.length > 0 ? memberIds : [project.createdBy],
+            teamIds,
             tags: ['Enterprise', 'Core'],
           };
         }
@@ -242,6 +292,10 @@ export class ProjectRepository {
       .filter((pm) => pm.projectId === p.id)
       .map((pm) => pm.userId);
 
+    const teams = Array.from(inMemoryDb.projectTeams.values())
+      .filter((pt) => pt.projectId === p.id)
+      .map((pt) => pt.teamId);
+
     return {
       id: p.id,
       title: p.title,
@@ -255,6 +309,7 @@ export class ProjectRepository {
       budget: p.budget || undefined,
       createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
       memberIds: members.length > 0 ? members : [p.createdBy],
+      teamIds: teams.length > 0 ? teams : ((p as any).teamIds || []),
       tags: p.tags || ['Enterprise', 'Core'],
     };
   }
@@ -268,6 +323,7 @@ export class ProjectRepository {
     const startDate = data.startDate || now;
     const dueDate = data.dueDate;
     const memberIds = data.memberIds && data.memberIds.length > 0 ? data.memberIds : [data.createdBy];
+    const teamIds = data.teamIds || [];
 
     // Always maintain in-memory store
     const newProject = {
@@ -294,6 +350,15 @@ export class ProjectRepository {
         projectId,
         userId: mId,
         role: mId === data.createdBy ? 'owner' : 'contributor',
+      });
+    }
+
+    for (const tId of teamIds) {
+      const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      inMemoryDb.projectTeams.set(ptId, {
+        id: ptId,
+        projectId,
+        teamId: tId,
       });
     }
 
@@ -324,6 +389,15 @@ export class ProjectRepository {
               role: mId === data.createdBy ? 'owner' : 'contributor',
             });
           }
+
+          for (const tId of teamIds) {
+            const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            await tx.insert(schema.projectTeams).values({
+              id: ptId,
+              projectId,
+              teamId: tId,
+            });
+          }
         });
       }
     } catch {
@@ -343,6 +417,7 @@ export class ProjectRepository {
       budget: newProject.budget,
       createdAt: newProject.createdAt,
       memberIds,
+      teamIds,
       tags: newProject.tags,
     };
   }
@@ -411,6 +486,20 @@ export class ProjectRepository {
       }
     }
 
+    if (updates.teamIds) {
+      Array.from(inMemoryDb.projectTeams.entries()).forEach(([id, pt]) => {
+        if (pt.projectId === projectId) inMemoryDb.projectTeams.delete(id);
+      });
+      for (const tId of updates.teamIds) {
+        const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        inMemoryDb.projectTeams.set(ptId, {
+          id: ptId,
+          projectId,
+          teamId: tId,
+        });
+      }
+    }
+
     try {
       const db = getDb();
       if (db) {
@@ -450,6 +539,21 @@ export class ProjectRepository {
             });
           }
         }
+
+        if (updates.teamIds) {
+          await db
+            .delete(schema.projectTeams)
+            .where(eq(schema.projectTeams.projectId, projectId));
+
+          for (const tId of updates.teamIds) {
+            const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            await db.insert(schema.projectTeams).values({
+              id: ptId,
+              projectId,
+              teamId: tId,
+            });
+          }
+        }
       }
     } catch {
       // In-memory already updated
@@ -458,6 +562,10 @@ export class ProjectRepository {
     const currentMembers = updates.memberIds || Array.from(inMemoryDb.projectMembers.values())
       .filter((pm) => pm.projectId === projectId)
       .map((pm) => pm.userId);
+
+    const currentTeams = updates.teamIds || Array.from(inMemoryDb.projectTeams.values())
+      .filter((pt) => pt.projectId === projectId)
+      .map((pt) => pt.teamId);
 
     return {
       id: updated.id,
@@ -472,12 +580,13 @@ export class ProjectRepository {
       budget: updated.budget,
       createdAt: updated.createdAt ? new Date(updated.createdAt) : new Date(),
       memberIds: currentMembers.length > 0 ? currentMembers : [updated.createdBy],
+      teamIds: currentTeams,
       tags: updated.tags || ['Enterprise', 'Core'],
     };
   }
 
   /**
-   * Delete a project and its members
+   * Delete a project and its members & teams
    */
   static async deleteProject(workspaceId: string, projectId: string): Promise<boolean> {
     const existing = inMemoryDb.projects.get(projectId);
@@ -486,11 +595,18 @@ export class ProjectRepository {
       Array.from(inMemoryDb.projectMembers.entries()).forEach(([id, pm]) => {
         if (pm.projectId === projectId) inMemoryDb.projectMembers.delete(id);
       });
+      Array.from(inMemoryDb.projectTeams.entries()).forEach(([id, pt]) => {
+        if (pt.projectId === projectId) inMemoryDb.projectTeams.delete(id);
+      });
     }
 
     try {
       const db = getDb();
       if (db) {
+        await db
+          .delete(schema.projectTeams)
+          .where(eq(schema.projectTeams.projectId, projectId));
+
         await db
           .delete(schema.projectMembers)
           .where(eq(schema.projectMembers.projectId, projectId));
@@ -511,3 +627,4 @@ export class ProjectRepository {
     return true;
   }
 }
+

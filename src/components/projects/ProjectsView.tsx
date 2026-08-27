@@ -4,7 +4,7 @@ import { Project, ProjectStatus } from '../../types';
 import { 
   FolderKanban, Plus, LayoutGrid, List, Calendar, DollarSign, 
   Trash2, Users, CheckCircle2, Clock, X, ArrowUpRight,
-  TrendingUp, BarChart2, Tag, Layers, Check
+  TrendingUp, BarChart2, Tag, Layers, Check, Shield
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
@@ -16,7 +16,7 @@ type ViewMode = 'board' | 'list' | 'timeline';
 export const ProjectsView: React.FC = () => {
   const { 
     projects, currentUser, currentRole, permissions, createProject, 
-    updateProject, deleteProject, users, searchQuery 
+    updateProject, deleteProject, users, teams, searchQuery 
   } = useWorkspace();
 
   const [viewMode, setViewMode] = useState<ViewMode>('board');
@@ -29,12 +29,17 @@ export const ProjectsView: React.FC = () => {
   const [dueDate, setDueDate] = useState('');
   const [budget, setBudget] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([currentUser.id]);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [tagsInput, setTagsInput] = useState('');
 
   // Filter projects
   const visibleProjects = projects.filter((p) => {
-    if (currentRole === 'employee' && !p.member_ids.includes(currentUser.id)) {
-      return false;
+    if (currentRole === 'employee') {
+      const isDirectMember = p.member_ids?.includes(currentUser.id);
+      const isTeamMember = p.team_ids?.some((tId) => currentUser.team_id === tId);
+      if (!isDirectMember && !isTeamMember && p.created_by !== currentUser.id) {
+        return false;
+      }
     }
     if (selectedStatus !== 'all' && p.status !== selectedStatus) {
       return false;
@@ -59,6 +64,7 @@ export const ProjectsView: React.FC = () => {
       due_date: dueDate || new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10),
       budget: budget ? (budget.startsWith('$') ? budget : `$${budget}`) : '$15,000',
       member_ids: selectedMembers,
+      team_ids: selectedTeams,
       tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
     });
     if (success) {
@@ -67,6 +73,7 @@ export const ProjectsView: React.FC = () => {
       setDescription('');
       setDueDate('');
       setBudget('');
+      setSelectedTeams([]);
       setTagsInput('');
     }
   };
@@ -81,6 +88,12 @@ export const ProjectsView: React.FC = () => {
   const toggleMemberSelection = (userId: string) => {
     setSelectedMembers((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const toggleTeamSelection = (teamId: string) => {
+    setSelectedTeams((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
     );
   };
 
@@ -108,10 +121,10 @@ export const ProjectsView: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header with Linear & Vercel styling */}
       <PageHeader
-        title={currentRole === 'admin' ? 'Strategic Initiatives' : 'Assigned Projects'}
+        title={currentRole === 'admin' ? 'Strategic Initiatives & Team Projects' : 'Assigned Projects & Team Roadmaps'}
         description={
           currentRole === 'admin'
-            ? 'Executive roadmap, milestone tracking, and cross-functional project allocation.'
+            ? 'Executive roadmap, milestone tracking, and cross-functional project allocation across teams and individuals.'
             : 'Track milestone delivery, update progress, and collaborate with team members.'
         }
         badge={
@@ -214,7 +227,9 @@ export const ProjectsView: React.FC = () => {
                 {/* Project Cards in Column */}
                 <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                   {columnProjects.map((project) => {
-                    const projectMembers = users.filter((u) => project.member_ids.includes(u.id));
+                    const projectMembers = users.filter((u) => project.member_ids?.includes(u.id));
+                    const projectTeams = teams.filter((t) => project.team_ids?.includes(t.id));
+
                     return (
                       <motion.div
                         key={project.id}
@@ -244,6 +259,18 @@ export const ProjectsView: React.FC = () => {
                         <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
                           {project.description}
                         </p>
+
+                        {/* Assigned Teams Badges */}
+                        {projectTeams.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {projectTeams.map((t) => (
+                              <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-medium">
+                                <Users className="w-2.5 h-2.5" />
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Progress Bar & Slider */}
                         <div className="mb-3">
@@ -308,7 +335,8 @@ export const ProjectsView: React.FC = () => {
                   <th className="py-3.5 px-4">Initiative</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Progress</th>
-                  <th className="py-3.5 px-4">Team</th>
+                  <th className="py-3.5 px-4">Assigned Teams</th>
+                  <th className="py-3.5 px-4">Members</th>
                   <th className="py-3.5 px-4">Target Date</th>
                   <th className="py-3.5 px-4">Budget</th>
                   {permissions.projects.delete && <th className="py-3.5 px-4 text-right">Actions</th>}
@@ -316,7 +344,9 @@ export const ProjectsView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-white/[0.04] text-slate-300">
                 {visibleProjects.map((project) => {
-                  const projectMembers = users.filter((u) => project.member_ids.includes(u.id));
+                  const projectMembers = users.filter((u) => project.member_ids?.includes(u.id));
+                  const projectTeams = teams.filter((t) => project.team_ids?.includes(t.id));
+
                   return (
                     <tr key={project.id} className="hover:bg-slate-800/40 transition-colors group">
                       <td className="py-3.5 px-4 max-w-xs">
@@ -339,6 +369,19 @@ export const ProjectsView: React.FC = () => {
                             />
                           </div>
                           <span className="font-mono text-purple-400 text-[11px] font-bold">{project.progress}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {projectTeams.length > 0 ? (
+                            projectTeams.map((t) => (
+                              <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px]">
+                                {t.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-500 text-[11px]">—</span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
@@ -382,7 +425,14 @@ export const ProjectsView: React.FC = () => {
               return (
                 <div key={project.id} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white">{project.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">{project.title}</span>
+                      {project.team_ids && project.team_ids.length > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono">
+                          {project.team_ids.length} Team{project.team_ids.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
                       <span>{project.start_date}</span>
                       <span>→</span>
@@ -422,7 +472,7 @@ export const ProjectsView: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-lg bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+              className="relative w-full max-w-lg bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4 max-h-[88vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
                 <h3 className="text-base font-semibold text-white">Create Strategic Initiative</h3>
@@ -482,9 +532,37 @@ export const ProjectsView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Teams Assignment */}
+                {teams.length > 0 && (
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1.5">Assign To Teams</label>
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-white/[0.06]">
+                      {teams.map((team) => {
+                        const isSelected = selectedTeams.includes(team.id);
+                        return (
+                          <button
+                            key={team.id}
+                            type="button"
+                            onClick={() => toggleTeamSelection(team.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-600 text-white font-medium shadow-sm'
+                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <Users className="w-3 h-3" />
+                            <span>{team.name}</span>
+                            {isSelected && <Check className="w-3 h-3" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Team Members Assignment */}
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1.5">Assign Team Members</label>
+                  <label className="block text-slate-300 font-medium mb-1.5">Assign Individual Members</label>
                   <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-white/[0.06]">
                     {users.map((user) => {
                       const isSelected = selectedMembers.includes(user.id);
@@ -542,3 +620,4 @@ export const ProjectsView: React.FC = () => {
     </div>
   );
 };
+

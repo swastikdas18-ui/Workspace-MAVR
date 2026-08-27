@@ -10,6 +10,7 @@ export interface User {
   avatar?: string;
   title?: string;
   teamId?: string;
+  team_id?: string;
   created_at?: string;
 }
 
@@ -56,6 +57,9 @@ export interface Project {
   due_date: string;
   budget?: string;
   member_ids: string[];
+  team_ids?: string[];
+  teams?: any[];
+  members?: any[];
   tags: string[];
 }
 
@@ -64,6 +68,12 @@ export interface ProjectMember {
   project_id: string;
   user_id: string;
   role: 'owner' | 'contributor' | 'viewer';
+}
+
+export interface ProjectTeam {
+  id: string;
+  project_id: string;
+  team_id: string;
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'completed';
@@ -118,11 +128,16 @@ export interface DocumentItem {
   id: string;
   title: string;
   file_url: string;
-  file_type: 'pdf' | 'doc' | 'sheet' | 'slide' | 'code' | 'guide';
+  download_url?: string;
+  storage_key?: string;
+  storage_provider?: string;
+  file_type: 'pdf' | 'doc' | 'sheet' | 'slide' | 'code' | 'guide' | string;
+  mime_type?: string;
   file_size: string;
+  file_size_bytes?: number;
   owner_id: string;
   visibility: DocumentVisibility;
-  category: 'Policy' | 'Design' | 'Technical' | 'Marketing' | 'Onboarding' | 'General';
+  category: 'Policy' | 'Design' | 'Technical' | 'Marketing' | 'Onboarding' | 'General' | string;
   created_at: string;
   download_count: number;
 }

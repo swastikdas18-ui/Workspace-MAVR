@@ -587,6 +587,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: data.due_date,
         budget: data.budget,
         memberIds: data.member_ids,
+        teamIds: data.team_ids,
         tags: data.tags,
       });
       if (res.project) {
@@ -608,9 +609,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return false;
     }
     try {
-      const res = await api.updateProject(id, updates);
+      const payload: any = { ...updates };
+      if (updates.start_date) payload.startDate = updates.start_date;
+      if (updates.due_date) payload.dueDate = updates.due_date;
+      if (updates.member_ids) payload.memberIds = updates.member_ids;
+      if (updates.team_ids) payload.teamIds = updates.team_ids;
+
+      const res = await api.updateProject(id, payload);
       if (res.project) {
-        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, ...updates } : p)));
         addToast({ type: 'success', title: 'Project Updated', message: 'Project status and parameters saved.' });
         logAction(`Updated project ${id}`, 'PROJECTS');
         return true;
@@ -749,23 +756,29 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // Documents Actions
-  const uploadDocument = async (doc: Omit<DocumentItem, 'id' | 'created_at' | 'download_count' | 'owner_id'>): Promise<boolean> => {
-    if (doc.visibility !== 'private' && !permissions.documents.createOrgDoc && !permissions.documents.createPersonalDoc) {
-      addToast({ type: 'error', title: 'Access Denied', message: 'Role not permitted to create documents.' });
-      logAction('Unauthorized document upload attempt', 'DOCS', 'denied');
-      return false;
-    }
+  const uploadDocument = async (docOrForm: Omit<DocumentItem, 'id' | 'created_at' | 'download_count' | 'owner_id'> | FormData): Promise<boolean> => {
     try {
-      const res = await api.createDocument({
-        title: doc.title,
-        fileUrl: doc.file_url,
-        fileType: doc.file_type,
-        fileSize: doc.file_size,
-        visibility: doc.visibility,
-        category: doc.category,
-      });
-      if (res.document) {
-        setDocuments((prev) => [res.document, ...prev]);
+      let res: any;
+      if (docOrForm instanceof FormData) {
+        res = await api.uploadDocumentFile(docOrForm);
+      } else {
+        if (docOrForm.visibility !== 'private' && !permissions.documents.createOrgDoc && !permissions.documents.createPersonalDoc) {
+          addToast({ type: 'error', title: 'Access Denied', message: 'Role not permitted to create documents.' });
+          logAction('Unauthorized document upload attempt', 'DOCS', 'denied');
+          return false;
+        }
+        res = await api.createDocument({
+          title: docOrForm.title,
+          fileUrl: docOrForm.file_url,
+          fileType: docOrForm.file_type,
+          fileSize: docOrForm.file_size,
+          visibility: docOrForm.visibility,
+          category: docOrForm.category,
+        });
+      }
+
+      if (res?.document) {
+        setDocuments((prev) => [res.document, ...prev.filter((d) => d.id !== res.document.id)]);
         addToast({ type: 'success', title: 'Document Uploaded', message: `"${res.document.title}" stored in database.` });
         logAction(`Uploaded document "${res.document.title}"`, 'DOCS');
         return true;
@@ -812,17 +825,18 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         );
       }
       const target = documents.find((d) => d.id === id);
-      // Trigger client file download
-      const content = `# ${target?.title || 'Workspace Document'}\n\nCategory: ${target?.category || 'General'}\nVisibility: ${target?.visibility || 'team'}\nFile Size: ${target?.file_size || '1.2 MB'}\n\nDownloaded from Workspace OS Document Vault.\nTimestamp: ${new Date().toISOString()}`;
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${(target?.title || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const downloadUrl = res?.signedUrl || res?.downloadUrl || target?.download_url || target?.file_url;
+      if (downloadUrl && downloadUrl.startsWith('http') && !downloadUrl.includes('workspaceos.dev')) {
+        window.open(downloadUrl, '_blank');
+      } else {
+        const urlToFetch = downloadUrl || `/api/documents/download-stream?key=${encodeURIComponent(target?.storage_key || `${currentWorkspace.id}/${id}/${target?.title || 'document'}`)}`;
+        const link = document.createElement('a');
+        link.href = urlToFetch;
+        link.download = `${(target?.title || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${target?.file_type || 'pdf'}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
 
       addToast({ type: 'success', title: 'Download Complete', message: `Downloaded "${target?.title || 'file'}"` });
       logAction(`Downloaded document ${id}`, 'DOCS');

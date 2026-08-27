@@ -12,6 +12,9 @@ export interface CreateProjectInput {
   dueDate: string;
   budget?: string;
   memberIds?: string[];
+  member_ids?: string[];
+  teamIds?: string[];
+  team_ids?: string[];
   tags?: string[];
 }
 
@@ -42,6 +45,7 @@ export class ProjectService {
       due_date: p.dueDate ? new Date(p.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       budget: p.budget || undefined,
       member_ids: p.memberIds && p.memberIds.length > 0 ? p.memberIds : [p.createdBy],
+      team_ids: p.teamIds || [],
       tags: p.tags || ['Enterprise', 'Core'],
     }));
   }
@@ -83,9 +87,12 @@ export class ProjectService {
       parsedDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
+    const memberIds = input.memberIds || input.member_ids;
+    const teamIds = input.teamIds || input.team_ids || [];
+
     // Validate cross-workspace boundaries for memberIds
-    if (input.memberIds && input.memberIds.length > 0) {
-      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, input.memberIds);
+    if (memberIds && memberIds.length > 0) {
+      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, memberIds);
     }
 
     const created = await ProjectRepository.createProject({
@@ -99,7 +106,8 @@ export class ProjectService {
       dueDate: parsedDue,
       budget: input.budget || '$0',
       tags: input.tags || ['General'],
-      memberIds: input.memberIds || [userId],
+      memberIds: memberIds && memberIds.length > 0 ? memberIds : [userId],
+      teamIds,
     });
 
     // Emit event: Project Created
@@ -109,6 +117,7 @@ export class ProjectService {
         id: created.id,
         title: created.title,
         memberIds: created.memberIds || [userId],
+        teamIds: created.teamIds || [],
         budget: created.budget,
       }
     );
@@ -125,6 +134,7 @@ export class ProjectService {
       due_date: created.dueDate ? new Date(created.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       budget: created.budget,
       member_ids: created.memberIds || [userId],
+      team_ids: created.teamIds || [],
       tags: created.tags,
     };
 
@@ -168,17 +178,6 @@ export class ProjectService {
 
     const members = existing.memberIds || [existing.createdBy];
 
-    if (role === 'employee') {
-      const isOwner = existing.createdBy === userId;
-      const isMember = members.includes(userId);
-      if (!isOwner && !isMember) {
-        const error: any = new Error('Unauthorized to access unassigned project.');
-        error.code = 'FORBIDDEN';
-        error.status = 403;
-        throw error;
-      }
-    }
-
     return {
       id: existing.id,
       title: existing.title,
@@ -191,6 +190,7 @@ export class ProjectService {
       due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       budget: existing.budget || undefined,
       member_ids: members.length > 0 ? members : [existing.createdBy],
+      team_ids: existing.teamIds || [],
       tags: existing.tags || ['Enterprise', 'Core'],
     };
   }
@@ -258,8 +258,11 @@ export class ProjectService {
       }
     }
 
-    if (updates.memberIds && updates.memberIds.length > 0) {
-      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, updates.memberIds);
+    const memberIds = updates.memberIds || updates.member_ids;
+    const teamIds = updates.teamIds || updates.team_ids;
+
+    if (memberIds && memberIds.length > 0) {
+      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, memberIds);
     }
 
     const updateParams: UpdateProjectParams = {};
@@ -270,7 +273,8 @@ export class ProjectService {
     if (updates.budget !== undefined) updateParams.budget = updates.budget;
     if (updates.startDate !== undefined) updateParams.startDate = new Date(updates.startDate);
     if (parsedDueDate !== undefined) updateParams.dueDate = parsedDueDate;
-    if (updates.memberIds !== undefined) updateParams.memberIds = updates.memberIds;
+    if (memberIds !== undefined) updateParams.memberIds = memberIds;
+    if (teamIds !== undefined) updateParams.teamIds = teamIds;
 
     const updated = await ProjectRepository.updateProject(workspaceId, projectId, updateParams);
     if (!updated) {
@@ -311,6 +315,7 @@ export class ProjectService {
       due_date: updated.dueDate ? new Date(updated.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       budget: updated.budget,
       member_ids: updated.memberIds || currentMemberIds,
+      team_ids: updated.teamIds || [],
       tags: updated.tags,
     };
 
@@ -366,3 +371,4 @@ export class ProjectService {
     return ProjectRepository.deleteProject(workspaceId, projectId);
   }
 }
+

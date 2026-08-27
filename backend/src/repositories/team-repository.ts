@@ -351,53 +351,101 @@ export class TeamRepository {
   }
 
   /**
-   * Add a member to a team
+   * Add a member to a team and sync user team_id
    */
   static async addMember(
     teamId: string,
     userId: string,
-    roleInTeam = 'member'
+    roleInTeam = 'member',
+    workspaceId?: string
   ): Promise<TeamMemberEntity> {
-    const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    // Check if already in team in memory
+    const existingEntry = Array.from(inMemoryDb.teamMembers.values()).find(
+      (tm) => tm.teamId === teamId && tm.userId === userId
+    );
+
+    let memberEntity: TeamMemberEntity;
     const now = new Date();
 
-    const newMember: TeamMemberEntity = {
-      id: tmId,
-      teamId,
-      userId,
-      roleInTeam,
-      joinedAt: now,
-    };
+    if (existingEntry) {
+      memberEntity = existingEntry;
+    } else {
+      const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      memberEntity = {
+        id: tmId,
+        teamId,
+        userId,
+        roleInTeam,
+        joinedAt: now,
+      };
+      inMemoryDb.teamMembers.set(tmId, memberEntity);
+    }
 
-    inMemoryDb.teamMembers.set(tmId, newMember);
+    // Sync in-memory user teamId
+    const inMemUser = inMemoryDb.users.get(userId);
+    if (inMemUser) {
+      inMemUser.teamId = teamId;
+      inMemoryDb.users.set(userId, inMemUser);
+    }
 
     try {
       const db = getDb();
       if (db) {
-        await db.insert(schema.teamMembers).values({
-          id: tmId,
-          teamId,
-          userId,
-          roleInTeam,
-          joinedAt: now,
-        });
+        // Check if row already exists in database
+        const [existingDbMember] = await db
+          .select()
+          .from(schema.teamMembers)
+          .where(
+            and(
+              eq(schema.teamMembers.teamId, teamId),
+              eq(schema.teamMembers.userId, userId)
+            )
+          );
+
+        if (!existingDbMember) {
+          const tmId = memberEntity.id;
+          await db.insert(schema.teamMembers).values({
+            id: tmId,
+            teamId,
+            userId,
+            roleInTeam,
+            joinedAt: now,
+          });
+        }
+
+        // Update user's teamId in users table
+        await db
+          .update(schema.users)
+          .set({ teamId, updatedAt: now })
+          .where(eq(schema.users.id, userId));
       }
-    } catch {
+    } catch (e) {
       // In-memory handled
     }
 
-    return newMember;
+    return memberEntity;
   }
 
   /**
-   * Remove a member from a team
+   * Remove a member from a team and update user team_id
    */
-  static async removeMember(teamId: string, userId: string): Promise<boolean> {
+  static async removeMember(teamId: string, userId: string, workspaceId?: string): Promise<boolean> {
+    // Remove from in-memory teamMembers
     Array.from(inMemoryDb.teamMembers.entries()).forEach(([id, tm]) => {
       if (tm.teamId === teamId && tm.userId === userId) {
         inMemoryDb.teamMembers.delete(id);
       }
     });
+
+    // Check if user has other teams, or clear teamId
+    const remainingTeams = Array.from(inMemoryDb.teamMembers.values()).filter(
+      (tm) => tm.userId === userId
+    );
+    const inMemUser = inMemoryDb.users.get(userId);
+    if (inMemUser) {
+      inMemUser.teamId = remainingTeams.length > 0 ? remainingTeams[0].teamId : undefined;
+      inMemoryDb.users.set(userId, inMemUser);
+    }
 
     try {
       const db = getDb();
@@ -410,12 +458,117 @@ export class TeamRepository {
               eq(schema.teamMembers.userId, userId)
             )
           );
+
+        // Check if user has other team memberships in DB
+        const remainingDbMembers = await db
+          .select()
+          .from(schema.teamMembers)
+          .where(eq(schema.teamMembers.userId, userId));
+
+        const nextTeamId = remainingDbMembers.length > 0 ? remainingDbMembers[0].teamId : null;
+
+        await db
+          .update(schema.users)
+          .set({ teamId: nextTeamId, updatedAt: new Date() })
+          .where(eq(schema.users.id, userId));
       }
     } catch {
       // In-memory handled
     }
 
     return true;
+  }
+
+  /**
+   * Move a member between two teams
+   */
+  static async moveMember(
+    fromTeamId: string,
+    toTeamId: string,
+    userId: string,
+    workspaceId?: string
+  ): Promise<boolean> {
+    await this.removeMember(fromTeamId, userId, workspaceId);
+    await this.addMember(toTeamId, userId, 'member', workspaceId);
+    return true;
+  }
+
+  /**
+   * Update team lead and ensure lead is a member
+   */
+  static async updateLead(
+    workspaceId: string,
+    teamId: string,
+    leadId: string
+  ): Promise<TeamEntity | null> {
+    await this.addMember(teamId, leadId, 'lead', workspaceId);
+    return await this.updateTeam(workspaceId, teamId, { leadId });
+  }
+
+  /**
+   * Get team members with full user details
+   */
+  static async getTeamMembersWithDetails(
+    workspaceId: string,
+    teamId: string
+  ): Promise<Array<TeamMemberEntity & { user?: any }>> {
+    const rawMembers = await this.getTeamMembers(teamId);
+
+    // Look up user details
+    const result: Array<TeamMemberEntity & { user?: any }> = [];
+
+    for (const m of rawMembers) {
+      let userObj: any = inMemoryDb.users.get(m.userId);
+      if (!userObj) {
+        try {
+          const db = getDb();
+          if (db) {
+            const [u] = await db
+              .select()
+              .from(schema.users)
+              .where(eq(schema.users.id, m.userId));
+            if (u) {
+              userObj = {
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                role: u.role,
+                avatar: u.avatar || '',
+                title: u.title || '',
+                teamId: u.teamId || teamId,
+              };
+            }
+          }
+        } catch {
+          // Fallback
+        }
+      }
+
+      result.push({
+        ...m,
+        user: userObj
+          ? {
+              id: userObj.id,
+              name: userObj.name,
+              email: userObj.email,
+              role: userObj.role,
+              avatar: userObj.avatar || '',
+              title: userObj.title || '',
+              teamId: userObj.teamId || teamId,
+            }
+          : {
+              id: m.userId,
+              name: 'Workspace Member',
+              email: '',
+              role: 'employee',
+              avatar: '',
+              title: '',
+              teamId,
+            },
+      });
+    }
+
+    return result;
   }
 
   /**

@@ -181,7 +181,7 @@ export const api = {
   },
 
   // Invites API
-  async createInvite(data: { email: string; role: 'employee' | 'intern'; teamId?: string }) {
+  async createInvite(data: { email: string; role: 'admin' | 'employee' | 'intern' | string; teamId?: string }) {
     return await fetchApi<{ invite: any }>('/api/invites', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -281,6 +281,44 @@ export const api = {
     return await fetchApi<{ team: any }>('/api/teams', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  async getTeamMembers(teamId: string) {
+    return await fetchApi<{ members: any[] }>(`/api/teams/${teamId}/members`);
+  },
+
+  async addTeamMember(teamId: string, userId: string, role = 'member') {
+    return await fetchApi<{ success: boolean; member: any; team: any }>(`/api/teams/${teamId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, role }),
+    });
+  },
+
+  async addTeamMembers(teamId: string, userIds: string[]) {
+    return await fetchApi<{ members: any[]; team: any }>(`/api/teams/${teamId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    });
+  },
+
+  async removeTeamMember(teamId: string, userId: string) {
+    return await fetchApi<{ success: boolean; team: any }>(`/api/teams/${teamId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async moveTeamMember(fromTeamId: string, toTeamId: string, userId: string) {
+    return await fetchApi<{ success: boolean; fromTeam: any; toTeam: any }>(`/api/teams/${fromTeamId}/members/move`, {
+      method: 'POST',
+      body: JSON.stringify({ toTeamId, userId }),
+    });
+  },
+
+  async setTeamLead(teamId: string, leadId: string) {
+    return await fetchApi<{ success: boolean; team: any }>(`/api/teams/${teamId}/lead`, {
+      method: 'PATCH',
+      body: JSON.stringify({ leadId }),
     });
   },
 

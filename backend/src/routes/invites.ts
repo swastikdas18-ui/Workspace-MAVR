@@ -69,10 +69,13 @@ inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c
       );
     }
 
+    const allowedRoles = ['admin', 'employee', 'intern'];
+    const assignedRole = allowedRoles.includes(body.role) ? body.role : 'employee';
+
     const invite = await InviteService.createInvite({
       workspaceId: workspace.id, // Strictly derived from server session!
       email: body.email,
-      role: body.role === 'intern' ? 'intern' : 'employee', // Never admin
+      role: assignedRole,
       invitedBy: user.id,
       teamId: body.teamId || null,
     });

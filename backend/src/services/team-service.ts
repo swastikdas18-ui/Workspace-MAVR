@@ -276,7 +276,7 @@ export class TeamService {
     rawRole: UserRole | string,
     roleInTeam = 'member',
     actorId?: string
-  ): Promise<TeamMemberEntity> {
+  ): Promise<{ member: TeamMemberEntity; team: any }> {
     const role = normalizeRole(rawRole);
     if (role !== 'admin') {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from assigning team members.`);
@@ -293,7 +293,8 @@ export class TeamService {
       throw error;
     }
 
-    const result = await TeamRepository.addMember(teamId, targetUserId, roleInTeam);
+    const member = await TeamRepository.addMember(teamId, targetUserId, roleInTeam, workspaceId);
+    const updatedTeam = await TeamRepository.getTeamById(workspaceId, teamId);
 
     // Emit event: Member added to team
     await EventService.emitMemberAdded(
@@ -306,7 +307,82 @@ export class TeamService {
       }
     );
 
-    return result;
+    return {
+      member,
+      team: {
+        id: updatedTeam?.id || teamId,
+        name: updatedTeam?.name || existing.name,
+        description: updatedTeam?.description || '',
+        workspace_id: updatedTeam?.workspaceId || workspaceId,
+        lead_id: updatedTeam?.leadId || existing.leadId,
+        color: updatedTeam?.color || '#3b82f6',
+        created_at: updatedTeam?.createdAt ? new Date(updatedTeam.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        member_count: updatedTeam?.memberIds.length || 1,
+        members_count: updatedTeam?.memberIds.length || 1,
+        members: updatedTeam?.memberIds || [targetUserId],
+      },
+    };
+  }
+
+  /**
+   * Add multiple members to team
+   */
+  static async addMembers(
+    workspaceId: string,
+    teamId: string,
+    targetUserIds: string[],
+    rawRole: UserRole | string,
+    actorId?: string
+  ): Promise<{ team: any; members: TeamMemberEntity[] }> {
+    const role = normalizeRole(rawRole);
+    if (role !== 'admin') {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from assigning team members.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await TeamRepository.getTeamById(workspaceId, teamId);
+    if (!existing) {
+      const error: any = new Error('Team not found.');
+      error.code = 'TEAM_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const members: TeamMemberEntity[] = [];
+    for (const uId of targetUserIds) {
+      const m = await TeamRepository.addMember(teamId, uId, 'member', workspaceId);
+      members.push(m);
+
+      await EventService.emitMemberAdded(
+        { workspaceId, actorId: actorId || uId },
+        {
+          teamId,
+          teamName: existing.name,
+          userId: uId,
+          role: 'member',
+        }
+      );
+    }
+
+    const updatedTeam = await TeamRepository.getTeamById(workspaceId, teamId);
+
+    return {
+      members,
+      team: {
+        id: updatedTeam?.id || teamId,
+        name: updatedTeam?.name || existing.name,
+        description: updatedTeam?.description || '',
+        workspace_id: updatedTeam?.workspaceId || workspaceId,
+        lead_id: updatedTeam?.leadId || existing.leadId,
+        color: updatedTeam?.color || '#3b82f6',
+        created_at: updatedTeam?.createdAt ? new Date(updatedTeam.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        member_count: updatedTeam?.memberIds.length || 1,
+        members_count: updatedTeam?.memberIds.length || 1,
+        members: updatedTeam?.memberIds || [],
+      },
+    };
   }
 
   /**
@@ -317,7 +393,7 @@ export class TeamService {
     teamId: string,
     targetUserId: string,
     rawRole: UserRole | string
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; team: any }> {
     const role = normalizeRole(rawRole);
     if (role !== 'admin') {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from removing team members.`);
@@ -334,6 +410,171 @@ export class TeamService {
       throw error;
     }
 
-    return await TeamRepository.removeMember(teamId, targetUserId);
+    await TeamRepository.removeMember(teamId, targetUserId, workspaceId);
+    const updatedTeam = await TeamRepository.getTeamById(workspaceId, teamId);
+
+    return {
+      success: true,
+      team: updatedTeam ? {
+        id: updatedTeam.id,
+        name: updatedTeam.name,
+        description: updatedTeam.description || '',
+        workspace_id: updatedTeam.workspaceId,
+        lead_id: updatedTeam.leadId,
+        color: updatedTeam.color || '#3b82f6',
+        created_at: updatedTeam.createdAt ? new Date(updatedTeam.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        member_count: updatedTeam.memberIds.length,
+        members_count: updatedTeam.memberIds.length,
+        members: updatedTeam.memberIds,
+      } : null,
+    };
+  }
+
+  /**
+   * Move member between teams
+   */
+  static async moveMember(
+    workspaceId: string,
+    fromTeamId: string,
+    toTeamId: string,
+    targetUserId: string,
+    rawRole: UserRole | string,
+    actorId?: string
+  ): Promise<{ success: boolean; fromTeam: any; toTeam: any }> {
+    const role = normalizeRole(rawRole);
+    if (role !== 'admin') {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from moving team members.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const fromTeam = await TeamRepository.getTeamById(workspaceId, fromTeamId);
+    if (!fromTeam) {
+      const error: any = new Error('Source team not found.');
+      error.code = 'TEAM_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const toTeam = await TeamRepository.getTeamById(workspaceId, toTeamId);
+    if (!toTeam) {
+      const error: any = new Error('Destination team not found.');
+      error.code = 'TEAM_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    await TeamRepository.moveMember(fromTeamId, toTeamId, targetUserId, workspaceId);
+
+    const updatedFrom = await TeamRepository.getTeamById(workspaceId, fromTeamId);
+    const updatedTo = await TeamRepository.getTeamById(workspaceId, toTeamId);
+
+    // Emit event: Member added to destination team
+    await EventService.emitMemberAdded(
+      { workspaceId, actorId: actorId || targetUserId },
+      {
+        teamId: toTeamId,
+        teamName: toTeam.name,
+        userId: targetUserId,
+        role: 'member',
+      }
+    );
+
+    return {
+      success: true,
+      fromTeam: updatedFrom ? {
+        id: updatedFrom.id,
+        name: updatedFrom.name,
+        description: updatedFrom.description || '',
+        workspace_id: updatedFrom.workspaceId,
+        lead_id: updatedFrom.leadId,
+        color: updatedFrom.color || '#3b82f6',
+        created_at: updatedFrom.createdAt ? new Date(updatedFrom.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        member_count: updatedFrom.memberIds.length,
+        members_count: updatedFrom.memberIds.length,
+        members: updatedFrom.memberIds,
+      } : null,
+      toTeam: updatedTo ? {
+        id: updatedTo.id,
+        name: updatedTo.name,
+        description: updatedTo.description || '',
+        workspace_id: updatedTo.workspaceId,
+        lead_id: updatedTo.leadId,
+        color: updatedTo.color || '#3b82f6',
+        created_at: updatedTo.createdAt ? new Date(updatedTo.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        member_count: updatedTo.memberIds.length,
+        members_count: updatedTo.memberIds.length,
+        members: updatedTo.memberIds,
+      } : null,
+    };
+  }
+
+  /**
+   * Set or update team lead
+   */
+  static async setTeamLead(
+    workspaceId: string,
+    teamId: string,
+    leadId: string,
+    rawRole: UserRole | string,
+    actorId?: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role !== 'admin') {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from changing team lead.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await TeamRepository.getTeamById(workspaceId, teamId);
+    if (!existing) {
+      const error: any = new Error('Team not found.');
+      error.code = 'TEAM_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const updated = await TeamRepository.updateLead(workspaceId, teamId, leadId);
+    if (!updated) {
+      const error: any = new Error('Failed to update team lead.');
+      error.code = 'TEAM_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      description: updated.description || '',
+      workspace_id: updated.workspaceId,
+      lead_id: updated.leadId,
+      color: updated.color || '#3b82f6',
+      created_at: updated.createdAt ? new Date(updated.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      member_count: updated.memberIds.length,
+      members_count: updated.memberIds.length,
+      members: updated.memberIds,
+    };
+  }
+
+  /**
+   * Get team members with details
+   */
+  static async getTeamMembers(
+    workspaceId: string,
+    teamId: string,
+    userId: string,
+    rawRole: UserRole | string
+  ): Promise<any[]> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'teams:read', undefined, { userId, workspaceId })) {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from viewing team members.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    return await TeamRepository.getTeamMembersWithDetails(workspaceId, teamId);
   }
 }

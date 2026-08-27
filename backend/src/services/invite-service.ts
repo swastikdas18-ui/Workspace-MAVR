@@ -13,7 +13,7 @@ import { generateSecureToken } from '../lib/secure-token';
 export interface CreateInviteInput {
   workspaceId: string;
   email: string;
-  role: 'employee' | 'intern';
+  role: 'admin' | 'employee' | 'intern';
   invitedBy: string;
   teamId?: string | null;
 }
@@ -38,7 +38,8 @@ export class InviteService {
    */
   static async createInvite(input: CreateInviteInput): Promise<any> {
     const normalizedEmail = input.email.toLowerCase().trim();
-    const assignedRole = input.role === 'intern' ? 'intern' : 'employee'; // Never admin
+    const allowedRoles = ['admin', 'employee', 'intern'];
+    const assignedRole = (allowedRoles.includes(input.role) ? input.role : 'employee') as UserRole;
 
     // Verify workspace exists in-memory or database
     let workspace = inMemoryDb.workspaces.get(input.workspaceId);
@@ -547,7 +548,10 @@ export class InviteService {
     let userId: string;
     let user: User;
 
-    const assignedRole: UserRole = invite.role === 'intern' ? 'intern' : 'employee';
+    const allowedRoles: UserRole[] = ['admin', 'employee', 'intern'];
+    const assignedRole: UserRole = allowedRoles.includes(invite.role as UserRole)
+      ? (invite.role as UserRole)
+      : 'employee';
 
     if (existingUser) {
       userId = existingUser.id;
@@ -623,10 +627,16 @@ export class InviteService {
         name: name.trim(),
         email: normalizedEmail,
         password: hashedPassword,
-        role: platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : assignedRole, // Never admin
+        role: platformRole === 'founder' || platformRole === 'platform_admin' ? 'platform_admin' : assignedRole,
         platformRole,
-        title: assignedRole === 'intern' ? 'Product Intern' : 'Operations Specialist',
-        avatar: assignedRole === 'intern'
+        title: assignedRole === 'admin'
+          ? 'Workspace Administrator'
+          : assignedRole === 'intern'
+          ? 'Product Intern'
+          : 'Operations Specialist',
+        avatar: assignedRole === 'admin'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+          : assignedRole === 'intern'
           ? 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80'
           : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         teamId: invite.team_id || null,

@@ -1,22 +1,12 @@
 import { User, Workspace, Team, Project, Task, DocumentItem, CrmRecord, SystemLog, Invoice } from '../types';
 
-export const INITIAL_USERS: User[] = [
-  {
-    id: 'user-admin',
-    name: 'Administrator',
-    email: 'admin@workspace.os',
-    role: 'admin',
-    avatar: '',
-    title: 'Organization Administrator',
-    created_at: new Date().toISOString(),
-  }
-];
+export const INITIAL_USERS: User[] = [];
 
 export const INITIAL_WORKSPACE: Workspace = {
-  id: 'ws-main',
-  name: 'Workspace OS',
-  slug: 'workspace-os',
-  owner_id: 'user-admin',
+  id: '',
+  name: 'Workspace',
+  slug: '',
+  owner_id: '',
   plan: 'pro',
   created_at: new Date().toISOString(),
 };

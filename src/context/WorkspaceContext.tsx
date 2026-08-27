@@ -79,6 +79,11 @@ interface WorkspaceContextType {
   createTeam: (team: Omit<Team, 'id' | 'member_count' | 'workspace_id'>) => Promise<boolean>;
   inviteMember: (email: string, role: UserRole, teamId?: string) => Promise<WorkspaceInvite | null>;
   loadInvites: () => Promise<void>;
+  addTeamMembers: (teamId: string, userIds: string[]) => Promise<boolean>;
+  removeTeamMember: (teamId: string, userId: string) => Promise<boolean>;
+  moveTeamMember: (fromTeamId: string, toTeamId: string, userId: string) => Promise<boolean>;
+  setTeamLead: (teamId: string, leadId: string) => Promise<boolean>;
+  getTeamMembersWithDetails: (teamId: string) => Promise<any[]>;
 
   // Settings & Workspace
   updateWorkspace: (updates: Partial<Workspace>) => boolean;
@@ -93,9 +98,16 @@ function normalizeFrontendUser(user: User): User {
   return user;
 }
 
+const DEFAULT_USER: User = {
+  id: '',
+  name: 'User',
+  email: '',
+  role: 'employee',
+};
+
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]);
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(INITIAL_WORKSPACE);
   const [userWorkspaces, setUserWorkspaces] = useState<Workspace[]>([]);
   const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
@@ -152,11 +164,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         api.getCrmLeads(),
       ]);
 
-      if (projectsRes.status === 'fulfilled' && projectsRes.value?.projects) {
-        setProjects(projectsRes.value.projects);
+      if (projectsRes.status === 'fulfilled') {
+        setProjects(projectsRes.value?.projects || []);
       }
-      if (tasksRes.status === 'fulfilled' && tasksRes.value?.tasks) {
-        const fetchedTasks = tasksRes.value.tasks;
+      if (tasksRes.status === 'fulfilled') {
+        const fetchedTasks = tasksRes.value?.tasks || [];
         setTasks(fetchedTasks);
 
         // Dynamically harvest assignees attached to tasks into user cache
@@ -182,17 +194,18 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         }
       }
-      if (teamsRes.status === 'fulfilled' && teamsRes.value?.teams) {
-        setTeams(teamsRes.value.teams);
+      if (teamsRes.status === 'fulfilled') {
+        setTeams(teamsRes.value?.teams || []);
       }
-      if (docsRes.status === 'fulfilled' && docsRes.value?.documents) {
-        setDocuments(docsRes.value.documents);
+      if (docsRes.status === 'fulfilled') {
+        setDocuments(docsRes.value?.documents || []);
       }
-      if (crmRes.status === 'fulfilled' && crmRes.value?.leads) {
-        setCrmRecords(crmRes.value.leads);
+      if (crmRes.status === 'fulfilled') {
+        setCrmRecords(crmRes.value?.leads || []);
       }
-      if (membersRes.status === 'fulfilled' && membersRes.value?.members) {
-        const fetchedUsers = membersRes.value.members.map((m: any) => ({
+      if (membersRes.status === 'fulfilled') {
+        const rawMembers = membersRes.value?.members || [];
+        const fetchedUsers = rawMembers.map((m: any) => ({
           ...m.member,
           role: m.role || m.member.role,
           teamId: m.member.teamId || m.member.team_id || null,
@@ -891,7 +904,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return null;
     }
 
-    const assignedRole = role === 'intern' ? 'intern' : 'employee'; // Never admin
+    const allowedRoles: UserRole[] = ['admin', 'employee', 'intern'];
+    const assignedRole: UserRole = allowedRoles.includes(role) ? role : 'employee';
 
     try {
       const res = await api.createInvite({
@@ -925,6 +939,166 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } catch (err) {
       console.warn('Failed to load invites:', err);
+    }
+  };
+
+  const addTeamMembers = async (teamId: string, userIds: string[]): Promise<boolean> => {
+    if (!permissions.teams.manageTeams) {
+      addToast({ type: 'error', title: 'Access Denied', message: 'Only Admins can manage team members.' });
+      logAction('Unauthorized attempt to add team members', 'TEAMS', 'denied');
+      return false;
+    }
+
+    try {
+      const res = await api.addTeamMembers(teamId, userIds);
+      if (res.team) {
+        setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, ...res.team, member_count: res.team.member_count ?? res.team.members_count ?? (t.member_count + userIds.length) } : t)));
+      } else {
+        setTeams((prev) =>
+          prev.map((t) => (t.id === teamId ? { ...t, member_count: (t.member_count || 0) + userIds.length } : t))
+        );
+      }
+
+      // Update local users' teamId
+      setUsers((prev) =>
+        prev.map((u) => (userIds.includes(u.id) ? { ...u, teamId } : u))
+      );
+
+      addToast({
+        type: 'success',
+        title: 'Members Added',
+        message: `Added ${userIds.length} member${userIds.length > 1 ? 's' : ''} to team.`,
+      });
+      logAction(`Added ${userIds.length} members to team ${teamId}`, 'TEAMS');
+      return true;
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to add members to team.' });
+      return false;
+    }
+  };
+
+  const removeTeamMember = async (teamId: string, userId: string): Promise<boolean> => {
+    if (!permissions.teams.manageTeams) {
+      addToast({ type: 'error', title: 'Access Denied', message: 'Only Admins can remove team members.' });
+      logAction('Unauthorized attempt to remove team member', 'TEAMS', 'denied');
+      return false;
+    }
+
+    try {
+      const res = await api.removeTeamMember(teamId, userId);
+      if (res.team) {
+        setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, ...res.team, member_count: res.team.member_count ?? res.team.members_count ?? Math.max(0, t.member_count - 1) } : t)));
+      } else {
+        setTeams((prev) =>
+          prev.map((t) => (t.id === teamId ? { ...t, member_count: Math.max(0, (t.member_count || 1) - 1) } : t))
+        );
+      }
+
+      // Update local user's teamId
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId && u.teamId === teamId ? { ...u, teamId: undefined } : u))
+      );
+
+      addToast({
+        type: 'success',
+        title: 'Member Removed',
+        message: 'Member removed from team successfully.',
+      });
+      logAction(`Removed member ${userId} from team ${teamId}`, 'TEAMS');
+      return true;
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to remove member from team.' });
+      return false;
+    }
+  };
+
+  const moveTeamMember = async (fromTeamId: string, toTeamId: string, userId: string): Promise<boolean> => {
+    if (!permissions.teams.manageTeams) {
+      addToast({ type: 'error', title: 'Access Denied', message: 'Only Admins can move team members.' });
+      logAction('Unauthorized attempt to move team member', 'TEAMS', 'denied');
+      return false;
+    }
+
+    try {
+      const res = await api.moveTeamMember(fromTeamId, toTeamId, userId);
+      setTeams((prev) =>
+        prev.map((t) => {
+          if (t.id === fromTeamId) {
+            return res.fromTeam
+              ? { ...t, ...res.fromTeam, member_count: res.fromTeam.member_count ?? res.fromTeam.members_count ?? Math.max(0, t.member_count - 1) }
+              : { ...t, member_count: Math.max(0, (t.member_count || 1) - 1) };
+          }
+          if (t.id === toTeamId) {
+            return res.toTeam
+              ? { ...t, ...res.toTeam, member_count: res.toTeam.member_count ?? res.toTeam.members_count ?? (t.member_count + 1) }
+              : { ...t, member_count: (t.member_count || 0) + 1 };
+          }
+          return t;
+        })
+      );
+
+      // Update user teamId
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, teamId: toTeamId } : u))
+      );
+
+      addToast({
+        type: 'success',
+        title: 'Member Moved',
+        message: 'Member successfully transferred to new team.',
+      });
+      logAction(`Moved user ${userId} from team ${fromTeamId} to ${toTeamId}`, 'TEAMS');
+      return true;
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to move team member.' });
+      return false;
+    }
+  };
+
+  const setTeamLead = async (teamId: string, leadId: string): Promise<boolean> => {
+    if (!permissions.teams.manageTeams) {
+      addToast({ type: 'error', title: 'Access Denied', message: 'Only Admins can assign team leads.' });
+      logAction('Unauthorized attempt to change team lead', 'TEAMS', 'denied');
+      return false;
+    }
+
+    try {
+      const res = await api.setTeamLead(teamId, leadId);
+      if (res.team) {
+        setTeams((prev) =>
+          prev.map((t) => (t.id === teamId ? { ...t, ...res.team, lead_id: leadId, member_count: res.team.member_count ?? res.team.members_count ?? t.member_count } : t))
+        );
+      } else {
+        setTeams((prev) =>
+          prev.map((t) => (t.id === teamId ? { ...t, lead_id: leadId } : t))
+        );
+      }
+
+      // Update user's teamId
+      setUsers((prev) =>
+        prev.map((u) => (u.id === leadId ? { ...u, teamId } : u))
+      );
+
+      addToast({
+        type: 'success',
+        title: 'Team Lead Updated',
+        message: 'Team leadership reassigned successfully.',
+      });
+      logAction(`Assigned lead ${leadId} to team ${teamId}`, 'TEAMS');
+      return true;
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to update team lead.' });
+      return false;
+    }
+  };
+
+  const getTeamMembersWithDetails = async (teamId: string): Promise<any[]> => {
+    try {
+      const res = await api.getTeamMembers(teamId);
+      return res.members || [];
+    } catch (err) {
+      console.warn('Failed to load team members with details:', err);
+      return [];
     }
   };
 
@@ -991,6 +1165,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createTeam,
         inviteMember,
         loadInvites,
+        addTeamMembers,
+        removeTeamMember,
+        moveTeamMember,
+        setTeamLead,
+        getTeamMembersWithDetails,
         updateWorkspace
       }}
     >

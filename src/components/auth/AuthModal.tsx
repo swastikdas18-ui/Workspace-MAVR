@@ -66,7 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         addToast({
           type: 'success',
           title: 'Authenticated Successfully',
-          message: `Logged in as ${res.user.name} (${res.user.role.toUpperCase()}) — Polo Technologies.`
+          message: `Logged in as ${res.user.name} (${res.user.role.toUpperCase()}).`
         });
       }
     } catch (err: any) {
@@ -238,7 +238,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
                   <input
                     type="text"
                     required
-                    placeholder="Polo Technologies"
+                    placeholder="e.g. Acme Corp, Apex Labs"
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500"
@@ -415,42 +415,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
             )}
           </button>
         </form>
-
-        {/* Quick Demo Accounts for Testing Evaluation */}
-        <div className="mt-5 pt-4 border-t border-slate-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>Polo Technologies Demo Access</span>
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('admin@polotechnologies.com')}
-              className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 text-left transition-colors group"
-            >
-              <div className="text-[10px] font-bold text-purple-400">ADMIN</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Admin</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('employee@polotechnologies.com')}
-              className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 text-left transition-colors group"
-            >
-              <div className="text-[10px] font-bold text-blue-400">EMPLOYEE</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Employee</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('intern@polotechnologies.com')}
-              className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition-colors group"
-            >
-              <div className="text-[10px] font-bold text-emerald-400">INTERN</div>
-              <div className="text-[11px] font-medium text-slate-200 truncate">Polo Intern</div>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

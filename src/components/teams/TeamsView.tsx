@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { UserRole, WorkspaceInvite } from '../../types';
+import { UserRole, WorkspaceInvite, Team, User } from '../../types';
 import { 
   Users, Plus, Mail, Shield, Briefcase, GraduationCap, 
   UserPlus, CheckCircle2, ChevronRight, X, Copy, Check, Link2, Clock,
-  FolderKanban, Sparkles
+  FolderKanban, Sparkles, UserMinus, ArrowRightLeft, Crown, Settings2,
+  Trash2, Search
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
@@ -16,11 +17,24 @@ import { motion, AnimatePresence } from 'motion/react';
 export const TeamsView: React.FC = () => {
   const { 
     teams, users, projects, currentUser, currentRole, permissions, 
-    createTeam, inviteMember, invites, loadInvites, searchQuery, addToast
+    createTeam, inviteMember, invites, loadInvites, searchQuery, addToast,
+    addTeamMembers, removeTeamMember, moveTeamMember, setTeamLead
   } = useWorkspace();
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
+  
+  // Team Details & Management Modal State
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [isAddMembersModalOpen, setIsAddMembersModalOpen] = useState(false);
+  const [selectedUserIdsToAdd, setSelectedUserIdsToAdd] = useState<string[]>([]);
+  const [isMoveMemberModalOpen, setIsMoveMemberModalOpen] = useState(false);
+  const [memberToMove, setMemberToMove] = useState<User | null>(null);
+  const [targetMoveTeamId, setTargetMoveTeamId] = useState<string>('');
+  const [isChangeLeadModalOpen, setIsChangeLeadModalOpen] = useState(false);
+  const [selectedNewLeadId, setSelectedNewLeadId] = useState<string>('');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Invite Form State
   const [inviteEmail, setInviteEmail] = useState('');
@@ -41,6 +55,9 @@ export const TeamsView: React.FC = () => {
       loadInvites();
     }
   }, [currentRole]);
+
+  // Keep selectedTeam synced with latest teams array
+  const activeSelectedTeam = selectedTeam ? teams.find((t) => t.id === selectedTeam.id) || selectedTeam : null;
 
   // Filter teams
   const visibleTeams = teams.filter((t) => {
@@ -90,6 +107,70 @@ export const TeamsView: React.FC = () => {
     }
   };
 
+  // Helper to get members of a team
+  const getTeamMembers = (team: Team) => {
+    return users.filter(
+      (u) =>
+        u.teamId === team.id ||
+        ((team as any).members && (team as any).members.includes(u.id)) ||
+        ((team as any).memberIds && (team as any).memberIds.includes(u.id))
+    );
+  };
+
+  // Helper to get workspace members NOT in this team
+  const getEligibleMembersToAdd = (team: Team) => {
+    const currentMemberIds = new Set(getTeamMembers(team).map((m) => m.id));
+    return users.filter((u) => !currentMemberIds.has(u.id));
+  };
+
+  // Handle Add Members
+  const handleAddMembersSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSelectedTeam || selectedUserIdsToAdd.length === 0) return;
+    setIsSubmitting(true);
+    const success = await addTeamMembers(activeSelectedTeam.id, selectedUserIdsToAdd);
+    setIsSubmitting(false);
+    if (success) {
+      setIsAddMembersModalOpen(false);
+      setSelectedUserIdsToAdd([]);
+    }
+  };
+
+  // Handle Remove Member
+  const handleRemoveMember = async (userId: string, userName: string) => {
+    if (!activeSelectedTeam) return;
+    if (window.confirm(`Are you sure you want to remove ${userName} from ${activeSelectedTeam.name}?`)) {
+      await removeTeamMember(activeSelectedTeam.id, userId);
+    }
+  };
+
+  // Handle Move Member
+  const handleMoveMemberSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSelectedTeam || !memberToMove || !targetMoveTeamId) return;
+    setIsSubmitting(true);
+    const success = await moveTeamMember(activeSelectedTeam.id, targetMoveTeamId, memberToMove.id);
+    setIsSubmitting(false);
+    if (success) {
+      setIsMoveMemberModalOpen(false);
+      setMemberToMove(null);
+      setTargetMoveTeamId('');
+    }
+  };
+
+  // Handle Change Team Lead
+  const handleChangeLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSelectedTeam || !selectedNewLeadId) return;
+    setIsSubmitting(true);
+    const success = await setTeamLead(activeSelectedTeam.id, selectedNewLeadId);
+    setIsSubmitting(false);
+    if (success) {
+      setIsChangeLeadModalOpen(false);
+      setSelectedNewLeadId('');
+    }
+  };
+
   const adminCount = users.filter(u => u.role === 'admin').length;
   const employeeCount = users.filter(u => u.role === 'employee').length;
   const internCount = users.filter(u => u.role === 'intern').length;
@@ -101,7 +182,7 @@ export const TeamsView: React.FC = () => {
         title={currentRole === 'admin' ? 'Organization Directory & Teams' : 'Collaborators & Teams'}
         description={
           currentRole === 'admin'
-            ? 'Departmental taxonomy, cryptographic invite provisioning, and member directory.'
+            ? 'Departmental taxonomy, team membership management, and member directory.'
             : 'Collaborate with your team peers, department leads, and cross-functional partners.'
         }
         badge={
@@ -190,19 +271,15 @@ export const TeamsView: React.FC = () => {
           ) : (
             visibleTeams.map((team) => {
               const lead = users.find((u) => u.id === team.lead_id);
-              const members = users.filter(
-                (u) =>
-                  u.teamId === team.id ||
-                  ((team as any).members && (team as any).members.includes(u.id)) ||
-                  ((team as any).memberIds && (team as any).memberIds.includes(u.id))
-              );
+              const members = getTeamMembers(team);
 
               return (
                 <motion.div
                   key={team.id}
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.15 }}
-                  className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-xl transition-all group"
+                  onClick={() => setSelectedTeam(team)}
+                  className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-xl transition-all group cursor-pointer"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
@@ -216,12 +293,12 @@ export const TeamsView: React.FC = () => {
                         </h4>
                       </div>
                       <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#0F172A] border border-white/[0.06] text-slate-300 font-mono">
-                        {members.length} Members
+                        {members.length} {members.length === 1 ? 'Member' : 'Members'}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-400 mb-4 leading-relaxed line-clamp-2">
-                      {team.description}
+                      {team.description || 'Department team'}
                     </p>
 
                     {/* Team Lead Card */}
@@ -233,19 +310,28 @@ export const TeamsView: React.FC = () => {
                           <p className="text-[10px] text-slate-400 truncate">{lead?.title || 'Department Lead'}</p>
                         </div>
                       </div>
-                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 uppercase">
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 uppercase flex items-center gap-1">
+                        <Crown className="w-3 h-3 text-amber-400" />
                         Lead
                       </span>
                     </div>
                   </div>
 
-                  {/* Member Avatars Preview */}
+                  {/* Member Avatars Preview & Details Trigger */}
                   <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400">
-                    <span className="text-[11px]">Department Roster:</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-purple-400 group-hover:text-purple-300 font-medium">
+                      <span>Manage Team</span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                     <div className="flex -space-x-1.5 overflow-hidden">
-                      {members.map((m) => (
+                      {members.slice(0, 5).map((m) => (
                         <UserAvatar key={m.id} name={m.name} avatar={m.avatar} size="xs" />
                       ))}
+                      {members.length > 5 && (
+                        <span className="w-5 h-5 rounded-full bg-slate-800 border border-white/[0.1] text-[9px] flex items-center justify-center text-slate-300">
+                          +{members.length - 5}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -306,50 +392,529 @@ export const TeamsView: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse min-w-[650px]">
-          <thead>
-            <tr className="border-b border-white/[0.08] bg-[#0F172A]/80 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-              <th className="py-3.5 px-4">Member Name</th>
-              <th className="py-3.5 px-4">Role Matrix</th>
-              <th className="py-3.5 px-4">Role Title</th>
-              <th className="py-3.5 px-4">Department Team</th>
-              <th className="py-3.5 px-4">Enterprise Email</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.04] text-slate-300">
-            {users.map((user) => {
-              const userTeam = teams.find((t) => t.id === user.teamId);
-              return (
-                <tr key={user.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-3">
-                      <UserAvatar name={user.name} avatar={user.avatar} size="sm" />
-                      <span className="font-semibold text-white">{user.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <RoleBadge role={user.role} />
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-300 font-medium">{user.title}</td>
-                  <td className="py-3.5 px-4">
-                    {userTeam ? (
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: userTeam.color }} />
-                        {userTeam.name}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">Executive</span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">{user.email}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            <thead>
+              <tr className="border-b border-white/[0.08] bg-[#0F172A]/80 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th className="py-3.5 px-4">Member Name</th>
+                <th className="py-3.5 px-4">Role Matrix</th>
+                <th className="py-3.5 px-4">Role Title</th>
+                <th className="py-3.5 px-4">Department Team</th>
+                <th className="py-3.5 px-4">Enterprise Email</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04] text-slate-300">
+              {users.map((user) => {
+                const userTeam = teams.find((t) => t.id === user.teamId);
+                return (
+                  <tr key={user.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar name={user.name} avatar={user.avatar} size="sm" />
+                        <span className="font-semibold text-white">{user.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <RoleBadge role={user.role} />
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-300 font-medium">{user.title || 'Team Member'}</td>
+                    <td className="py-3.5 px-4">
+                      {userTeam ? (
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: userTeam.color }} />
+                          {userTeam.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">{user.email}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Invite Member Modal */}
+      {/* ========================================================================= */}
+      {/* TEAM DETAILS MODAL / PAGE */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {activeSelectedTeam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTeam(null)}
+              className="fixed inset-0 bg-black/75 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-2xl p-6 shadow-2xl z-10 space-y-5 max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-white/[0.08]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full shadow-sm"
+                      style={{ backgroundColor: activeSelectedTeam.color || '#7C3AED' }}
+                    />
+                    <h3 className="text-lg font-bold text-white tracking-tight">
+                      {activeSelectedTeam.name}
+                    </h3>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono">
+                      {getTeamMembers(activeSelectedTeam).length} Members
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed max-w-lg">
+                    {activeSelectedTeam.description || 'Department team'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedTeam(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Team Lead Section */}
+              <div className="p-4 rounded-2xl bg-[#111827] border border-white/[0.08] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const lead = users.find((u) => u.id === activeSelectedTeam.lead_id);
+                    return (
+                      <>
+                        <UserAvatar name={lead?.name} avatar={lead?.avatar} size="md" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-white">{lead?.name || 'Unassigned Lead'}</h4>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1 font-bold">
+                              <Crown className="w-3 h-3 text-amber-400" />
+                              Team Lead
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 font-mono mt-0.5">{lead?.email || 'No email assigned'}</p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {permissions.teams.manageTeams && (
+                  <button
+                    onClick={() => {
+                      setSelectedNewLeadId(activeSelectedTeam.lead_id || '');
+                      setIsChangeLeadModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-slate-200 text-xs font-semibold border border-white/[0.08] transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Change Team Lead</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Members List Section Header */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <h4 className="text-sm font-semibold text-white">Department Members</h4>
+                  <span className="text-xs text-slate-500 font-mono">
+                    ({getTeamMembers(activeSelectedTeam).length})
+                  </span>
+                </div>
+
+                {permissions.teams.manageTeams && (
+                  <button
+                    onClick={() => {
+                      setSelectedUserIdsToAdd([]);
+                      setIsAddMembersModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Members</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Members List */}
+              <div className="flex-1 overflow-y-auto pr-1 divide-y divide-white/[0.04] space-y-1">
+                {getTeamMembers(activeSelectedTeam).length === 0 ? (
+                  <div className="p-8 text-center bg-[#111827]/50 rounded-2xl border border-white/[0.04]">
+                    <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-xs font-medium text-slate-300">No members in this team yet</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Click "Add Members" above to assign colleagues.</p>
+                  </div>
+                ) : (
+                  getTeamMembers(activeSelectedTeam).map((member) => {
+                    const isLead = member.id === activeSelectedTeam.lead_id;
+                    return (
+                      <div
+                        key={member.id}
+                        className="py-3 flex items-center justify-between gap-3 group hover:bg-slate-800/30 px-3 rounded-xl transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <UserAvatar name={member.name} avatar={member.avatar} size="sm" />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-white text-xs truncate">{member.name}</span>
+                              <RoleBadge role={member.role} />
+                              {isLead && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 uppercase font-bold">
+                                  Lead
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-mono truncate">{member.email}</p>
+                          </div>
+                        </div>
+
+                        {permissions.teams.manageTeams && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Move Member Button */}
+                            {teams.length > 1 && (
+                              <button
+                                onClick={() => {
+                                  setMemberToMove(member);
+                                  const otherTeams = teams.filter((t) => t.id !== activeSelectedTeam.id);
+                                  setTargetMoveTeamId(otherTeams[0]?.id || '');
+                                  setIsMoveMemberModalOpen(true);
+                                }}
+                                title="Move to another team"
+                                className="px-2.5 py-1.5 rounded-lg bg-[#111827] hover:bg-[#1E293B] text-slate-300 hover:text-white text-[11px] border border-white/[0.08] flex items-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5 text-blue-400" />
+                                <span>Move</span>
+                              </button>
+                            )}
+
+                            {/* Remove Member Button */}
+                            <button
+                              onClick={() => handleRemoveMember(member.id, member.name)}
+                              title="Remove from team"
+                              className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-[11px] border border-red-500/20 flex items-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-white/[0.08] flex justify-end">
+                <button
+                  onClick={() => setSelectedTeam(null)}
+                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* ADD MEMBERS MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isAddMembersModalOpen && activeSelectedTeam && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddMembersModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-lg p-6 shadow-2xl z-10 space-y-4 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <div>
+                  <h3 className="text-base font-bold text-white">Add Members to {activeSelectedTeam.name}</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Select workspace members to assign to this department.</p>
+                </div>
+                <button
+                  onClick={() => setIsAddMembersModalOpen(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Filter available members by name or email..."
+                  value={memberSearchQuery}
+                  onChange={(e) => setMemberSearchQuery(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {/* Available Members List */}
+              <form onSubmit={handleAddMembersSubmit} className="flex-1 flex flex-col space-y-4 overflow-hidden">
+                <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04] pr-1 space-y-1">
+                  {(() => {
+                    const eligible = getEligibleMembersToAdd(activeSelectedTeam).filter((u) => {
+                      if (!memberSearchQuery) return true;
+                      const q = memberSearchQuery.toLowerCase();
+                      return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                    });
+
+                    if (eligible.length === 0) {
+                      return (
+                        <div className="p-8 text-center bg-[#111827]/50 rounded-2xl border border-white/[0.04]">
+                          <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                          <p className="text-xs font-semibold text-white">No eligible members available</p>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            All workspace members are already assigned to this team, or match the search filter.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return eligible.map((u) => {
+                      const isSelected = selectedUserIdsToAdd.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => {
+                            setSelectedUserIdsToAdd((prev) =>
+                              isSelected ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                            );
+                          }}
+                          className={`p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-purple-500/15 border border-purple-500/40 text-white'
+                              : 'hover:bg-slate-800/40 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <UserAvatar name={u.name} avatar={u.avatar} size="sm" />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white text-xs truncate">{u.name}</span>
+                                <RoleBadge role={u.role} />
+                              </div>
+                              <p className="text-[11px] text-slate-400 font-mono truncate">{u.email}</p>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? 'bg-[#7C3AED] border-[#7C3AED] text-white'
+                                : 'border-white/[0.2] bg-transparent'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Footer Controls */}
+                <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-mono">
+                    {selectedUserIdsToAdd.length} selected
+                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddMembersModalOpen(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={selectedUserIdsToAdd.length === 0 || isSubmitting}
+                      className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSubmitting ? 'Adding...' : `Add ${selectedUserIdsToAdd.length} Member${selectedUserIdsToAdd.length !== 1 ? 's' : ''}`}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* MOVE MEMBER MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isMoveMemberModalOpen && activeSelectedTeam && memberToMove && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMoveMemberModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <h3 className="text-base font-bold text-white">Transfer Team Member</h3>
+                <button onClick={() => setIsMoveMemberModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#111827] border border-white/[0.08] flex items-center gap-3">
+                <UserAvatar name={memberToMove.name} avatar={memberToMove.avatar} size="md" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white text-xs truncate">{memberToMove.name}</span>
+                    <RoleBadge role={memberToMove.role} />
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-mono truncate">{memberToMove.email}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleMoveMemberSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1.5">Destination Department</label>
+                  <select
+                    value={targetMoveTeamId}
+                    onChange={(e) => setTargetMoveTeamId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  >
+                    {teams
+                      .filter((t) => t.id !== activeSelectedTeam.id)
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({getTeamMembers(t).length} members)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-[11px] leading-relaxed">
+                  Transferring will immediately remove <span className="text-white font-semibold">{memberToMove.name}</span> from <span className="text-white font-semibold">{activeSelectedTeam.name}</span> and add them to the selected destination team.
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setIsMoveMemberModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !targetMoveTeamId}
+                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting ? 'Transferring...' : 'Confirm Transfer'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* CHANGE TEAM LEAD MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isChangeLeadModalOpen && activeSelectedTeam && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsChangeLeadModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  <span>Assign Team Lead</span>
+                </h3>
+                <button onClick={() => setIsChangeLeadModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleChangeLeadSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1.5">Select Workspace Member</label>
+                  <select
+                    value={selectedNewLeadId}
+                    onChange={(e) => setSelectedNewLeadId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  >
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.role.toUpperCase()}) - {u.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  The selected member will be designated as the formal lead for <span className="text-white font-semibold">{activeSelectedTeam.name}</span> and added to the team roster if not already present.
+                </p>
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setIsChangeLeadModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !selectedNewLeadId}
+                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting ? 'Updating...' : 'Assign Lead'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* INVITE MEMBER MODAL */}
+      {/* ========================================================================= */}
       <AnimatePresence>
         {isInviteModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -445,6 +1010,7 @@ export const TeamsView: React.FC = () => {
                       onChange={(e) => setInviteRole(e.target.value as UserRole)}
                       className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                     >
+                      <option value="admin">Administrator (Full Access & Organization Management)</option>
                       <option value="employee">Employee (Assigned Work, Projects & Teams)</option>
                       <option value="intern">Intern (Learning Sandbox, Mentored Tasks)</option>
                     </select>
@@ -486,7 +1052,9 @@ export const TeamsView: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Create Team Modal */}
+      {/* ========================================================================= */}
+      {/* CREATE TEAM MODAL */}
+      {/* ========================================================================= */}
       <AnimatePresence>
         {isCreateTeamModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -582,3 +1150,4 @@ export const TeamsView: React.FC = () => {
     </div>
   );
 };
+

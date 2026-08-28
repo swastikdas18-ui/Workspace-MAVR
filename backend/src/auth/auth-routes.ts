@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { setCookie, getCookie } from 'hono/cookie';
-import { AuthService } from '../services/auth-service';
+import { AuthService } from '../services/auth-service.js';
 import { authMiddleware } from '../middleware/auth';
 import { generateSecureToken } from '../lib/secure-token';
 import {

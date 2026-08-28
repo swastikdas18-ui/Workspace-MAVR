@@ -95,7 +95,11 @@ export class ObjectStorageService {
     const sizeBytes = buffer.length;
 
     const client = this.getClient();
+    let storageProvider = 'in-memory';
+    let storageSuccess = false;
+
     if (client) {
+      storageProvider = 'backblaze-b2';
       try {
         const command = new PutObjectCommand({
           Bucket: this.bucketName,
@@ -109,8 +113,11 @@ export class ObjectStorageService {
         });
 
         const response = await client.send(command);
+        storageSuccess = true;
         const publicBase = process.env.B2_PUBLIC_URL || env.B2_PUBLIC_URL || `https://f005.backblazeb2.com/file/${this.bucketName}`;
         const url = `${publicBase}/${key}`;
+
+        console.log(`[DOCUMENT-UPLOAD] workspaceId=${options.workspaceId} documentId=${options.documentId} filename=${options.filename} mimeType=${contentType} bytes=${sizeBytes} storageProvider=${storageProvider} storageKey=${key} storageSuccess=true`);
 
         return {
           key,
@@ -119,17 +126,27 @@ export class ObjectStorageService {
           sizeBytes,
           etag: response.ETag,
         };
-      } catch (err) {
-        console.warn('[ObjectStorageService] Remote PutObject failed, falling back to local store:', err);
+      } catch (err: any) {
+        console.error(`[DOCUMENT-UPLOAD] workspaceId=${options.workspaceId} documentId=${options.documentId} filename=${options.filename} mimeType=${contentType} bytes=${sizeBytes} storageProvider=${storageProvider} storageKey=${key} storageSuccess=false error=${err?.message || err}`);
+        
+        // If in production and B2 is configured, fail closed so no ghost/broken document record is created
+        if (process.env.NODE_ENV === 'production') {
+          const uploadErr: any = new Error(`Backblaze B2 storage upload failed: ${err?.message || 'Unknown S3 error'}`);
+          uploadErr.code = 'STORAGE_UPLOAD_FAILED';
+          uploadErr.status = 502;
+          throw uploadErr;
+        }
       }
     }
 
-    // High-resilience In-Memory test/fallback storage
+    // High-resilience In-Memory test/dev fallback storage
     this.inMemoryStore.set(key, {
       body: buffer,
       contentType,
       size: sizeBytes,
     });
+
+    console.log(`[DOCUMENT-UPLOAD] workspaceId=${options.workspaceId} documentId=${options.documentId} filename=${options.filename} mimeType=${contentType} bytes=${sizeBytes} storageProvider=in-memory storageKey=${key} storageSuccess=true`);
 
     return {
       key,

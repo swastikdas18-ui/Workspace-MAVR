@@ -3,8 +3,10 @@
  * Connects frontend state and authentication directly to backend & PostgreSQL.
  */
 
+export const DEFAULT_API_URL = 'https://workspace-mavr.onrender.com';
+
 export const API_BASE_URL: string =
-  ((import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '') as string).replace(/\/$/, '');
+  ((import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || DEFAULT_API_URL) as string).replace(/\/$/, '');
 
 /**
  * Centrally construct authoritative WebSocket URLs targeting the backend server origin.
@@ -13,18 +15,15 @@ export function getWebSocketUrl(token?: string, workspaceId?: string): string {
   const backend =
     (import.meta.env.VITE_API_URL as string | undefined) ||
     (import.meta.env.VITE_BACKEND_URL as string | undefined) ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+    DEFAULT_API_URL;
 
   let wsBase = backend;
   if (wsBase.startsWith('https://')) {
     wsBase = wsBase.replace(/^https:\/\//, 'wss://');
   } else if (wsBase.startsWith('http://')) {
     wsBase = wsBase.replace(/^http:\/\//, 'ws://');
-  } else if (typeof window !== 'undefined' && window.location?.host) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    wsBase = `${protocol}//${window.location.host}`;
   } else {
-    wsBase = 'ws://localhost:3000';
+    wsBase = 'wss://workspace-mavr.onrender.com';
   }
 
   const queryParams = new URLSearchParams();

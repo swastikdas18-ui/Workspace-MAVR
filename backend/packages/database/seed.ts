@@ -1,4 +1,4 @@
-import { inMemoryDb } from './connection';
+import { inMemoryDb } from './connection.js';
 import bcrypt from 'bcryptjs';
 
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('PoloPassword2026!', 10);

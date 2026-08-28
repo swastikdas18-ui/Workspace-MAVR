@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle, NeonHttpDatabase } from 'drizzle-orm/neon-http';
-import * as schema from './schema';
-import { User, Workspace, WorkspaceMember, Session } from './types';
+import * as schema from './schema.js';
+import { User, Workspace, WorkspaceMember, Session } from './types.js';
 
 // In-Memory resilient persistence store (strictly reserved for test isolation)
 export class InMemoryDatabase {

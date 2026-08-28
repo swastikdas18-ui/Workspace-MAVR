@@ -42,9 +42,11 @@ export class EnvironmentValidator {
   ] as const;
 
   public static readonly INFRASTRUCTURE_VARS = [
-    'B2_APPLICATION_KEY_ID',
+    'B2_KEY_ID',
     'B2_APPLICATION_KEY',
-    'B2_BUCKET_ID',
+    'B2_BUCKET_NAME',
+    'B2_ENDPOINT',
+    'B2_REGION',
     'SENTRY_DSN',
   ] as const;
 
@@ -104,10 +106,10 @@ export class EnvironmentValidator {
 
     // 2. Validate Infrastructure & Monitoring Variables
     for (const varName of this.INFRASTRUCTURE_VARS) {
-      // Support alternative variable name aliases (e.g. B2_KEY_ID vs B2_APPLICATION_KEY_ID, B2_BUCKET_NAME vs B2_BUCKET_ID)
+      // Support alternative variable name aliases
       let val = env[varName];
-      if (!val && varName === 'B2_APPLICATION_KEY_ID') val = env.B2_KEY_ID;
-      if (!val && varName === 'B2_BUCKET_ID') val = env.B2_BUCKET_NAME;
+      if (!val && varName === 'B2_KEY_ID') val = env.B2_APPLICATION_KEY_ID;
+      if (!val && varName === 'B2_BUCKET_NAME') val = env.B2_BUCKET_ID;
 
       const isPresent = typeof val === 'string' && val.trim().length > 0;
       let error: string | undefined;

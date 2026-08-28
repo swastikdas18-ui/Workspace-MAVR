@@ -166,6 +166,18 @@ app.route('/health', healthRouter);
 app.route('/api/health', healthRouter);
 console.log('[BOOT] health routes registered');
 
+// Storage Health Probe Endpoint alias: /api/storage/health & /storage/health
+app.get('/api/storage/health', async (c) => {
+  const { ObjectStorageService } = await import('./services/object-storage-service.js');
+  const storageHealth = await ObjectStorageService.healthCheck();
+  return c.json(storageHealth, storageHealth.status === 'error' ? 503 : 200);
+});
+app.get('/storage/health', async (c) => {
+  const { ObjectStorageService } = await import('./services/object-storage-service.js');
+  const storageHealth = await ObjectStorageService.healthCheck();
+  return c.json(storageHealth, storageHealth.status === 'error' ? 503 : 200);
+});
+
 // Mount API routes with Rate Limiting
 app.use('/api/auth/*', authRateLimiter);
 app.use('/auth/*', authRateLimiter);

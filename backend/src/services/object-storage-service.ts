@@ -38,8 +38,35 @@ export interface StorageUploadResult {
 
 export class ObjectStorageService {
   private static client: S3Client | null = null;
-  private static bucketName: string = process.env.B2_BUCKET_NAME || env.B2_BUCKET_NAME || 'workspace-os-vault';
   private static inMemoryStore: Map<string, { body: Buffer; contentType: string; size: number }> = new Map();
+
+  public static getBucketName(): string {
+    const bucket = process.env.B2_BUCKET_NAME || env.B2_BUCKET_NAME;
+    if (!bucket && process.env.NODE_ENV === 'production') {
+      throw new Error('[ObjectStorageService Fatal] B2_BUCKET_NAME is missing in environment.');
+    }
+    return bucket || 'workspace-os-vault';
+  }
+
+  public static getEndpoint(): string {
+    let endpoint = process.env.B2_ENDPOINT || env.B2_ENDPOINT;
+    if (!endpoint && process.env.NODE_ENV === 'production') {
+      throw new Error('[ObjectStorageService Fatal] B2_ENDPOINT is missing in environment.');
+    }
+    endpoint = endpoint || 'https://s3.us-east-005.backblazeb2.com';
+    if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+      endpoint = `https://${endpoint.replace(/^\/+/, '')}`;
+    }
+    return endpoint;
+  }
+
+  public static getRegion(): string {
+    const region = process.env.B2_REGION || env.B2_REGION;
+    if (!region && process.env.NODE_ENV === 'production') {
+      throw new Error('[ObjectStorageService Fatal] B2_REGION is missing in environment.');
+    }
+    return region || 'us-east-005';
+  }
 
   /**
    * Initializes or returns the AWS S3Client configured for Backblaze B2
@@ -49,11 +76,24 @@ export class ObjectStorageService {
 
     const keyId = process.env.B2_KEY_ID || env.B2_KEY_ID;
     const applicationKey = process.env.B2_APPLICATION_KEY || env.B2_APPLICATION_KEY;
-    let endpoint = process.env.B2_ENDPOINT || env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
-    const region = process.env.B2_REGION || env.B2_REGION || 'us-west-004';
+    const bucketName = this.getBucketName();
+    const endpoint = this.getEndpoint();
+    const region = this.getRegion();
 
-    if (endpoint && !endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
-      endpoint = `https://${endpoint.replace(/^\/+/, '')}`;
+    console.log('[B2 CONFIG]', {
+      bucket: bucketName,
+      endpoint,
+      region,
+      keyConfigured: !!keyId,
+      applicationKeyConfigured: !!applicationKey,
+    });
+
+    if (process.env.NODE_ENV === 'production') {
+      if (!keyId || !applicationKey || !bucketName || !endpoint || !region) {
+        throw new Error(
+          `[ObjectStorageService Fatal] Incomplete B2 Configuration: keyId=${!!keyId}, applicationKey=${!!applicationKey}, bucketName=${!!bucketName}, endpoint=${!!endpoint}, region=${!!region}`
+        );
+      }
     }
 
     if (keyId && applicationKey && process.env.NODE_ENV !== 'test') {
@@ -68,7 +108,10 @@ export class ObjectStorageService {
         });
         return this.client;
       } catch (clientErr) {
-        console.warn('[ObjectStorageService] Failed to initialize S3Client:', clientErr);
+        console.error('[ObjectStorageService] Failed to initialize S3Client:', clientErr);
+        if (process.env.NODE_ENV === 'production') {
+          throw clientErr;
+        }
         return null;
       }
     }
@@ -93,16 +136,26 @@ export class ObjectStorageService {
     const contentType = options.contentType || 'application/octet-stream';
     const buffer = Buffer.isBuffer(options.body) ? options.body : Buffer.from(options.body);
     const sizeBytes = buffer.length;
+    const bucketName = this.getBucketName();
+    const endpoint = this.getEndpoint();
+    const region = this.getRegion();
 
     const client = this.getClient();
     let storageProvider = 'in-memory';
     let storageSuccess = false;
 
+    console.log('[B2 UPLOAD START]', {
+      bucket: bucketName,
+      key,
+      sizeBytes,
+      contentType,
+    });
+
     if (client) {
       storageProvider = 'backblaze-b2';
       try {
         const command = new PutObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: bucketName,
           Key: key,
           Body: buffer,
           ContentType: contentType,
@@ -114,7 +167,7 @@ export class ObjectStorageService {
 
         const response = await client.send(command);
         storageSuccess = true;
-        const publicBase = process.env.B2_PUBLIC_URL || env.B2_PUBLIC_URL || `https://f005.backblazeb2.com/file/${this.bucketName}`;
+        const publicBase = process.env.B2_PUBLIC_URL || env.B2_PUBLIC_URL || `https://f005.backblazeb2.com/file/${bucketName}`;
         const url = `${publicBase}/${key}`;
 
         console.log(`[DOCUMENT-UPLOAD] workspaceId=${options.workspaceId} documentId=${options.documentId} filename=${options.filename} mimeType=${contentType} bytes=${sizeBytes} storageProvider=${storageProvider} storageKey=${key} storageSuccess=true`);
@@ -122,11 +175,21 @@ export class ObjectStorageService {
         return {
           key,
           url,
-          bucket: this.bucketName,
+          bucket: bucketName,
           sizeBytes,
           etag: response.ETag,
         };
       } catch (err: any) {
+        console.error('[B2 UPLOAD FAILED]', {
+          bucket: bucketName,
+          endpoint,
+          region,
+          key,
+          error: err,
+          message: err?.message,
+          stack: err?.stack,
+        });
+
         console.error(`[DOCUMENT-UPLOAD] workspaceId=${options.workspaceId} documentId=${options.documentId} filename=${options.filename} mimeType=${contentType} bytes=${sizeBytes} storageProvider=${storageProvider} storageKey=${key} storageSuccess=false error=${err?.message || err}`);
         
         // If in production and B2 is configured, fail closed so no ghost/broken document record is created
@@ -151,7 +214,7 @@ export class ObjectStorageService {
     return {
       key,
       url: `/api/documents/vault/${key}`,
-      bucket: this.bucketName,
+      bucket: bucketName,
       sizeBytes,
       etag: `etag-${Date.now()}`,
     };
@@ -171,9 +234,10 @@ export class ObjectStorageService {
     }
 
     const client = this.getClient();
+    const bucketName = this.getBucketName();
     if (client) {
       const command = new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: bucketName,
         Key: key,
       });
 
@@ -194,9 +258,10 @@ export class ObjectStorageService {
     }
 
     const client = this.getClient();
+    const bucketName = this.getBucketName();
     if (client) {
       const command = new DeleteObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: bucketName,
         Key: key,
       });
       await client.send(command);
@@ -216,9 +281,10 @@ export class ObjectStorageService {
     }
 
     const client = this.getClient();
+    const bucketName = this.getBucketName();
     if (client) {
       const command = new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: bucketName,
         Key: key,
       });
       const response = await client.send(command);
@@ -244,51 +310,95 @@ export class ObjectStorageService {
   /**
    * Health Check: Verifies bucket access, read & write permissions
    */
-  public static async healthCheck(): Promise<{ status: 'healthy' | 'unconfigured' | 'error'; bucket: string; message?: string }> {
+  public static async healthCheck(): Promise<{
+    status: 'healthy' | 'error';
+    bucket: string;
+    endpoint?: string;
+    region?: string;
+    storage: 'backblaze-b2' | 'in-memory';
+    message?: string;
+    details?: any;
+  }> {
+    const bucket = this.getBucketName();
+    const endpoint = this.getEndpoint();
+    const region = this.getRegion();
     const client = this.getClient();
+
     if (!client) {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          status: 'error',
+          bucket,
+          endpoint,
+          region,
+          storage: 'in-memory',
+          message: 'Backblaze B2 client uninitialized in production environment.',
+        };
+      }
       return {
         status: 'healthy',
-        bucket: this.bucketName,
-        message: 'Object storage operational (in-memory test/fallback active)',
+        bucket,
+        endpoint,
+        region,
+        storage: 'in-memory',
+        message: 'Object storage operational (in-memory test/dev fallback active)',
       };
     }
 
     try {
       const testKey = `_health/${Date.now()}-probe.txt`;
-      // Write probe
+      // 1. Write probe
       await client.send(
         new PutObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: bucket,
           Key: testKey,
-          Body: 'health-check',
+          Body: 'health-check-probe',
+          ContentType: 'text/plain',
         })
       );
-      // Read probe
-      await client.send(
+      // 2. Read probe
+      const readRes = await client.send(
         new GetObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: bucket,
           Key: testKey,
         })
       );
-      // Cleanup probe
+      // 3. Cleanup probe
       await client.send(
         new DeleteObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: bucket,
           Key: testKey,
         })
       );
 
       return {
         status: 'healthy',
-        bucket: this.bucketName,
-        message: 'Backblaze B2 S3 bucket fully reachable with read/write access',
+        bucket,
+        endpoint,
+        region,
+        storage: 'backblaze-b2',
       };
     } catch (err: any) {
+      console.error('[B2 HEALTH CHECK FAILED]', {
+        bucket,
+        endpoint,
+        region,
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+      });
+
       return {
         status: 'error',
-        bucket: this.bucketName,
+        bucket,
+        endpoint,
+        region,
+        storage: 'backblaze-b2',
         message: err.message || 'Failed to verify Backblaze B2 bucket access',
+        details: {
+          code: err.name || err.Code,
+          statusCode: err.$metadata?.httpStatusCode,
+        },
       };
     }
   }

@@ -109,6 +109,12 @@ healthRouter.get('/ready', async (c) => {
   );
 });
 
+// Storage Health Probe (Backblaze B2 read/write/delete drill)
+healthRouter.get('/storage', async (c) => {
+  const storageHealth = await ObjectStorageService.healthCheck();
+  return c.json(storageHealth, storageHealth.status === 'error' ? 503 : 200);
+});
+
 // 3. Email Infrastructure Verification (Part 3)
 healthRouter.get('/email', async (c) => {
   const emailReport = await EmailDeliveryVerifier.verifyEmailInfrastructure();

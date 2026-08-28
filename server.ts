@@ -67,6 +67,7 @@ async function startServer() {
     '/auth',
     '/workspace',
     '/health',
+    '/storage',
     '/invites',
     '/members',
     '/projects',

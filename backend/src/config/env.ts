@@ -28,9 +28,9 @@ const envSchema = z.object({
   // Backblaze B2 S3-Compatible Object Storage
   B2_KEY_ID: z.string().optional(),
   B2_APPLICATION_KEY: z.string().optional(),
-  B2_BUCKET_NAME: z.string().default('workspace-os-vault'),
-  B2_ENDPOINT: z.string().default('https://s3.us-west-004.backblazeb2.com'),
-  B2_REGION: z.string().default('us-west-004'),
+  B2_BUCKET_NAME: z.string().optional(),
+  B2_ENDPOINT: z.string().optional(),
+  B2_REGION: z.string().optional(),
   B2_PUBLIC_URL: z.string().optional(),
   // Razorpay India-First Payment Gateway
   RAZORPAY_KEY_ID: z.string().optional(),
@@ -48,6 +48,11 @@ export const REQUIRED_SECRET_KEYS = [
   'RAZORPAY_KEY_SECRET',
   'RAZORPAY_WEBHOOK_SECRET',
   'RESEND_API_KEY',
+  'B2_KEY_ID',
+  'B2_APPLICATION_KEY',
+  'B2_BUCKET_NAME',
+  'B2_ENDPOINT',
+  'B2_REGION',
 ] as const;
 
 const parsedEnv = envSchema.parse(process.env);

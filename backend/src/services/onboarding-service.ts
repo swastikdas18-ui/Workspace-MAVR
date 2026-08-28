@@ -4,7 +4,7 @@
  * Manages 6-step workspace setup wizard, completion progress, and progress bar generation.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const ONBOARDING_STEPS = [
   { id: 'company_info', label: 'Company Profile & Workspace Info', order: 1 },

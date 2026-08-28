@@ -12,7 +12,7 @@ import {
 } from '../lib/session-cookies';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
 import { AuthSessionResponse } from '../types';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const authRouter = new Hono();
 

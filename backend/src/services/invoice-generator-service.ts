@@ -1,4 +1,4 @@
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface GSTBreakdown {
   taxableValue: number;

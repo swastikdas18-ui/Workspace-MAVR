@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getDb, inMemoryDb } from '../../packages/database';
+import { getDb, inMemoryDb } from '../../packages/database/index.js';
 import { SentryService } from '../services/sentry-service';
 import { ChannelManager } from '../realtime/channel-manager';
 import { PresenceManager } from '../realtime/presence-manager';

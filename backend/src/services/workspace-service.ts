@@ -3,7 +3,7 @@ import { TeamRepository } from '../repositories/team-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { TaskRepository } from '../repositories/task-repository';
 import { SafeWorkspace, SafeUser, UserRole } from '../types';
-import { getDb, schema, inMemoryDb, WorkspaceMember, Session } from '../../packages/database';
+import { getDb, schema, inMemoryDb, WorkspaceMember, Session } from '../../packages/database/index.js';
 import { eq } from 'drizzle-orm';
 
 export function sanitizeWorkspaceEntity(

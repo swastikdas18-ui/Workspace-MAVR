@@ -2,8 +2,8 @@
  * Phase 22: Feedback Service & Founder Review Queue
  */
 
-import { inMemoryDb, getDb } from '../../packages/database';
-import * as schema from '../../packages/database/schema';
+import { inMemoryDb, getDb } from '../../packages/database/index.js';
+import * as schema from '../../packages/database/schema.js';
 import { eq, desc, and } from 'drizzle-orm';
 import { AuditService } from './audit-service';
 import { ProductAnalyticsService } from './product-analytics-service';

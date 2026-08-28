@@ -12,7 +12,7 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
 import { requireFounder, requirePlatformAdmin, requireSupport } from '../middleware/platform-admin';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { ExportService } from '../services/export-service';
 import { DigestService } from '../services/digest-service';
 import { AuditRepository } from '../repositories/audit-repository';

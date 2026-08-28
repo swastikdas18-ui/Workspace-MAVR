@@ -14,7 +14,7 @@
  * - Client Portal Usage pillar
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface WorkspaceHealthMetric {
   score: number; // 0–100

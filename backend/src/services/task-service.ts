@@ -3,7 +3,7 @@ import { can, normalizeRole } from '../lib/permissions';
 import { TaskRepository, TaskEntity, TaskCommentEntity } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { EventService } from './event-service';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { inArray } from 'drizzle-orm';
 
 export interface CreateTaskInput {

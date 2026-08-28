@@ -8,7 +8,7 @@
  * - Webhook ingestion handler for provider callbacks (Resend / SendGrid / Postmark)
  */
 
-import { getDb, schema } from '../../packages/database';
+import { getDb, schema } from '../../packages/database/index.js';
 import { eq, and, gte } from 'drizzle-orm';
 
 export interface EmailHealthEvent {

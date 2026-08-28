@@ -1,5 +1,5 @@
 import { eq, and, or } from 'drizzle-orm';
-import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember, getDb, schema } from '../../packages/database';
+import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember, getDb, schema } from '../../packages/database/index.js';
 import { hashPassword, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, AcceptInviteResponse, UserRole } from '../types';
 import { sanitizeUser, sanitizeWorkspace, determinePlatformRole } from './auth-service';

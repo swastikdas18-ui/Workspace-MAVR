@@ -1,5 +1,5 @@
 import { eq, and, desc } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { EventBus } from '../realtime/event-bus';
 
 export interface NotificationEntity {

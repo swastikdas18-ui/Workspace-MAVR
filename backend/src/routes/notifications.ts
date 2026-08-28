@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { NotificationRepository } from '../repositories/notification-repository';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const notificationRouter = new Hono();
 

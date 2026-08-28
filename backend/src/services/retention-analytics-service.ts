@@ -5,7 +5,7 @@
  * timestamps and subsequent activity events. Zero hardcoded constants.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface RetentionMetrics {
   d1Percent: number | null;

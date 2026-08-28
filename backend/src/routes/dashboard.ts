@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { inMemoryDb, getDb, schema } from '../../packages/database';
+import { inMemoryDb, getDb, schema } from '../../packages/database/index.js';
 import { eq } from 'drizzle-orm';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 

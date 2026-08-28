@@ -8,7 +8,7 @@ import { BillingRepository } from '../repositories/billing-repository';
 import { EventService } from '../services/event-service';
 import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const foundingPartnerRouter = new Hono();
 

@@ -11,7 +11,7 @@
 
 import { createHash } from 'crypto';
 import { gzipSync, gunzipSync } from 'zlib';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { eq, desc } from 'drizzle-orm';
 
 export interface BackupMetadata {

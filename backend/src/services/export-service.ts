@@ -7,7 +7,7 @@
  * RBAC: Admin only
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export class ExportService {
   private static csvRow(values: any[]): string {

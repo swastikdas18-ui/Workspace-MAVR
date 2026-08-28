@@ -2,8 +2,8 @@
  * Phase 22: Customer Success & Company Health Scoring Service
  */
 
-import { inMemoryDb, getDb } from '../../packages/database';
-import * as schema from '../../packages/database/schema';
+import { inMemoryDb, getDb } from '../../packages/database/index.js';
+import * as schema from '../../packages/database/schema.js';
 import { eq } from 'drizzle-orm';
 import { FeedbackService } from './feedback-service';
 

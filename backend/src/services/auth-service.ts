@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { inMemoryDb, User, Workspace, WorkspaceMember, Session, getDb, schema } from '../../packages/database';
+import { inMemoryDb, User, Workspace, WorkspaceMember, Session, getDb } from '../../packages/database/index.js';
+import * as schema from '../../packages/database/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { hashPassword, verifyPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole, PlatformRole } from '../types';

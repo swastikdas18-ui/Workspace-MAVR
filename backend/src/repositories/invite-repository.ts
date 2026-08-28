@@ -1,7 +1,7 @@
 // Invite Repository (Drizzle ORM)
 import { eq } from 'drizzle-orm';
 import { getDb } from '../../packages/database/connection';
-import { workspaceInvites } from '../../packages/database/schema';
+import { workspaceInvites } from '../../packages/database/schema.js';
 import { WorkspaceInvite } from '../../packages/database/types';
 
 export class InviteRepository {

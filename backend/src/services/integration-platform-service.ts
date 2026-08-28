@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface ApiKeyItem {
   id: string;

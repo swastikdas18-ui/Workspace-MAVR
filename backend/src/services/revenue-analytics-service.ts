@@ -5,7 +5,7 @@
  * captured payments. Zero fallback constants.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface RevenueMetrics {
   mrr: number;

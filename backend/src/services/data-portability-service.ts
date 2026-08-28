@@ -4,7 +4,7 @@
  * Generates portable workspace backup archives and implements GDPR Right-to-Erasure.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface WorkspaceExportArchive {
   workspace: {

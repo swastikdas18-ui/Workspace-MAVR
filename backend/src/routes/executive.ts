@@ -16,7 +16,7 @@ import { requireWorkspaceRole } from '../middleware/rbac';
 import { WorkspaceHealthService } from '../services/workspace-health-service';
 import { UsageService } from '../services/usage-service';
 import { BillingRepository } from '../repositories/billing-repository';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const executiveRouter = new Hono();
 

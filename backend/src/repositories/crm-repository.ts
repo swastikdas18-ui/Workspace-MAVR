@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface CrmRecordEntity {
   id: string;

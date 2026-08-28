@@ -14,7 +14,7 @@
  * - Overage cost estimates
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
 import { PricingEngine } from './pricing-engine';
 

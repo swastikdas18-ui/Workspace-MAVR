@@ -2,8 +2,8 @@
  * Phase 23C: Real NPS Survey System & Metric Calculator
  */
 
-import { inMemoryDb, getDb } from '../../packages/database';
-import * as schema from '../../packages/database/schema';
+import { inMemoryDb, getDb } from '../../packages/database/index.js';
+import * as schema from '../../packages/database/schema.js';
 import { AuditService } from './audit-service';
 
 export interface SubmitNpsDTO {

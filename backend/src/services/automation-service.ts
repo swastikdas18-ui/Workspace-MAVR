@@ -6,7 +6,7 @@ import { TaskRepository } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { CRMRepository } from '../repositories/crm-repository';
 import { WorkspaceRepository } from '../repositories/workspace-repository';
-import { getDb } from '../../packages/database';
+import { getDb } from '../../packages/database/index.js';
 
 export interface ProcessEventContext {
   actorId: string;

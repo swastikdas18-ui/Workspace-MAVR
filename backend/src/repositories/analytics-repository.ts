@@ -8,7 +8,7 @@
  * - Workspace Health Score computation (0-100 score based on engagement metrics)
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export type AnalyticsEventName =
   | 'Workspace Created'

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { generateSecureToken, generateUniqueId } from '../lib/secure-token';
 
 export interface GuestUser {

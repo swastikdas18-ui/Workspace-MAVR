@@ -1,4 +1,4 @@
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface CalendarEventItem {
   id: string;

@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import { getDb } from '../../packages/database/connection';
-import { users, workspaces, workspaceMembers, sessions } from '../../packages/database/schema';
+import { users, workspaces, workspaceMembers, sessions } from '../../packages/database/schema.js';
 import type { User, Workspace, WorkspaceMember, Session } from '../../packages/database/types';
 
 /**

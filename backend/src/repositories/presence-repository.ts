@@ -1,5 +1,5 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { UserPresence, NewUserPresence, UserRole } from '../../packages/database/types';
 
 export interface PresenceEntry {

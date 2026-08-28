@@ -2,7 +2,7 @@ import { NotificationRepository } from '../repositories/notification-repository'
 import { ActivityRepository } from '../repositories/activity-repository';
 import { AuditRepository } from '../repositories/audit-repository';
 import { AutomationService } from './automation-service';
-import { getDb } from '../../packages/database';
+import { getDb } from '../../packages/database/index.js';
 import { EventBus } from '../realtime/event-bus';
 
 export interface BaseEventContext {

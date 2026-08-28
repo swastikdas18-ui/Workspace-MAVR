@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import crypto from 'crypto';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole, requireWorkspaceRole } from '../middleware/rbac';
 import { PaymentRepository } from '../repositories/payment-repository';

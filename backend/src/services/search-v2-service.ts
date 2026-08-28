@@ -4,7 +4,7 @@
  * Tokenized multi-entity query parser, filter evaluator, and multi-factor ranking engine.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface SearchFilterTokens {
   query: string;

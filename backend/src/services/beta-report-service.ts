@@ -2,7 +2,7 @@
  * Phase 22: Weekly Beta Report Generator Service
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { CustomerSuccessService } from './customer-success-service';
 import { FeedbackService } from './feedback-service';
 import { ProductAnalyticsService } from './product-analytics-service';

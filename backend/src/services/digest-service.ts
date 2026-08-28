@@ -5,7 +5,7 @@
  * premium HTML emails via EmailService.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { EmailService } from './email-service';
 
 export interface DigestData {

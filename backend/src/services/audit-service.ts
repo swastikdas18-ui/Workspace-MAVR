@@ -4,7 +4,7 @@
  * Manages immutable append-only audit trail and streaming CSV/JSON compliance exports.
  */
 
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export interface AuditLogItem {
   id: string;

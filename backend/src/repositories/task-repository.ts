@@ -1,5 +1,5 @@
 import { eq, and, inArray, desc } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface TaskEntity {
   id: string;

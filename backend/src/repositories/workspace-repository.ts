@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb, Workspace, WorkspaceMember, User } from '../../packages/database';
+import { getDb, schema, inMemoryDb, Workspace, WorkspaceMember, User } from '../../packages/database/index.js';
 import { UserRole } from '../types';
 
 export interface WorkspaceEntity {

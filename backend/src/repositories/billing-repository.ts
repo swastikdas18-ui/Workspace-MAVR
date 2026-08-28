@@ -6,7 +6,7 @@
  * Annual billing: monthlyPrice × 10 (2 months free)
  */
 
-import { inMemoryDb, getDb, subscriptions, invoices, workspaces } from '../../packages/database';
+import { inMemoryDb, getDb, subscriptions, invoices, workspaces } from '../../packages/database/index.js';
 import { eq, desc } from 'drizzle-orm';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { eq, and, desc, inArray } from 'drizzle-orm';
-import { getDb, schema, inMemoryDb } from '../../packages/database';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface AutomationActionEntity {
   id: string;

@@ -5,9 +5,9 @@
  * cohort retention metrics (D1, D7, D30), and MRR/ARR growth operations.
  */
 
-import { inMemoryDb } from '../../packages/database';
-import { getDb } from '../../packages/database';
-import * as schema from '../../packages/database/schema';
+import { inMemoryDb } from '../../packages/database/index.js';
+import { getDb } from '../../packages/database/index.js';
+import * as schema from '../../packages/database/schema.js';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import { RetentionAnalyticsService, RetentionMetrics } from './retention-analytics-service';
 import { RevenueAnalyticsService, RevenueMetrics } from './revenue-analytics-service';

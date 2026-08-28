@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
-import { inMemoryDb } from '../../packages/database';
+import { inMemoryDb } from '../../packages/database/index.js';
 import { PLAN_CONFIG, PlanTier, BillingRepository } from '../repositories/billing-repository';
 import { env } from '../config/env';
 

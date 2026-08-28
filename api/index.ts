@@ -1,8 +1,8 @@
 import { handle } from 'hono/vercel';
 import { getRequestListener } from '@hono/node-server';
-import appModule, { app as namedApp } from '../backend/dist/app.js';
+import app, { app as namedApp } from '../backend/src/app';
 
-const app = namedApp || (appModule as any)?.default || appModule;
+const honoApp = app || namedApp;
 
 export const config = {
   api: {
@@ -10,8 +10,8 @@ export const config = {
   },
 };
 
-const nodeListener = getRequestListener(app.fetch);
-const webHandler = handle(app);
+const nodeListener = getRequestListener(honoApp.fetch);
+const webHandler = handle(honoApp);
 
 function universalDispatch(req: any, res?: any) {
   if (req && res && typeof res.setHeader === 'function') {

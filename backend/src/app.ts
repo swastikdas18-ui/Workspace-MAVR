@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+console.log('[BOOT] app.ts loading');
 import { cors } from 'hono/cors';
 import { authRouter } from './routes/auth';
 import { workspaceRouter } from './routes/workspace';
@@ -41,12 +42,15 @@ import {
 } from './middleware/rate-limiter';
 
 export const app = new Hono();
+console.log('[BOOT] Hono app instantiated');
 
 // Security Headers (Helmet-equivalent)
 app.use('*', securityHeaders);
+console.log('[BOOT] security headers middleware registered');
 
 // Structured Request & Error Logging
 app.use('*', requestLogger);
+console.log('[BOOT] request logger middleware registered');
 
 // Helper to validate allowed origins: vercel.app, render, localhost, cloud run, and any active client origin
 function isOriginAllowed(origin: string): boolean {
@@ -155,10 +159,12 @@ app.use('*', async (c, next) => {
 // 4. CSRF Protection (Phase 17 — Fix #9): double-submit cookie enforcement
 // for all state-changing cookie-authenticated requests.
 app.use('*', csrfProtection);
+console.log('[BOOT] CSRF protection middleware registered');
 
 // Health check & diagnostic endpoints
 app.route('/health', healthRouter);
 app.route('/api/health', healthRouter);
+console.log('[BOOT] health routes registered');
 
 // Mount API routes with Rate Limiting
 app.use('/api/auth/*', authRateLimiter);
@@ -178,6 +184,7 @@ app.use('/workspaces/*', workspaceRateLimiter);
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
 app.route('/api/workspaces', workspaceRouter);
+console.log('[BOOT] workspace routes registered');
 app.route('/workspaces', workspaceRouter);
 
 // Direct /members and /api/members route aliases for workspace member directory
@@ -339,6 +346,7 @@ app.onError((err, c) => {
     500
   );
 });
+console.log('[BOOT] global error handler registered');
 
 // 404 Handler for undefined routes
 app.notFound((c) => {
@@ -352,5 +360,6 @@ app.notFound((c) => {
     404
   );
 });
+console.log('[BOOT] 404 handler registered');
 
 export default app;

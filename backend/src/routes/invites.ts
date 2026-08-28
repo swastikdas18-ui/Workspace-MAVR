@@ -90,11 +90,18 @@ inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c
 });
 
 /**
- * GET /api/invites - List active invites for workspace (Admin only)
+ * GET /api/invites - List active invites for workspace (Admin only, graceful [] for others)
  */
-inviteRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+inviteRouter.get('/', authMiddleware, async (c) => {
   try {
+    const user = c.get('user');
     const workspace = c.get('workspace');
+    const effectiveRole = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
+
+    if (effectiveRole !== 'admin') {
+      return c.json({ invites: [] }, 200);
+    }
+
     if (!workspace) {
       return c.json(
         { error: { code: 'NOT_FOUND', message: 'No active workspace found for session.' } },
@@ -103,7 +110,7 @@ inviteRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c)
     }
 
     const invites = await InviteService.getWorkspaceInvites(workspace.id);
-    return c.json({ invites }, 200);
+    return c.json({ invites: invites || [] }, 200);
   } catch (err: any) {
     return c.json(
       { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list invites.' } },

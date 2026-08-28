@@ -230,7 +230,7 @@ export const TeamsView: React.FC = () => {
           icon={Users}
           color="purple"
           trend={{ value: `${teams.length} departments`, direction: 'neutral', label: 'structured' }}
-          sparklineData={[12, 14, 15, 18, 20, 22, 25]}
+          sparklineData={[0, 0, 0, 0, 0, 0, users.length]}
         />
         <MetricCard
           label="Employees"
@@ -238,7 +238,7 @@ export const TeamsView: React.FC = () => {
           icon={Briefcase}
           color="blue"
           trend={{ value: 'Full Access', direction: 'neutral', label: 'operational' }}
-          sparklineData={[8, 10, 11, 12, 14, 15, 17]}
+          sparklineData={[0, 0, 0, 0, 0, 0, employeeCount]}
         />
         <MetricCard
           label="Learning Sandbox"
@@ -246,15 +246,15 @@ export const TeamsView: React.FC = () => {
           icon={GraduationCap}
           color="emerald"
           trend={{ value: 'Onboarding', direction: 'neutral', label: 'mentored' }}
-          sparklineData={[1, 2, 3, 4, 3, 5, 6]}
+          sparklineData={[0, 0, 0, 0, 0, 0, internCount]}
         />
         <MetricCard
           label="Pending Invitations"
           value={pendingInvites.length}
           icon={Mail}
           color="amber"
-          trend={{ value: '7-Day Token', direction: 'neutral', label: 'awaiting join' }}
-          sparklineData={[2, 3, 4, 2, 1, 3, 4]}
+          trend={{ value: `${pendingInvites.length} unaccepted`, direction: 'neutral', label: 'invites' }}
+          sparklineData={[0, 0, 0, 0, 0, 0, pendingInvites.length]}
         />
       </div>
 

@@ -23,11 +23,9 @@ export const integrationRouter = new Hono();
 // ============================================================================
 wikiRouter.use('*', authMiddleware);
 
-wikiRouter.get('/pages', async (c) => {
+const listPagesHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
-  // SECURITY (Phase 17 — Fix #7): authorization uses the WORKSPACE MEMBERSHIP
-  // role resolved server-side during session validation — never a global role.
   const role = workspace?.roleInWorkspace || user?.role;
 
   const pages = await WikiRepository.getWorkspacePages(workspace?.id || '');
@@ -40,9 +38,23 @@ wikiRouter.get('/pages', async (c) => {
   });
 
   return c.json({ pages: visible }, 200);
-});
+};
+wikiRouter.get('/', listPagesHandler);
+wikiRouter.get('/pages', listPagesHandler);
 
-wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+const getPageHandler = async (c: any) => {
+  const workspace = c.get('workspace');
+  const pageId = c.req.param('id');
+  const page = await WikiRepository.getPageById(pageId);
+  if (!page || (workspace && page.workspaceId !== workspace.id)) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
+  }
+  return c.json({ page }, 200);
+};
+wikiRouter.get('/:id', getPageHandler);
+wikiRouter.get('/pages/:id', getPageHandler);
+
+const createPageHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
@@ -58,16 +70,16 @@ wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), async (c)
   });
 
   return c.json({ page }, 201);
-});
+};
+wikiRouter.post('/', requireWorkspaceRole(['admin', 'employee']), createPageHandler);
+wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), createPageHandler);
 
-wikiRouter.patch('/pages/:id', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+const updatePageHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
   const pageId = c.req.param('id');
   const body = await c.req.json().catch(() => ({}));
 
-  // SECURITY (Phase 17 — Fix #8 IDOR): the page MUST belong to the caller's
-  // workspace before any mutation is applied.
   const existingPage = await WikiRepository.getPageById(pageId);
   if (!existingPage) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
@@ -87,21 +99,32 @@ wikiRouter.patch('/pages/:id', requireWorkspaceRole(['admin', 'employee']), asyn
   if (!updated) return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
 
   return c.json({ page: updated }, 200);
-});
+};
+wikiRouter.patch('/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
+wikiRouter.patch('/pages/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
+wikiRouter.put('/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
 
-wikiRouter.delete('/pages/:id', requireWorkspaceRole(['admin']), async (c) => {
+const deletePageHandler = async (c: any) => {
   const workspace = c.get('workspace');
+  const user = c.get('user');
+  const effectiveRole = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
 
-  // SECURITY (Phase 17 — Fix #8 IDOR): scope deletion to caller's workspace.
   const page = await WikiRepository.getPageById(pageId);
   if (!page || (workspace && page.workspaceId !== workspace.id)) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
   }
 
+  // Admin can delete any page, Employee can delete own page
+  if (effectiveRole !== 'admin' && page.createdBy !== user?.id) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Only admins or page owners can delete wiki pages.' } }, 403);
+  }
+
   const success = await WikiRepository.deletePage(pageId);
-  return c.json({ success }, success ? 200 : 404);
-});
+  return c.json({ success: true, message: 'Wiki page deleted successfully.' }, 200);
+};
+wikiRouter.delete('/:id', requireWorkspaceRole(['admin', 'employee']), deletePageHandler);
+wikiRouter.delete('/pages/:id', requireWorkspaceRole(['admin', 'employee']), deletePageHandler);
 
 wikiRouter.get('/pages/:id/comments', async (c) => {
   const workspace = c.get('workspace');
@@ -202,18 +225,44 @@ timeRouter.post('/manual', async (c) => {
 timeRouter.get('/entries', async (c) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
-  // SECURITY (Phase 17 — Fix #7): workspace membership role, never global role
   const role = workspace?.roleInWorkspace || user?.role;
 
   const filters = role === 'admin' ? {} : { userId: user?.id };
   const entries = await TimeTrackingRepository.getEntries(workspace?.id || '', filters);
-  return c.json({ entries }, 200);
+  return c.json({ entries: entries || [] }, 200);
+});
+
+timeRouter.delete('/entries/:id', async (c) => {
+  const workspace = c.get('workspace');
+  const user = c.get('user');
+  const role = workspace?.roleInWorkspace || user?.role;
+  const entryId = c.req.param('id');
+
+  const entries = await TimeTrackingRepository.getEntries(workspace?.id || '', {});
+  const entry = entries.find((e) => e.id === entryId);
+  if (!entry) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Time entry not found.' } }, 404);
+  }
+
+  // Admin can delete any entry, others can delete only their own
+  if (role !== 'admin' && entry.userId !== user?.id) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Unauthorized to delete this time entry.' } }, 403);
+  }
+
+  await TimeTrackingRepository.deleteEntry(entryId);
+  return c.json({ success: true, message: 'Time entry deleted successfully.' }, 200);
 });
 
 timeRouter.get('/report', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   const report = await TimeTrackingRepository.getUtilizationReport(workspace?.id || '');
   return c.json({ report }, 200);
+});
+
+timeRouter.get('/analytics', requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
+  const report = await TimeTrackingRepository.getUtilizationReport(workspace?.id || '');
+  return c.json({ analytics: report }, 200);
 });
 
 // ============================================================================

@@ -61,13 +61,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return [
         { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
         { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
-        { id: 'tasks', label: 'My Tasks & Board', icon: CheckSquare, badge: 'Flow' },
+        { id: 'tasks', label: 'Tasks & Board', icon: CheckSquare, badge: 'Flow' },
         { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Docs' },
-        { id: 'time', label: 'My Timesheets', icon: Clock, badge: 'Timer' },
-        { id: 'crm', label: 'My CRM Leads', icon: DollarSign, badge: 'Pipeline' },
-        { id: 'portal', label: 'Client Approvals', icon: Sparkles, badge: null },
-        { id: 'integrations', label: 'Connected Apps', icon: Bell, badge: null },
-        { id: 'teams', label: 'My Team & Org', icon: Users, badge: null },
+        { id: 'time', label: 'Timesheets', icon: Clock, badge: 'Timer' },
+        { id: 'teams', label: 'My Team', icon: Users, badge: null },
         { id: 'documents', label: 'Shared Documents', icon: FileText, badge: null },
       ];
     }
@@ -78,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Intern Role: strictly Dashboard, Tasks, Learning Wiki, Learning Documents, Own Time
+    // Intern Role: strictly Dashboard, Learning Tasks, Assigned Work, Learning Wiki, Learning Documents
     return [
       { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
       { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },

@@ -35,7 +35,14 @@ export class TeamService {
       throw error;
     }
 
-    const teams = await TeamRepository.listTeams(workspaceId);
+    let teams = await TeamRepository.listTeams(workspaceId);
+
+    // Strict team visibility isolation:
+    // Admin: all teams
+    // Employee & Intern: only teams they belong to or lead
+    if (role === 'employee' || role === 'intern') {
+      teams = teams.filter((t) => t.leadId === userId || t.memberIds.includes(userId));
+    }
 
     return teams.map((t) => ({
       id: t.id,

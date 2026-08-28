@@ -19,7 +19,7 @@ export const CrmView: React.FC = () => {
     updateCrmRecord, deleteCrmRecord, users, searchQuery 
   } = useWorkspace();
 
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'founding_partners' | 'table'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'table'>('pipeline');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
@@ -29,7 +29,7 @@ export const CrmView: React.FC = () => {
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [dealValue, setDealValue] = useState(17988);
+  const [dealValue, setDealValue] = useState(50000);
   const [status, setStatus] = useState<CrmStatus>('new_lead');
   const [notes, setNotes] = useState('');
 
@@ -49,8 +49,8 @@ export const CrmView: React.FC = () => {
   });
 
   const pipelineStages: { id: CrmStatus; label: string; badgeClass: string; dotClass: string }[] = [
-    { id: 'new_lead', label: 'New Inbound', badgeClass: 'bg-blue-500/10 text-blue-300 border-blue-500/20', dotClass: 'bg-blue-400' },
-    { id: 'contacted', label: 'Qualified Discovery', badgeClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20', dotClass: 'bg-cyan-400' },
+    { id: 'new_lead', label: 'Lead / Inbound', badgeClass: 'bg-blue-500/10 text-blue-300 border-blue-500/20', dotClass: 'bg-blue-400' },
+    { id: 'contacted', label: 'Discovery / Contacted', badgeClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20', dotClass: 'bg-cyan-400' },
     { id: 'proposal_sent', label: 'Proposal Sent', badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/20', dotClass: 'bg-amber-400' },
     { id: 'negotiation', label: 'In Negotiation', badgeClass: 'bg-purple-500/10 text-purple-300 border-purple-500/20', dotClass: 'bg-purple-400' },
     { id: 'won', label: 'Closed Won', badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20', dotClass: 'bg-emerald-400' },
@@ -92,26 +92,14 @@ export const CrmView: React.FC = () => {
   const activeOpportunities = visibleRecords.filter(r => r.status !== 'won' && r.status !== 'lost').length;
   const avgDeal = visibleRecords.length > 0 ? Math.round(totalValue / visibleRecords.length) : 0;
 
-  // Founding Partner Funnel Metrics (100% database-derived)
-  const partnerLeads = visibleRecords.filter(r => r.notes?.includes('[Founding Partner Application]') || r.company.toLowerCase().includes('partner') || r.customer_name.toLowerCase().includes('partner'));
-  const appliedCount = partnerLeads.length;
-  const qualifiedCount = partnerLeads.filter(r => r.status !== 'new_lead').length;
-  const discoveryCount = partnerLeads.filter(r => r.status === 'contacted' || r.status === 'proposal_sent' || r.status === 'negotiation' || r.status === 'won').length;
-  const pilotCount = partnerLeads.filter(r => r.status === 'negotiation' || r.status === 'won').length;
-  const activeCustomerCount = partnerLeads.filter(r => r.status === 'won').length;
-  const testimonialCount = partnerLeads.filter(r => r.status === 'won' && r.notes?.toLowerCase().includes('testimonial')).length;
-  const passRate = appliedCount > 0 ? Math.round((qualifiedCount / appliedCount) * 100) : 0;
-  const activationRate = appliedCount > 0 ? Math.round((activeCustomerCount / appliedCount) * 100) : 0;
-  const slotsRemaining = Math.max(0, 3 - activeCustomerCount);
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={currentRole === 'admin' ? 'MSME Revenue CRM & Funnels' : 'Assigned Client Deals'}
+        title={currentRole === 'admin' ? 'B2B Revenue CRM Pipeline' : 'Assigned Client Deals'}
         description={
           currentRole === 'admin'
-            ? 'Account lifecycle tracking, deal pipeline stages, revenue forecasting, and Founding Partner campaign analytics.'
+            ? 'Account lifecycle tracking, deal pipeline stages, revenue forecasting, and client communication.'
             : 'Track conversations, update negotiation notes, and advance client opportunities.'
         }
         badge={
@@ -132,18 +120,7 @@ export const CrmView: React.FC = () => {
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Pipeline</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('founding_partners')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'founding_partners'
-                    ? 'bg-amber-600 text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Founding Partners (3 Slots)</span>
+                <span className="hidden sm:inline">Pipeline Board</span>
               </button>
               <button
                 onClick={() => setActiveTab('table')}
@@ -154,7 +131,7 @@ export const CrmView: React.FC = () => {
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Grid</span>
+                <span className="hidden sm:inline">Data Grid</span>
               </button>
             </div>
 
@@ -164,7 +141,7 @@ export const CrmView: React.FC = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Opportunity</span>
+                <span>Add Deal</span>
               </button>
             )}
           </div>
@@ -178,16 +155,16 @@ export const CrmView: React.FC = () => {
           value={`₹${totalValue.toLocaleString()}`}
           icon={IndianRupee}
           color="blue"
-          trend={{ value: '+24.5%', direction: 'up', label: 'vs last month' }}
-          sparklineData={[40, 55, 65, 75, 80, 95, 110]}
+          trend={{ value: `${visibleRecords.length} deals`, direction: 'neutral', label: 'in pipeline' }}
+          sparklineData={[0, 0, 0, 0, 0, 0, totalValue]}
         />
         <MetricCard
           label="Closed Won Revenue"
           value={`₹${wonValue.toLocaleString()}`}
           icon={CheckCircle2}
           color="emerald"
-          trend={{ value: `${visibleRecords.filter(r => r.status === 'won').length} deals`, direction: 'up', label: 'converted' }}
-          sparklineData={[10, 25, 45, 60, 75, 90, 100]}
+          trend={{ value: `${visibleRecords.filter(r => r.status === 'won').length} won`, direction: 'up', label: 'converted' }}
+          sparklineData={[0, 0, 0, 0, 0, 0, wonValue]}
         />
         <MetricCard
           label="Active Opportunities"
@@ -195,99 +172,17 @@ export const CrmView: React.FC = () => {
           icon={TrendingUp}
           color="purple"
           trend={{ value: 'In motion', direction: 'neutral', label: 'active funnel' }}
-          sparklineData={[12, 14, 15, 18, 16, 19, 21]}
+          sparklineData={[0, 0, 0, 0, 0, 0, activeOpportunities]}
         />
         <MetricCard
           label="Average Deal Size"
           value={`₹${avgDeal.toLocaleString()}`}
           icon={Building2}
           color="amber"
-          trend={{ value: 'Target ₹20k', direction: 'neutral', label: 'ticket benchmark' }}
-          sparklineData={[20, 22, 21, 24, 25, 27, 29]}
+          trend={{ value: 'Benchmark', direction: 'neutral', label: 'avg ticket' }}
+          sparklineData={[0, 0, 0, 0, 0, 0, avgDeal]}
         />
       </div>
-
-      {/* FOUNDING PARTNER ANALYTICS VIEW */}
-      {activeTab === 'founding_partners' && (
-        <div className="bg-[#111827] border border-amber-500/30 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-mono">
-                  Campaign Dashboard
-                </span>
-                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                  Scarcity: 3 Slots Max
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-white mt-1">
-                Founding Partner Acquisition Funnel
-              </h3>
-              <p className="text-xs text-slate-400">
-                Track conversion flow from inbound application to qualified discovery call, pilot activation, and verified customer testimonials.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400 font-mono">12-Month Business Pro (₹17,988 Waived)</span>
-            </div>
-          </div>
-
-          {/* 6 Stage Funnel Metrics Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">1. Applications</div>
-              <div className="text-2xl font-extrabold text-blue-400">{appliedCount}</div>
-              <div className="text-[10px] text-slate-500 mt-1">100% Inbound</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">2. Qualified</div>
-              <div className="text-2xl font-extrabold text-cyan-400">{qualifiedCount}</div>
-              <div className="text-[10px] text-emerald-400 mt-1">{passRate}% Pass</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">3. Discovery Calls</div>
-              <div className="text-2xl font-extrabold text-purple-400">{discoveryCount}</div>
-              <div className="text-[10px] text-slate-400 mt-1">Scheduled</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">4. Pilot Started</div>
-              <div className="text-2xl font-extrabold text-amber-400">{pilotCount}</div>
-              <div className="text-[10px] text-slate-400 mt-1">In Progress</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">5. Active Customers</div>
-              <div className="text-2xl font-extrabold text-emerald-400">{activeCustomerCount} / 3</div>
-              <div className="text-[10px] text-amber-300 mt-1">{slotsRemaining} Slots Open</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div className="text-[11px] font-medium text-slate-400 mb-1">6. Testimonials</div>
-              <div className="text-2xl font-extrabold text-rose-400">{testimonialCount}</div>
-              <div className="text-[10px] text-emerald-400 mt-1">Verified</div>
-            </div>
-          </div>
-
-          {/* Pipeline Conversion Flow Bar */}
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-            <div className="flex justify-between text-xs font-mono">
-              <span className="text-slate-400">Founding Partner Funnel Conversion Rate</span>
-              <span className="text-emerald-400 font-bold">Overall Activation: {activationRate}%</span>
-            </div>
-            <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden flex">
-              <div style={{ width: `${Math.min(100, appliedCount * 25)}%` }} className="bg-blue-500 h-full" title="Applied" />
-              <div style={{ width: `${Math.min(100, qualifiedCount * 25)}%` }} className="bg-cyan-500 h-full" title="Qualified" />
-              <div style={{ width: `${Math.min(100, discoveryCount * 25)}%` }} className="bg-purple-500 h-full" title="Discovery" />
-              <div style={{ width: `${Math.min(100, pilotCount * 25)}%` }} className="bg-amber-500 h-full" title="Pilot" />
-              <div style={{ width: `${Math.min(100, activeCustomerCount * 33)}%` }} className="bg-emerald-500 h-full" title="Active" />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main CRM Canvas */}
       {visibleRecords.length === 0 ? (

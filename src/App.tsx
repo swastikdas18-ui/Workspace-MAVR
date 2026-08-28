@@ -244,9 +244,9 @@ const MainAppContent: React.FC = () => {
 
       case 'crm':
         return (
-          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="CRM customer pipelines and deal values are restricted to Administrative and Account Executive staff." />}>
+          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="CRM customer pipelines, deal values, and forecasting are restricted to Administrators." />}>
             <CrmView />
-          </RoleGuard>
+          </RequireRole>
         );
 
       case 'teams':

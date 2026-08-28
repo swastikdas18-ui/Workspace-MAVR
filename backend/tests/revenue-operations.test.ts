@@ -94,7 +94,11 @@ export async function runRevenueOperationsTests() {
     password: 'Password123!',
   });
   assert(empRes.status === 200, '1.3 Employee registered');
-  const tokenEmp = empRes.data.token;
+  const empLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'emp@techcorp.io',
+    password: 'Password123!',
+  });
+  const tokenEmp = empLogin.data.token;
 
   // Intern in Workspace A
   const internInvite = await requestApi('POST', '/api/invites', { email: 'intern@techcorp.io', role: 'intern' }, tokenA);
@@ -105,7 +109,11 @@ export async function runRevenueOperationsTests() {
     password: 'Password123!',
   });
   assert(internRes.status === 200, '1.5 Intern registered');
-  const tokenIntern = internRes.data.token;
+  const intLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'intern@techcorp.io',
+    password: 'Password123!',
+  });
+  const tokenIntern = intLogin.data.token;
 
   // Workspace B: BetaCorp (Multi-tenant check)
   const adminBRes = await requestApi('POST', '/api/auth/register', {

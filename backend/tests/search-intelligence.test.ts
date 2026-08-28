@@ -87,8 +87,12 @@ export async function runSearchTests() {
       password: 'Password123!',
     });
     assert(acceptRes.status === 200, 'Employee accepted invite');
-    employeeToken = acceptRes.data.token;
     employeeUserId = acceptRes.data.user.id;
+    const empLogin = await testApi('POST', '/api/auth/login', {
+      email: 'search-emp@acme.corp',
+      password: 'Password123!',
+    });
+    employeeToken = empLogin.data.token;
   }
 
   // 3. Setup Intern
@@ -108,8 +112,12 @@ export async function runSearchTests() {
       password: 'Password123!',
     });
     assert(acceptRes.status === 200, 'Intern accepted invite');
-    internToken = acceptRes.data.token;
     internUserId = acceptRes.data.user.id;
+    const intLogin = await testApi('POST', '/api/auth/login', {
+      email: 'search-intern@acme.corp',
+      password: 'Password123!',
+    });
+    internToken = intLogin.data.token;
   }
 
   // 4. Seed Data across Domains for Search Testing

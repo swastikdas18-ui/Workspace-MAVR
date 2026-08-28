@@ -216,11 +216,22 @@ export async function runInviteMembershipAuditTests() {
     `API /api/teams reflects updated member count of 2`
   );
 
-  // 3. New Member querying GET /api/auth/session
+  // 3. New Member logs in and queries GET /api/auth/session
+  const newMemberLoginRes = await app.request('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: inviteEmail,
+      password: 'FuturePassword2029!',
+    }),
+  });
+  assert(newMemberLoginRes.status === 200, 'POST /api/auth/login for new user returns 200 OK');
+  const loginJson = await newMemberLoginRes.json();
+
   const newMemberSessionRes = await app.request('/api/auth/session', {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${acceptRes.token}`,
+      Authorization: `Bearer ${loginJson.token}`,
     },
   });
 

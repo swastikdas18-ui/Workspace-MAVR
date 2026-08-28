@@ -93,7 +93,11 @@ export async function runB2StorageTests() {
     password: 'Password123!',
   });
   assert(apexEmpRes.status === 200, 'Step 1.2: Apex Employee accepted invite');
-  const tokenApexEmp = apexEmpRes.data.token;
+  const empLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'bob@apexcloud.io',
+    password: 'Password123!',
+  });
+  const tokenApexEmp = empLogin.data.token;
 
   // Invite Intern in Apex
   const apexInternInvite = await requestApi('POST', '/api/invites', { email: 'ivan@apexcloud.io', role: 'intern' }, tokenApexAdmin);
@@ -103,7 +107,11 @@ export async function runB2StorageTests() {
     password: 'Password123!',
   });
   assert(apexInternRes.status === 200, 'Step 1.3: Apex Intern accepted invite');
-  const tokenApexIntern = apexInternRes.data.token;
+  const intLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'ivan@apexcloud.io',
+    password: 'Password123!',
+  });
+  const tokenApexIntern = intLogin.data.token;
 
   // Workspace B: Beta Global Corp (Foreign Tenant)
   const betaAdminRes = await requestApi('POST', '/api/auth/register', {

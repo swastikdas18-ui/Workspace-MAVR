@@ -168,8 +168,12 @@ export async function runProductionValidation() {
     password,
   });
   assert(empAccept.status === 200, '2.5 Employee accepted invite and registered');
-  employeeToken = empAccept.data.token;
   employeeUserId = empAccept.data.user.id;
+  const empLogin = await requestApi('POST', '/api/auth/login', {
+    email: employeeEmail,
+    password,
+  });
+  employeeToken = empLogin.data.token;
 
   // 2.5 Invite & Register Intern
   const internInvite = await requestApi('POST', '/api/invites', {
@@ -185,8 +189,12 @@ export async function runProductionValidation() {
     password,
   });
   assert(internAccept.status === 200, '2.7 Intern accepted invite and registered');
-  internToken = internAccept.data.token;
   internUserId = internAccept.data.user.id;
+  const intLogin = await requestApi('POST', '/api/auth/login', {
+    email: internEmail,
+    password,
+  });
+  internToken = intLogin.data.token;
 
   // 2.6 Session Persistence & Token Verification
   const sessionCheck = await requestApi('GET', '/api/auth/session', undefined, employeeToken);

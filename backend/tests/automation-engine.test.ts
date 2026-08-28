@@ -98,8 +98,12 @@ export async function runAutomationTests() {
       password: 'Password123!',
     });
     assert(acceptRes.status === 200, 'Employee accepted invite');
-    employeeToken = acceptRes.data.token;
     employeeUserId = acceptRes.data.user.id;
+    const empLogin = await testApi('POST', '/api/auth/login', {
+      email: 'auto-emp@acme.corp',
+      password: 'Password123!',
+    });
+    employeeToken = empLogin.data.token;
   }
 
   {
@@ -118,8 +122,12 @@ export async function runAutomationTests() {
       password: 'Password123!',
     });
     assert(acceptRes.status === 200, 'Intern accepted invite');
-    internToken = acceptRes.data.token;
     internUserId = acceptRes.data.user.id;
+    const intLogin = await testApi('POST', '/api/auth/login', {
+      email: 'auto-intern@acme.corp',
+      password: 'Password123!',
+    });
+    internToken = intLogin.data.token;
   }
 
   // Setup Workspace B (Tenant Isolation)

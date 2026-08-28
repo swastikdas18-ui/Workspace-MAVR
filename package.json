@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && esbuild backend/src/app.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=backend/dist/app.js",
     "start": "node dist/server.cjs",
     "test": "tsx backend/tests/run-tests.ts",
     "db:migrate": "tsx backend/packages/database/migrate.ts",
@@ -14,7 +14,7 @@
     "db:recovery": "tsx scripts/execute-neon-recovery.ts",
     "auth:verify": "tsx scripts/verify-live-auth.ts",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist backend/dist server.js",
     "audit:api": "tsx scripts/audit-api-endpoints.ts",
     "lint": "tsx scripts/audit-api-endpoints.ts && tsc --noEmit"
   },

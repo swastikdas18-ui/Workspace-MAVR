@@ -328,8 +328,15 @@ export async function runPhase17SecurityValidation() {
         password: 'InternPass2026!',
       },
     });
-    internToken = extractCookie(intAccept, 'ws_session') as string;
-    assert(!!internToken, '7.1 Intern onboarded into workspace A');
+    assert(intAccept.status === 200, '7.1 Intern onboarded into workspace A');
+    const intLogin = await call('POST', '/api/auth/login', {
+      body: {
+        email: 'intern@alpha.test',
+        password: 'InternPass2026!',
+      },
+    });
+    internToken = extractCookie(intLogin, 'ws_session') as string;
+    assert(!!internToken, '7.1b Intern session active');
 
     const wikiDenied = await call('POST', '/api/wiki/pages', {
       token: internToken,

@@ -352,3 +352,5 @@ app.notFound((c) => {
     404
   );
 });
+
+export default app;

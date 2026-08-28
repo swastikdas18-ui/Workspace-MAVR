@@ -93,7 +93,11 @@ export async function runR2StorageTests() {
     password: 'Password123!',
   });
   assert(acmeEmpRes.status === 200, 'Step 1.2: Acme Employee accepted invite');
-  const tokenAcmeEmp = acmeEmpRes.data.token;
+  const empLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'bob@acmecloud.io',
+    password: 'Password123!',
+  });
+  const tokenAcmeEmp = empLogin.data.token;
 
   // Invite Intern in Acme
   const acmeInternInvite = await requestApi('POST', '/api/invites', { email: 'ivan@acmecloud.io', role: 'intern' }, tokenAcmeAdmin);
@@ -103,7 +107,11 @@ export async function runR2StorageTests() {
     password: 'Password123!',
   });
   assert(acmeInternRes.status === 200, 'Step 1.3: Acme Intern accepted invite');
-  const tokenAcmeIntern = acmeInternRes.data.token;
+  const intLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'ivan@acmecloud.io',
+    password: 'Password123!',
+  });
+  const tokenAcmeIntern = intLogin.data.token;
 
   // Workspace B: Beta Global Systems (Foreign Tenant)
   const betaAdminRes = await requestApi('POST', '/api/auth/register', {

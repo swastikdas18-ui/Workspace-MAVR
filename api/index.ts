@@ -1,6 +1,8 @@
 import { handle } from 'hono/vercel';
 import { getRequestListener } from '@hono/node-server';
-import { app } from '../backend/src/app';
+import appModule, { app as namedApp } from '../backend/dist/app.js';
+
+const app = namedApp || (appModule as any)?.default || appModule;
 
 export const config = {
   api: {

@@ -132,8 +132,14 @@ export async function runAllTests() {
 
     assert(acceptEmpRes.status === 200, '3. Employee accepts invite and joins workspace');
     assert(acceptEmpRes.data.user.role === 'employee', '3. Invited user is assigned "employee" (not admin)');
-    employeeToken = acceptEmpRes.data.token;
     employeeUserId = acceptEmpRes.data.user.id;
+
+    // Login as employee
+    const empLogin = await testApi('POST', '/api/auth/login', {
+      email: 'john@cyberdyne.io',
+      password: 'Password123!',
+    });
+    employeeToken = empLogin.data.token;
 
     // Accept Intern Invite
     const acceptIntRes = await testApi('POST', '/api/invites/accept', {
@@ -144,8 +150,14 @@ export async function runAllTests() {
 
     assert(acceptIntRes.status === 200, '3. Intern accepts invite and joins workspace');
     assert(acceptIntRes.data.user.role === 'intern', '3. Invited user is assigned "intern" (not admin)');
-    internToken = acceptIntRes.data.token;
     internUserId = acceptIntRes.data.user.id;
+
+    // Login as intern
+    const intLogin = await testApi('POST', '/api/auth/login', {
+      email: 'intern@cyberdyne.io',
+      password: 'Password123!',
+    });
+    internToken = intLogin.data.token;
 
     // Intern attempts to invite someone (Must be blocked)
     const internInviteAttempt = await testApi('POST', '/api/invites', {

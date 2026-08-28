@@ -97,7 +97,11 @@ export async function runBetaUserAcceptanceTests() {
     password: 'Password123!',
   });
   assert(engUser.status === 200, '1.2 Lead Engineer accepted invite');
-  const tokenEng = engUser.data.token;
+  const engLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'david@nexgenstudio.io',
+    password: 'Password123!',
+  });
+  const tokenEng = engLogin.data.token;
 
   // 1.3 Create Engineering Team
   const engTeam = await requestApi('POST', '/api/teams', {
@@ -185,7 +189,11 @@ export async function runBetaUserAcceptanceTests() {
     password: 'Password123!',
   });
   assert(creativeUser.status === 200, '2.2 Creative Director onboarded');
-  const tokenCreative = creativeUser.data.token;
+  const creativeLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'leo@pulsedigital.agency',
+    password: 'Password123!',
+  });
+  const tokenCreative = creativeLogin.data.token;
 
   // 2.3 Create Campaign Project
   const campaignProject = await requestApi('POST', '/api/projects', {
@@ -297,7 +305,11 @@ export async function runBetaUserAcceptanceTests() {
     password: 'Password123!',
   });
   assert(hrInternUser.status === 200, '4.2 HR Intern onboarded to sandbox');
-  const tokenHrIntern = hrInternUser.data.token;
+  const hrIntLogin = await requestApi('POST', '/api/auth/login', {
+    email: 'maya@omnicorp-hr.com',
+    password: 'Password123!',
+  });
+  const tokenHrIntern = hrIntLogin.data.token;
 
   // 4.3 Upload Onboarding Policy Document (Learning Visibility)
   const policyDoc = await requestApi('POST', '/api/documents', {

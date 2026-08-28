@@ -282,8 +282,12 @@ export async function runProductValidation() {
   });
   assert(acceptEmp.status === 200, '2.3 Employee accepted invitation and completed registration');
   assert(acceptEmp.data?.user?.role === 'employee', '2.4 Verified registered user role is EMPLOYEE');
-  employeeToken = acceptEmp.data.token;
   employeeUserId = acceptEmp.data.user.id;
+  const empLogin = await requestApi('POST', '/api/auth/login', {
+    email: employeeEmail,
+    password,
+  });
+  employeeToken = empLogin.data.token;
 
   // 2.3 Assign Task to Employee & Verify Task Update
   const assignRes = await requestApi('PATCH', `/api/tasks/${taskId}`, {
@@ -339,8 +343,12 @@ export async function runProductValidation() {
   });
   assert(acceptIntern.status === 200, '3.1 Intern accepted invitation and completed registration');
   assert(acceptIntern.data?.user?.role === 'intern', '3.2 Verified registered user role is INTERN');
-  internToken = acceptIntern.data.token;
   internUserId = acceptIntern.data.user.id;
+  const intLogin = await requestApi('POST', '/api/auth/login', {
+    email: internEmail,
+    password,
+  });
+  internToken = intLogin.data.token;
 
   // 3.2 Intern CRM access check (MUST be blocked)
   const internCrmRes = await requestApi('GET', '/api/crm', undefined, internToken);

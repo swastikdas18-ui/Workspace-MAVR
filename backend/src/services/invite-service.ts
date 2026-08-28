@@ -1,7 +1,7 @@
 import { eq, and, or } from 'drizzle-orm';
 import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember, getDb, schema } from '../../packages/database';
-import { hashPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
-import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
+import { hashPassword, calculateSessionExpiry } from '../auth/auth';
+import { SafeUser, SafeWorkspace, AuthSessionResponse, AcceptInviteResponse, UserRole } from '../types';
 import { sanitizeUser, sanitizeWorkspace, determinePlatformRole } from './auth-service';
 import { EventService } from './event-service';
 import { EmailService } from './email-service';
@@ -385,7 +385,7 @@ export class InviteService {
     }
 
     const invites = Array.from(inMemoryDb.workspaceInvites.values()).filter(
-      (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt && (inv as any).status !== 'accepted'
+      (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt
     );
 
     // Deduplicate by token
@@ -515,9 +515,9 @@ export class InviteService {
   }
 
   /**
-   * Accept an invitation and create user / session / memberships in target workspace
+   * Accept an invitation and provision membership in target workspace without auto-session creation
    */
-  static async acceptInvite(input: AcceptInviteInput): Promise<AuthSessionResponse> {
+  static async acceptInvite(input: AcceptInviteInput): Promise<AcceptInviteResponse> {
     const { token, name, password } = input;
     const { invite, workspace } = await this.getInviteByToken(token);
 
@@ -741,11 +741,10 @@ export class InviteService {
       }
     }
 
-    // Mark invite as accepted in inMemoryDb + update status
+    // Mark invite as accepted in inMemoryDb (Schema truth: acceptedAt)
     for (const [key, inv] of inMemoryDb.workspaceInvites.entries()) {
       if (inv.id === invite.id || inv.token === token || key === invite.id || key === token) {
         inv.acceptedAt = now;
-        (inv as any).status = 'accepted';
         inMemoryDb.workspaceInvites.set(key, inv);
       }
     }
@@ -773,38 +772,6 @@ export class InviteService {
       }
     );
 
-    // Create session token
-    const sessionToken = generateSessionToken();
-    const expiresAt = calculateSessionExpiry(7);
-    const newSession: Session = {
-      id: crypto.randomUUID(),
-      userId,
-      workspaceId: invite.workspace_id,
-      token: sessionToken,
-      expiresAt,
-      createdAt: now,
-      lastActiveAt: now,
-      ipAddress: null,
-      userAgent: null,
-    };
-    inMemoryDb.sessions.set(sessionToken, newSession);
-
-    if (db) {
-      try {
-        await db.insert(schema.sessions).values({
-          id: newSession.id,
-          userId: newSession.userId,
-          workspaceId: newSession.workspaceId,
-          token: newSession.token,
-          expiresAt: newSession.expiresAt,
-          createdAt: newSession.createdAt,
-          lastActiveAt: newSession.lastActiveAt,
-        });
-      } catch (err: any) {
-        console.warn('[InviteService] PostgreSQL insert session warning:', err.message);
-      }
-    }
-
     let fullWorkspace = inMemoryDb.workspaces.get(invite.workspace_id);
     if (!fullWorkspace) {
       const wsEntity = await WorkspaceRepository.getWorkspaceById(invite.workspace_id);
@@ -823,11 +790,25 @@ export class InviteService {
       }
     }
 
+    console.log('[INVITE-ACCEPT]', {
+      inviteId: invite.id,
+      workspaceId: invite.workspace_id,
+      email: normalizedEmail,
+      userId,
+      sessionIssued: false,
+      cookiesModified: false,
+    });
+
     return {
+      success: true,
+      accepted: true,
+      requiresLogin: true,
+      email: normalizedEmail,
+      inviteId: invite.id,
+      workspaceId: invite.workspace_id,
+      userId,
       user: sanitizeUser(user),
-      workspace: sanitizeWorkspace(fullWorkspace!, assignedRole),
-      token: sessionToken,
-      expiresAt: expiresAt.toISOString(),
+      workspace: sanitizeWorkspace(fullWorkspace!, assignedRole)!,
     };
   }
 }

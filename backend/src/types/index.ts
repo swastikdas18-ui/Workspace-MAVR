@@ -33,6 +33,19 @@ export interface AuthSessionResponse {
   expiresAt: string;
 }
 
+export interface AcceptInviteResponse {
+  success: boolean;
+  accepted: boolean;
+  requiresLogin: boolean;
+  email: string;
+  inviteId?: string;
+  workspaceId?: string;
+  userId?: string;
+  user: SafeUser;
+  workspace: SafeWorkspace;
+  token?: string;
+}
+
 export interface ApiErrorResponse {
   error: {
     code: 'BAD_REQUEST' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL_SERVER_ERROR';

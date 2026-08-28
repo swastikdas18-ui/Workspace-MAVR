@@ -23,7 +23,7 @@ export const PendingInviteBadge: React.FC<PendingInviteBadgeProps> = ({
     propCount !== undefined
       ? propCount
       : (invites || []).filter(
-          (inv: any) => !inv.accepted_at && !inv.acceptedAt && inv.status !== 'accepted'
+          (inv: any) => !inv.accepted_at && !inv.acceptedAt
         ).length;
 
   if (effectiveCount <= 0) {

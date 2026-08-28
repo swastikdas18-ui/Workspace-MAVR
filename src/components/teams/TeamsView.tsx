@@ -179,7 +179,7 @@ export const TeamsView: React.FC = () => {
   const employeeCount = users.filter(u => u.role === 'employee').length;
   const internCount = users.filter(u => u.role === 'intern').length;
   const pendingInvites = (invites || []).filter(
-    (inv: any) => !inv.accepted_at && !inv.acceptedAt && inv.status !== 'accepted'
+    (inv: any) => !inv.accepted_at && !inv.acceptedAt
   );
 
   return (

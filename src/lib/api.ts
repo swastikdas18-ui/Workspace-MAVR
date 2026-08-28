@@ -238,17 +238,17 @@ export const api = {
   },
 
   async acceptInvite(data: { token: string; name: string; password: string }) {
-    const res = await fetchApi<{ user: any; workspace: any; token: string; expiresAt: string }>(
-      '/api/invites/accept',
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    );
-    if (res.token) {
-      setStoredSessionToken(res.token);
-    }
-    return res;
+    return await fetchApi<{
+      success: boolean;
+      accepted: boolean;
+      requiresLogin: boolean;
+      email: string;
+      user: any;
+      workspace: any;
+    }>('/api/invites/accept', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   // Projects API

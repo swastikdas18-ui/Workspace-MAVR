@@ -13,7 +13,19 @@ import { FoundingPartnerForm } from './FoundingPartnerForm';
 export const LandingPage: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthModalMode>('login');
+  const [initialEmail, setInitialEmail] = useState('');
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const path = window.location.pathname;
+    if (urlParams.get('inviteAccepted') === 'true' || path === '/login' || path === '/auth/login') {
+      const email = urlParams.get('email');
+      if (email) setInitialEmail(email);
+      setAuthMode('login');
+      setIsAuthOpen(true);
+    }
+  }, []);
 
   const handleOpenAuth = (mode: AuthModalMode = 'login') => {
     setAuthMode(mode);
@@ -677,6 +689,7 @@ export const LandingPage: React.FC = () => {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         initialMode={authMode}
+        initialEmail={initialEmail}
       />
 
       {/* Founding Partner Modal */}

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
+import { resolveMembershipRole } from '../middleware/rbac';
 import { WorkspaceService } from '../services/workspace-service';
 import { WorkspaceRepository } from '../repositories/workspace-repository';
 
@@ -173,8 +174,7 @@ workspaceRouter.post('/select', switchHandler);
 workspaceRouter.post('/', async (c) => {
   try {
     const user = c.get('user');
-    const workspaceCtx = c.get('workspace');
-    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+    const { role: effectiveRole } = await resolveMembershipRole(c);
 
     if (effectiveRole === 'employee' || effectiveRole === 'intern') {
       return c.json(
@@ -219,7 +219,7 @@ const updateSettingsHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspaceCtx = c.get('workspace');
-    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+    const { role: effectiveRole } = await resolveMembershipRole(c);
 
     if (effectiveRole === 'employee' || effectiveRole === 'intern') {
       return c.json(
@@ -262,7 +262,7 @@ const deleteMemberHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspaceCtx = c.get('workspace');
-    const effectiveRole = (workspaceCtx?.roleInWorkspace || user.role || 'employee').toLowerCase();
+    const { role: effectiveRole } = await resolveMembershipRole(c);
 
     if (effectiveRole === 'employee' || effectiveRole === 'intern') {
       return c.json(

@@ -207,7 +207,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (invitesRes.status === 'fulfilled' && invitesRes.value?.invites) {
         const rawInvites = invitesRes.value.invites;
         const pendingInvites = rawInvites.filter(
-          (inv: any) => !inv.accepted_at && !inv.acceptedAt && inv.status !== 'accepted'
+          (inv: any) => !inv.accepted_at && !inv.acceptedAt
         );
         setInvites(pendingInvites);
       }

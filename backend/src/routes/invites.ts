@@ -142,7 +142,7 @@ inviteRouter.get('/:token', async (c) => {
 });
 
 /**
- * POST /api/invites/accept - Public accept invite & create membership
+ * POST /api/invites/accept - Public accept invite & provision membership (No auto-login session)
  */
 inviteRouter.post('/accept', async (c) => {
   try {
@@ -160,14 +160,23 @@ inviteRouter.post('/accept', async (c) => {
       password: body.password,
     });
 
-    const csrfToken = issueSessionCookies(c, result);
+    console.log('[INVITE-ACCEPT]', {
+      inviteId: result.inviteId,
+      workspaceId: result.workspaceId || result.workspace?.id,
+      email: result.email,
+      userId: result.userId || result.user?.id,
+      sessionIssued: false,
+      cookiesModified: false,
+    });
+
     return c.json(
       {
+        success: true,
+        accepted: true,
+        requiresLogin: true,
+        email: result.email,
         user: result.user,
         workspace: result.workspace,
-        token: result.token,
-        expiresAt: result.expiresAt,
-        csrfToken,
       },
       200
     );

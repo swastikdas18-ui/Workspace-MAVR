@@ -109,8 +109,8 @@ export async function runInviteMembershipAuditTests() {
   assert(!!acceptRes.user, 'Acceptance response contains newly created user object');
   assert(acceptRes.user.email === inviteEmail, 'User email matches invited email');
   assert(acceptRes.user.role === 'employee', 'User assigned employee role (never admin)');
-  assert(!!acceptRes.token, 'Acceptance response issues active session token');
-  assert(acceptRes.workspace.id === workspaceId, 'User authenticated to correct workspace');
+  assert(acceptRes.requiresLogin === true, 'Acceptance response requires explicit login (Session Isolation)');
+  assert(acceptRes.workspace.id === workspaceId, 'User linked to correct workspace');
 
   const newUserId = acceptRes.user.id;
 
@@ -140,15 +140,9 @@ export async function runInviteMembershipAuditTests() {
   assert(!!tmMember, 'team_members record written for assigned team');
   assert(tmMember?.roleInTeam === 'member', 'team_members role is member');
 
-  // 4. Verify Invite Marked Accepted
+  // 4. Verify Invite Marked Accepted (Schema Truth: acceptedAt IS NOT NULL)
   const acceptedInvite = inMemoryDb.workspaceInvites.get(createInviteRes.token);
   assert(!!acceptedInvite?.acceptedAt, 'workspace_invites record marked with acceptedAt timestamp');
-  assert((acceptedInvite as any)?.status === 'accepted', 'workspace_invites status updated to accepted');
-
-  // 5. Verify Session Token
-  const userSession = inMemoryDb.sessions.get(acceptRes.token);
-  assert(!!userSession, 'Session record created for new user session');
-  assert(userSession?.userId === newUserId, 'Session record linked to new user ID');
 
   // =========================================================================
   // TRACE STEP 5: Live Member & Team Query Calculation Verification

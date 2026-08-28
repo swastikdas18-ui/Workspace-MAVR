@@ -35,11 +35,14 @@ export async function resolveMembershipRole(c: Context): Promise<{ role: UserRol
     return { role: 'employee', workspaceId: null };
   }
 
-  if (workspace?.id) {
-    if (workspace.roleInWorkspace) {
-      return { role: normalizeRole(workspace.roleInWorkspace), workspaceId: workspace.id };
-    }
+  // Founder/Platform Admin bypass: Always grants full admin capabilities across workspaces
+  const platformRole = (user as any).platformRole || 'none';
+  if (platformRole === 'founder' || platformRole === 'platform_admin') {
+    return { role: 'admin', workspaceId: workspace?.id || null };
+  }
 
+  if (workspace?.id) {
+    // 1. Direct workspace membership query (PostgreSQL priority)
     try {
       const member = await WorkspaceRepository.getWorkspaceMember(workspace.id, user.id);
       if (member?.role) {
@@ -49,11 +52,15 @@ export async function resolveMembershipRole(c: Context): Promise<{ role: UserRol
         return { role: 'admin', workspaceId: workspace.id };
       }
     } catch {
-      // Fallback below
+      // Fallback
+    }
+
+    if (workspace.roleInWorkspace) {
+      return { role: normalizeRole(workspace.roleInWorkspace), workspaceId: workspace.id };
     }
   }
 
-  // If no active workspace context exists, use the global role as last resort
+  // If no active workspace context exists on request, use the global role as last resort
   return { role: normalizeRole(user.role), workspaceId: workspace?.id || null };
 }
 
@@ -145,6 +152,21 @@ export function requireWorkspaceRole(allowedRoles: (UserRole | string)[]) {
     const actionDescriptor = `${c.req.method} ${c.req.path}`;
     const isAllowed = normalizedAllowed.includes(effectiveRole);
 
+    console.log('[INVITE-RBAC]', {
+      route: c.req.path,
+      method: c.req.method,
+      userId: user.id,
+      workspaceId: workspaceId || workspace?.id || null,
+      membershipRole: effectiveRole,
+    });
+
+    console.log('[INVITE-RBAC-RESULT]', {
+      allow: isAllowed,
+      userId: user.id,
+      workspaceId: workspaceId || workspace?.id || null,
+      membershipRole: effectiveRole,
+    });
+
     logRbacTelemetry(
       user,
       workspaceId,
@@ -173,6 +195,7 @@ export { requireFounder, requirePlatformAdmin, requireSupport } from './platform
 export function requireRole(allowedRoles: (UserRole | string)[]) {
   return async (c: Context, next: Next) => {
     const user = c.get('user');
+    const workspace = c.get('workspace');
     if (!user) {
       return unauthorized(c);
     }
@@ -181,6 +204,21 @@ export function requireRole(allowedRoles: (UserRole | string)[]) {
     const normalizedAllowed = allowedRoles.map((r) => normalizeRole(r));
     const actionDescriptor = `${c.req.method} ${c.req.path}`;
     const isAllowed = normalizedAllowed.includes(effectiveRole);
+
+    console.log('[INVITE-RBAC]', {
+      route: c.req.path,
+      method: c.req.method,
+      userId: user.id,
+      workspaceId: workspaceId || workspace?.id || null,
+      membershipRole: effectiveRole,
+    });
+
+    console.log('[INVITE-RBAC-RESULT]', {
+      allow: isAllowed,
+      userId: user.id,
+      workspaceId: workspaceId || workspace?.id || null,
+      membershipRole: effectiveRole,
+    });
 
     logRbacTelemetry(
       user,

@@ -9,17 +9,19 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: AuthModalMode;
+  initialEmail?: string;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login', initialEmail = '' }) => {
   const { setAuthUser, addToast } = useWorkspace();
   const [mode, setMode] = useState<AuthModalMode>(initialMode);
   
   // Sign In / Start Org fields
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
+  const [inviteSuccessBanner, setInviteSuccessBanner] = useState<string | null>(null);
   
   // Join Org fields
   const [inviteToken, setInviteToken] = useState('');
@@ -33,7 +35,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     setMode(initialMode);
     setErrorMessage(null);
     setInvitePreview(null);
-  }, [initialMode, isOpen]);
+    if (initialEmail) {
+      setEmail(initialEmail);
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('inviteAccepted') === 'true') {
+      const emailParam = params.get('email');
+      if (emailParam) setEmail(emailParam);
+      setInviteSuccessBanner('Invitation accepted successfully! Please sign in to access your workspace.');
+    }
+  }, [initialMode, initialEmail, isOpen]);
 
   if (!isOpen) return null;
 
@@ -122,13 +133,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           name: name.trim(),
           password,
         });
-        if (res?.user) {
-          setAuthUser(res.user, res.workspace);
-          onClose();
+        if (res?.success || res?.accepted) {
+          setMode('login');
+          if (res.email) setEmail(res.email);
+          setInviteSuccessBanner(`Invitation accepted for ${res.email || 'your account'}! Please sign in to access your workspace.`);
           addToast({
             type: 'success',
-            title: 'Welcome to the Workspace',
-            message: `Joined ${res.workspace.name} as ${res.user.role.toUpperCase()}.`
+            title: 'Invitation Accepted',
+            message: `Account created for ${res.email || 'your account'}! Please log in with your credentials.`,
           });
         }
       }
@@ -202,6 +214,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
             Sign In
           </button>
         </div>
+
+        {/* Invite Success Banner */}
+        {inviteSuccessBanner && mode === 'login' && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{inviteSuccessBanner}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (

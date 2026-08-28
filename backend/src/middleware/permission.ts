@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono';
 import { PermissionKey, UserRole } from '../types';
+import { resolveMembershipRole } from './rbac';
 
 export const ROLE_PERMISSION_MAP: Record<UserRole, Set<PermissionKey>> = {
   admin: new Set([
@@ -138,13 +139,14 @@ export function requirePermission(permission: PermissionKey, resourceChecker?: R
       );
     }
 
-    const userPermissions = ROLE_PERMISSION_MAP[user.role];
+    const { role: effectiveRole } = await resolveMembershipRole(c);
+    const userPermissions = ROLE_PERMISSION_MAP[effectiveRole];
     if (!userPermissions || !userPermissions.has(permission)) {
       return c.json(
         {
           error: {
             code: 'FORBIDDEN',
-            message: `Permission '${permission}' denied for role '${user.role}'.`,
+            message: `Permission '${permission}' denied for role '${effectiveRole}'.`,
           },
         },
         403

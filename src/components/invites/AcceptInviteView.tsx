@@ -63,11 +63,11 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({ token, onSuc
       addToast({
         type: 'success',
         title: 'Invitation Accepted',
-        message: `Welcome to ${res.workspace.name}! Your account has been initialized as ${res.user.role.toUpperCase()}.`,
+        message: `Account created for ${res.email || invite.email}! Please sign in to access your workspace.`,
       });
 
-      setAuthUser(res.user, res.workspace);
-      onSuccess();
+      const targetEmail = encodeURIComponent(res.email || invite.email);
+      window.location.href = `/login?inviteAccepted=true&email=${targetEmail}`;
     } catch (err: any) {
       setError(err.message || 'Failed to accept invitation. Please try again.');
     } finally {

@@ -1,6 +1,6 @@
 import { handle } from 'hono/vercel';
 import { getRequestListener } from '@hono/node-server';
-import app, { app as namedApp } from '../backend/src/app';
+import app, { app as namedApp } from '../backend/src/app.js';
 
 const honoApp = app || namedApp;
 

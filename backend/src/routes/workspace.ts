@@ -49,6 +49,12 @@ workspaceRouter.get('/current', async (c) => {
     const workspace = await WorkspaceService.getWorkspace(user.id, requestedWsId);
     return c.json({ workspace, role: workspace.roleInWorkspace || 'employee' }, 200);
   } catch (err: any) {
+    console.error('[Workspace API Error] /current error:', {
+      message: err.message,
+      userId: c.get('user')?.id,
+      sessionWsId: c.get('workspace')?.id,
+      queryWsId: c.req.query('workspaceId'),
+    });
     if (err.message === 'NO_ACTIVE_WORKSPACE') {
       return c.json(
         {

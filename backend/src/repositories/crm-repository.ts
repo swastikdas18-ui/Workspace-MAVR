@@ -45,9 +45,11 @@ export class CRMRepository {
    * List CRM records in workspace (optionally filtered by ownerId)
    */
   static async listRecords(
-    workspaceId: string,
+    workspaceId: string | null | undefined,
     options?: { ownerId?: string }
   ): Promise<CrmRecordEntity[]> {
+    if (!workspaceId) return [];
+
     try {
       const db = getDb();
       if (db) {
@@ -64,25 +66,23 @@ export class CRMRepository {
           );
 
         const rows = await query;
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            customerName: r.customerName,
-            company: r.company,
-            email: r.email,
-            phone: r.phone,
-            dealValue: r.dealValue || 0,
-            status: r.status || 'new_lead',
-            ownerId: r.ownerId,
-            workspaceId: r.workspaceId || workspaceId,
-            notes: r.notes,
-            createdAt: r.createdAt,
-            lastContacted: r.lastContacted,
-          }));
-        }
+        return rows.map((r) => ({
+          id: r.id,
+          customerName: r.customerName || 'Unnamed Lead',
+          company: r.company || '',
+          email: r.email || '',
+          phone: r.phone || '',
+          dealValue: r.dealValue || 0,
+          status: r.status || 'new_lead',
+          ownerId: r.ownerId || '',
+          workspaceId: r.workspaceId || workspaceId,
+          notes: r.notes || '',
+          createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+          lastContacted: r.lastContacted ? new Date(r.lastContacted) : new Date(),
+        }));
       }
     } catch {
-      // Fallback
+      // Fallback to in-memory if DB fails
     }
 
     let records = Array.from(inMemoryDb.crmRecords.values()).filter(
@@ -95,14 +95,14 @@ export class CRMRepository {
 
     return records.map((r) => ({
       id: r.id,
-      customerName: r.customerName,
-      company: r.company,
-      email: r.email,
-      phone: r.phone,
+      customerName: r.customerName || 'Unnamed Lead',
+      company: r.company || '',
+      email: r.email || '',
+      phone: r.phone || '',
       dealValue: r.dealValue || 0,
       status: r.status || 'new_lead',
-      ownerId: r.ownerId,
-      workspaceId: r.workspaceId,
+      ownerId: r.ownerId || '',
+      workspaceId: r.workspaceId || workspaceId,
       notes: r.notes || '',
       createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
       lastContacted: r.lastContacted ? new Date(r.lastContacted) : new Date(),

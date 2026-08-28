@@ -5,6 +5,7 @@ import {
   Check, ChevronRight
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { api } from '../../lib/api';
 
 interface FoundingPartnerFormProps {
   onSuccess?: () => void;
@@ -33,8 +34,7 @@ export const FoundingPartnerForm: React.FC<FoundingPartnerFormProps> = ({ onSucc
   const [isProgramFull, setIsProgramFull] = useState(false);
 
   React.useEffect(() => {
-    fetch('/api/founding-partner/metrics')
-      .then((res) => res.json())
+    api.getFoundingPartnerMetrics()
       .then((data) => {
         if (data?.metrics) {
           setSlotsStatus(data.metrics.slotsStatus);
@@ -49,46 +49,32 @@ export const FoundingPartnerForm: React.FC<FoundingPartnerFormProps> = ({ onSucc
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/founding-partner/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName,
-          industry,
-          website,
-          teamSize,
-          location,
-          ownerName,
-          email,
-          phone,
-          currentTools,
-          biggestChallenge,
-          whyInterested,
-        }),
+      const data = await api.applyFoundingPartner({
+        businessName,
+        industry,
+        website,
+        teamSize,
+        location,
+        ownerName,
+        email,
+        phone,
+        currentTools,
+        biggestChallenge,
+        whyInterested,
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setIsSubmitted(true);
-        addToast({
-          type: 'success',
-          title: 'Application Submitted!',
-          message: 'Our founder team will review your application within 24 hours.',
-        });
-        if (onSuccess) onSuccess();
-      } else {
-        addToast({
-          type: 'error',
-          title: 'Submission Failed',
-          message: data?.error?.message || 'Please check your inputs and try again.',
-        });
-      }
+      setIsSubmitted(true);
+      addToast({
+        type: 'success',
+        title: 'Application Submitted!',
+        message: data?.message || 'Our founder team will review your application within 24 hours.',
+      });
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       addToast({
         type: 'error',
-        title: 'Connection Error',
-        message: err.message || 'Failed to connect to server.',
+        title: 'Submission Failed',
+        message: err.message || 'Please check your inputs and try again.',
       });
     } finally {
       setIsSubmitting(false);

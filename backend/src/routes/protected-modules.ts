@@ -91,34 +91,84 @@ analyticsRouter.post('/track', async (c) => {
   return c.json({ success: true, event }, 201);
 });
 
+const ZERO_STATE_ENGAGEMENT = {
+  dau: 0,
+  wau: 0,
+  mau: 0,
+  activationRate: {
+    activatedUsers: 0,
+    totalEligibleUsers: 1,
+    ratePercent: 0,
+  },
+  healthScore: {
+    score: 50,
+    rating: 'Fair' as const,
+    breakdown: {
+      projectScore: 0,
+      taskScore: 0,
+      documentScore: 0,
+      memberScore: 0,
+    },
+  },
+};
+
 analyticsRouter.get('/engagement', async (c) => {
-  const workspace = c.get('workspace');
-  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || 'ws-default');
-  return c.json({ engagement }, 200);
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace?.id) {
+      return c.json({ engagement: ZERO_STATE_ENGAGEMENT }, 200);
+    }
+    const engagement = await AnalyticsRepository.getEngagementSummary(workspace.id);
+    return c.json({ engagement: engagement || ZERO_STATE_ENGAGEMENT }, 200);
+  } catch (err: any) {
+    console.error('[Analytics API Error] /engagement error:', err);
+    return c.json({ engagement: ZERO_STATE_ENGAGEMENT }, 200);
+  }
 });
 
 analyticsRouter.get('/', async (c) => {
-  const workspace = c.get('workspace');
-  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || '');
-  return c.json({
-    analytics: engagement,
-  });
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace?.id) {
+      return c.json({ analytics: ZERO_STATE_ENGAGEMENT }, 200);
+    }
+    const engagement = await AnalyticsRepository.getEngagementSummary(workspace.id);
+    return c.json({
+      analytics: engagement || ZERO_STATE_ENGAGEMENT,
+    }, 200);
+  } catch (err: any) {
+    console.error('[Analytics API Error] / error:', err);
+    return c.json({ analytics: ZERO_STATE_ENGAGEMENT }, 200);
+  }
 });
 
 analyticsRouter.get('/metrics', async (c) => {
-  const workspace = c.get('workspace');
-  const engagement = await AnalyticsRepository.getEngagementSummary(workspace?.id || '');
-  return c.json({
-    metrics: engagement,
-  });
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace?.id) {
+      return c.json({ metrics: ZERO_STATE_ENGAGEMENT }, 200);
+    }
+    const engagement = await AnalyticsRepository.getEngagementSummary(workspace.id);
+    return c.json({
+      metrics: engagement || ZERO_STATE_ENGAGEMENT,
+    }, 200);
+  } catch (err: any) {
+    console.error('[Analytics API Error] /metrics error:', err);
+    return c.json({ metrics: ZERO_STATE_ENGAGEMENT }, 200);
+  }
 });
 
 analyticsRouter.get('/search-metrics', async (c) => {
-  const workspace = c.get('workspace');
-  const searchMetrics = AnalyticsRepository.getSearchMetrics(workspace?.id || '');
-  return c.json({
-    searchMetrics,
-  });
+  try {
+    const workspace = c.get('workspace');
+    const searchMetrics = AnalyticsRepository.getSearchMetrics(workspace?.id || '');
+    return c.json({
+      searchMetrics: searchMetrics || {},
+    }, 200);
+  } catch (err: any) {
+    console.error('[Analytics API Error] /search-metrics error:', err);
+    return c.json({ searchMetrics: {} }, 200);
+  }
 });
 
 // Billing (Admin only) — per-route auth so phase14Router's /billing/webhook

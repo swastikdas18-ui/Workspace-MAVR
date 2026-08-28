@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { api } from '../../lib/api';
 import {
   CreditCard, Check, Download, Zap, ArrowUpRight, Sparkles,
   Users, IndianRupee, Crown, Shield, ToggleLeft, ToggleRight,
@@ -147,13 +148,12 @@ export const BillingView: React.FC = () => {
       setIsPaymentProcessing(true);
       addToast({ type: 'info', title: 'Initializing Razorpay Checkout', message: 'Creating subscription contract...' });
 
-      const res = await fetch('/api/billing/create-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planTier, billingCycle, seats: seatCount }),
+      const data = await api.createSubscription({
+        planTier,
+        billingCycle,
+        seats: seatCount,
+        workspaceId: currentWorkspace?.id,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Failed to initialize subscription.');
 
       if (!(window as any).Razorpay) {
         const script = document.createElement('script');
@@ -170,20 +170,15 @@ export const BillingView: React.FC = () => {
         description: `${planTier.toUpperCase()} Plan (${billingCycle})`,
         image: 'https://app.workspaceos.dev/logo.png',
         handler: async function (response: any) {
-          const verifyRes = await fetch('/api/billing/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_subscription_id: response.razorpay_subscription_id,
-              razorpay_signature: response.razorpay_signature,
-              planTier,
-              billingCycle,
-              seats: seatCount,
-            }),
+          await api.verifySubscription({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_subscription_id: response.razorpay_subscription_id,
+            razorpay_signature: response.razorpay_signature,
+            planTier,
+            billingCycle,
+            seats: seatCount,
+            workspaceId: currentWorkspace?.id,
           });
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) throw new Error(verifyData.error?.message || 'Payment verification failed.');
 
           setActivePlanTier(planTier);
           setIsUpgradeModalOpen(false);

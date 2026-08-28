@@ -5,6 +5,8 @@
  * and forwarding to backend observability endpoints.
  */
 
+import { api } from './api';
+
 export interface ErrorContext {
   userId?: string;
   workspaceId?: string;
@@ -48,19 +50,7 @@ export class SentryClient {
     console.error(`[Sentry Alert] [${errorId}]`, message, payload);
 
     // Forward to backend observability pipeline if reachable
-    if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-      try {
-        window.fetch('/api/health/client-error', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch(() => {
-          // Silent catch for network drops
-        });
-      } catch {
-        // Ignored
-      }
-    }
+    api.reportClientError(payload);
 
     return errorId;
   }

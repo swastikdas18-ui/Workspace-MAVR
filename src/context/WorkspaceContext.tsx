@@ -155,13 +155,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Centralized backend data fetching
   const refreshWorkspaceData = useCallback(async () => {
     try {
-      const [projectsRes, tasksRes, teamsRes, docsRes, membersRes, crmRes] = await Promise.allSettled([
+      const [projectsRes, tasksRes, teamsRes, docsRes, membersRes, crmRes, invitesRes] = await Promise.allSettled([
         api.getProjects(),
         api.getTasks(),
         api.getTeams(),
         api.getDocuments(),
         api.getWorkspaceMembers(),
         api.getCrmLeads(),
+        api.getInvites(),
       ]);
 
       if (projectsRes.status === 'fulfilled') {
@@ -202,6 +203,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       if (crmRes.status === 'fulfilled') {
         setCrmRecords(crmRes.value?.leads || []);
+      }
+      if (invitesRes.status === 'fulfilled' && invitesRes.value?.invites) {
+        const rawInvites = invitesRes.value.invites;
+        const pendingInvites = rawInvites.filter(
+          (inv: any) => !inv.accepted_at && !inv.acceptedAt && inv.status !== 'accepted'
+        );
+        setInvites(pendingInvites);
       }
       if (membersRes.status === 'fulfilled') {
         const rawMembers = membersRes.value?.members || [];
@@ -489,7 +497,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const currentRole = currentUser?.role || 'employee';
+  const currentRole: UserRole = (
+    (currentWorkspace?.role || (currentWorkspace as any)?.roleInWorkspace || currentUser?.role || 'employee').toLowerCase()
+  ) as UserRole;
   const permissions = ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.employee;
 
   const setAuthUser = async (user: User, workspace?: Partial<Workspace>) => {

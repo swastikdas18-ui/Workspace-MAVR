@@ -15,12 +15,27 @@ export interface CreateCrmRecordInput {
   notes?: string;
 }
 
+function safeIsoDate(val: any): string {
+  if (!val) return new Date().toISOString().substring(0, 10);
+  try {
+    const d = val instanceof Date ? val : new Date(val);
+    if (isNaN(d.getTime())) return new Date().toISOString().substring(0, 10);
+    return d.toISOString().substring(0, 10);
+  } catch {
+    return new Date().toISOString().substring(0, 10);
+  }
+}
+
 export class CrmService {
   static async getCrmRecords(
-    workspaceId: string,
+    workspaceId: string | null | undefined,
     userId: string,
     rawRole: UserRole | string
   ): Promise<any[]> {
+    if (!workspaceId) {
+      return [];
+    }
+
     const role = normalizeRole(rawRole);
     if (!can(role, 'crm:read', undefined, { userId, workspaceId })) {
       const error: any = new Error('Interns do not have access to Enterprise CRM records.');
@@ -34,17 +49,17 @@ export class CrmService {
 
     return records.map((r) => ({
       id: r.id,
-      customer_name: r.customerName,
-      company: r.company,
-      email: r.email,
-      phone: r.phone,
+      customer_name: r.customerName || 'Unnamed Lead',
+      company: r.company || '',
+      email: r.email || '',
+      phone: r.phone || '',
       deal_value: r.dealValue || 0,
       status: r.status || 'new_lead',
       owner_id: r.ownerId,
       workspace_id: r.workspaceId,
       notes: r.notes || '',
-      created_at: r.createdAt ? new Date(r.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      last_contacted: r.lastContacted ? new Date(r.lastContacted).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      created_at: safeIsoDate(r.createdAt),
+      last_contacted: safeIsoDate(r.lastContacted),
     }));
   }
 

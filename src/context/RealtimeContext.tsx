@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getStoredSessionToken } from '../lib/api';
+import { getStoredSessionToken, getWebSocketUrl } from '../lib/api';
 
 export interface PresenceUser {
   userId: string;
@@ -67,9 +67,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode; workspaceId
     setIsConnecting(true);
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
+      const wsUrl = getWebSocketUrl(token);
 
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;

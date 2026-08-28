@@ -12,6 +12,8 @@ import { MetricCard } from '../common/MetricCard';
 import { EmptyState } from '../common/EmptyState';
 import { UserAvatar } from '../common/UserAvatar';
 import { RoleBadge } from '../common/RoleBadge';
+import { PendingInviteBadge } from './PendingInviteBadge';
+import { getFrontendUrl } from '../../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const TeamsView: React.FC = () => {
@@ -81,7 +83,7 @@ export const TeamsView: React.FC = () => {
   };
 
   const handleCopyLink = (token: string) => {
-    const inviteUrl = `${window.location.origin}/invite/${token}`;
+    const inviteUrl = getFrontendUrl(`/invite/${token}`);
     navigator.clipboard.writeText(inviteUrl);
     setCopiedToken(true);
     addToast({
@@ -176,6 +178,9 @@ export const TeamsView: React.FC = () => {
   const adminCount = users.filter(u => u.role === 'admin').length;
   const employeeCount = users.filter(u => u.role === 'employee').length;
   const internCount = users.filter(u => u.role === 'intern').length;
+  const pendingInvites = (invites || []).filter(
+    (inv: any) => !inv.accepted_at && !inv.acceptedAt && inv.status !== 'accepted'
+  );
 
   return (
     <div className="space-y-6">
@@ -245,7 +250,7 @@ export const TeamsView: React.FC = () => {
         />
         <MetricCard
           label="Pending Invitations"
-          value={invites.length}
+          value={pendingInvites.length}
           icon={Mail}
           color="amber"
           trend={{ value: '7-Day Token', direction: 'neutral', label: 'awaiting join' }}
@@ -344,18 +349,18 @@ export const TeamsView: React.FC = () => {
       </div>
 
       {/* Pending Workspace Invites (Admin view) */}
-      {currentRole === 'admin' && invites.length > 0 && (
+      {currentRole === 'admin' && pendingInvites.length > 0 && (
         <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-purple-400" />
               <h3 className="text-sm font-bold text-white">Active Cryptographic Invite Tokens</h3>
             </div>
-            <span className="text-xs text-slate-400 font-mono">{invites.length} Pending</span>
+            <PendingInviteBadge count={pendingInvites.length} />
           </div>
 
           <div className="divide-y divide-white/[0.04] text-xs">
-            {invites.map((inv) => (
+            {pendingInvites.map((inv) => (
               <div key={inv.id} className="py-3 flex items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -965,7 +970,7 @@ export const TeamsView: React.FC = () => {
                       <input
                         type="text"
                         readOnly
-                        value={`${window.location.origin}/invite/${generatedInvite.token}`}
+                        value={getFrontendUrl(`/invite/${generatedInvite.token}`)}
                         className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white font-mono text-[11px]"
                       />
                       <button

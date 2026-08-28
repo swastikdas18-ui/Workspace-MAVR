@@ -15,7 +15,8 @@
     "auth:verify": "tsx scripts/verify-live-auth.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "audit:api": "tsx scripts/audit-api-endpoints.ts",
+    "lint": "tsx scripts/audit-api-endpoints.ts && tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",

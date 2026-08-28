@@ -4,6 +4,8 @@
  * workspace-scoped channel subscriptions, and event routing.
  */
 
+import { getWebSocketUrl } from '../api';
+
 export interface RealtimeMessage<T = any> {
   id?: string;
   type: string;
@@ -77,11 +79,7 @@ export class RealtimeWebSocketClient {
     this.isExplicitlyClosed = false;
     this.cleanupSocket();
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(this.token)}${
-      this.workspaceId ? `&workspaceId=${encodeURIComponent(this.workspaceId)}` : ''
-    }`;
+    const wsUrl = getWebSocketUrl(this.token, this.workspaceId || undefined);
 
     try {
       this.ws = new WebSocket(wsUrl);

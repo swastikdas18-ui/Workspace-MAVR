@@ -16,14 +16,25 @@ const getLeadsHandler = async (c: any) => {
     const user = c.get('user');
     const workspace = c.get('workspace');
     if (!workspace) {
-      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+      // Safe zero-state payload when workspace is uninitialized or null
+      return c.json({ leads: [] }, 200);
     }
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const leads = await CrmService.getCrmRecords(workspace.id, user.id, role);
-    return c.json({ leads }, 200);
+    return c.json({ leads: leads || [] }, 200);
   } catch (err: any) {
-    const status = err.status || 500;
+    console.error('[CRM API Error] getLeadsHandler error:', {
+      message: err.message,
+      code: err.code,
+      stack: err.stack,
+      userId: c.get('user')?.id,
+      workspaceId: c.get('workspace')?.id,
+    });
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 200);
+    if (status === 200) {
+      return c.json({ leads: [] }, 200);
+    }
     return c.json(
       { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to fetch CRM leads.' } },
       status

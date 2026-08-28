@@ -4,7 +4,48 @@
  */
 
 export const API_BASE_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+  ((import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '') as string).replace(/\/$/, '');
+
+/**
+ * Centrally construct authoritative WebSocket URLs targeting the backend server origin.
+ */
+export function getWebSocketUrl(token?: string, workspaceId?: string): string {
+  const backend =
+    (import.meta.env.VITE_API_URL as string | undefined) ||
+    (import.meta.env.VITE_BACKEND_URL as string | undefined) ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+
+  let wsBase = backend;
+  if (wsBase.startsWith('https://')) {
+    wsBase = wsBase.replace(/^https:\/\//, 'wss://');
+  } else if (wsBase.startsWith('http://')) {
+    wsBase = wsBase.replace(/^http:\/\//, 'ws://');
+  } else if (typeof window !== 'undefined' && window.location?.host) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsBase = `${protocol}//${window.location.host}`;
+  } else {
+    wsBase = 'ws://localhost:3000';
+  }
+
+  const queryParams = new URLSearchParams();
+  if (token) queryParams.set('token', token);
+  if (workspaceId) queryParams.set('workspaceId', workspaceId);
+  const qs = queryParams.toString();
+
+  return `${wsBase.replace(/\/$/, '')}/ws${qs ? `?${qs}` : ''}`;
+}
+
+/**
+ * Centrally construct frontend URLs (for shareable invite links, auth callbacks, etc.).
+ */
+export function getFrontendUrl(path: string = ''): string {
+  const frontend =
+    (import.meta.env.VITE_FRONTEND_URL as string | undefined) ||
+    (import.meta.env.VITE_APP_URL as string | undefined) ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
+  return `${frontend.replace(/\/$/, '')}${cleanPath}`;
+}
 
 const TOKEN_KEY = 'ws_session_token';
 
@@ -558,6 +599,79 @@ export const api = {
 
   async getFounderConsole() {
     return await fetchApi<any>('/api/admin/founder-console').catch(() => null);
+  },
+
+  // Phase 30: Billing API Integration
+  async createSubscription(data: { planTier: string; billingCycle: string; seats?: number; workspaceId?: string }) {
+    return await fetchApi<{ success: boolean; subscriptionId: string; razorpayKey?: string; planTier: string; billingCycle: string }>(
+      '/api/billing/create-subscription',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  async verifySubscription(data: {
+    razorpay_payment_id: string;
+    razorpay_subscription_id?: string;
+    razorpay_signature?: string;
+    planTier: string;
+    billingCycle: string;
+    seats?: number;
+    workspaceId?: string;
+  }) {
+    return await fetchApi<{ success: boolean; planTier: string; billingCycle: string; workspace?: any }>(
+      '/api/billing/verify',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  // Phase 30: Founding Partner Application API
+  async getFoundingPartnerMetrics() {
+    return await fetchApi<{ success: boolean; metrics: { slotsStatus: string; isProgramFull: boolean; remainingSlots: number } }>(
+      '/api/founding-partner/metrics'
+    );
+  },
+
+  async applyFoundingPartner(data: {
+    businessName: string;
+    industry?: string;
+    website?: string;
+    teamSize?: string;
+    location?: string;
+    ownerName: string;
+    email: string;
+    phone?: string;
+    currentTools?: string;
+    biggestChallenge?: string;
+    whyInterested?: string;
+  }) {
+    return await fetchApi<{ success: boolean; application: any; message?: string }>(
+      '/api/founding-partner/apply',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  // Phase 30: Client Observability & Error Reporting
+  async reportClientError(payload: any) {
+    try {
+      return await fetchApi<{ success: boolean }>(
+        '/api/health/client-error',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+    } catch {
+      return { success: false };
+    }
   },
 };
 

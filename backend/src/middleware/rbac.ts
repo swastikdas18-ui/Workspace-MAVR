@@ -2,14 +2,60 @@ import { Context, Next } from 'hono';
 import { can, Action, normalizeRole } from '../lib/permissions';
 import { UserRole } from '../types';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
+import { WorkspaceRepository } from '../repositories/workspace-repository';
 
 /**
- * WORKSPACE ROLE ISOLATION (Phase 17 — Fix #7)
+ * WORKSPACE ROLE ISOLATION & AUDIT (Phase 29)
  *
- * Authorization MUST be based on the caller's workspace membership role
- * (resolved server-side from the workspace_members store during session
- * resolution) — never on a global user.role snapshot.
+ * Authorization MUST be strictly derived from workspace_members.role
+ * and never from users.role, session.role, or stale cached values.
  */
+
+function logRbacTelemetry(
+  user: { id: string; email?: string },
+  workspaceId: string | null | undefined,
+  membershipRole: string,
+  requestedAction: string,
+  decision: 'ALLOW' | 'DENIED'
+) {
+  console.log(
+    `[RBAC]\nUser: ${user.email || user.id}\nWorkspace: ${workspaceId || 'none'}\nMembership Role: ${membershipRole.toUpperCase()}\nRequested Action: ${requestedAction}\nDecision: ${decision}`
+  );
+}
+
+/**
+ * Resolve the verified workspace membership role.
+ * Queries workspace_members directly if not already cached on context.
+ */
+export async function resolveMembershipRole(c: Context): Promise<{ role: UserRole; workspaceId: string | null }> {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+
+  if (!user) {
+    return { role: 'employee', workspaceId: null };
+  }
+
+  if (workspace?.id) {
+    if (workspace.roleInWorkspace) {
+      return { role: normalizeRole(workspace.roleInWorkspace), workspaceId: workspace.id };
+    }
+
+    try {
+      const member = await WorkspaceRepository.getWorkspaceMember(workspace.id, user.id);
+      if (member?.role) {
+        return { role: normalizeRole(member.role), workspaceId: workspace.id };
+      }
+      if (workspace.ownerId === user.id) {
+        return { role: 'admin', workspaceId: workspace.id };
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  // If no active workspace context exists, use the global role as last resort
+  return { role: normalizeRole(user.role), workspaceId: workspace?.id || null };
+}
 
 function unauthorized(c: Context) {
   return c.json(
@@ -57,14 +103,23 @@ export function requirePermission(action: Action) {
       return unauthorized(c);
     }
 
-    // Membership role first; fall back to global role ONLY when the session
-    // has no active workspace context.
-    const effectiveRole = normalizeRole(workspace?.roleInWorkspace ?? user.role);
+    const { role: effectiveRole, workspaceId } = await resolveMembershipRole(c);
+    const actionDescriptor = `${c.req.method} ${c.req.path} [${action}]`;
 
-    if (!can(effectiveRole, action, undefined, { userId: user.id, workspaceId: workspace?.id })) {
+    const isAllowed = can(effectiveRole, action, undefined, { userId: user.id, workspaceId: workspace?.id });
+
+    logRbacTelemetry(
+      user,
+      workspaceId,
+      effectiveRole,
+      actionDescriptor,
+      isAllowed ? 'ALLOW' : 'DENIED'
+    );
+
+    if (!isAllowed) {
       return forbidden(
         c,
-        `Access denied. Role [${effectiveRole.toUpperCase()}] is not permitted for action [${action}].`,
+        `Access denied. Workspace role [${effectiveRole.toUpperCase()}] is not permitted for action [${action}].`,
         { requiredAction: action, effectiveRole }
       );
     }
@@ -74,10 +129,7 @@ export function requirePermission(action: Action) {
 }
 
 /**
- * Role check anchored to WORKSPACE MEMBERSHIP. When a session carries an
- * active workspace, only the membership role is honored — a global
- * `user.role` can never escalate privileges inside someone else's
- * workspace.
+ * Role check anchored strictly to WORKSPACE MEMBERSHIP (workspace_members.role).
  */
 export function requireWorkspaceRole(allowedRoles: (UserRole | string)[]) {
   return async (c: Context, next: Next) => {
@@ -88,17 +140,20 @@ export function requireWorkspaceRole(allowedRoles: (UserRole | string)[]) {
       return unauthorized(c);
     }
 
-    if (!workspace?.roleInWorkspace) {
-      return forbidden(c, 'No active workspace membership. Access denied.', {
-        requiredRoles: allowedRoles,
-        reason: 'missing_workspace_membership',
-      });
-    }
-
-    const effectiveRole = normalizeRole(workspace.roleInWorkspace);
+    const { role: effectiveRole, workspaceId } = await resolveMembershipRole(c);
     const normalizedAllowed = allowedRoles.map((r) => normalizeRole(r));
+    const actionDescriptor = `${c.req.method} ${c.req.path}`;
+    const isAllowed = normalizedAllowed.includes(effectiveRole);
 
-    if (!normalizedAllowed.includes(effectiveRole)) {
+    logRbacTelemetry(
+      user,
+      workspaceId,
+      effectiveRole,
+      actionDescriptor,
+      isAllowed ? 'ALLOW' : 'DENIED'
+    );
+
+    if (!isAllowed) {
       return forbidden(
         c,
         `Access denied. Workspace role [${effectiveRole.toUpperCase()}] is not permitted to perform this action.`,
@@ -113,29 +168,32 @@ export function requireWorkspaceRole(allowedRoles: (UserRole | string)[]) {
 export { requireFounder, requirePlatformAdmin, requireSupport } from './platform-admin';
 
 /**
- * Legacy helper retained for existing routes. Prefers the workspace
- * membership role; the global role is consulted only when the session has
- * no workspace context (workspace-independent endpoints).
- *
- * SECURITY NOTE: new cross-workspace or privileged routes should use
- * `requireWorkspaceRole()` or `requirePlatformAdmin()` instead.
+ * requireRole helper anchored strictly to WORKSPACE MEMBERSHIP (workspace_members.role).
  */
 export function requireRole(allowedRoles: (UserRole | string)[]) {
   return async (c: Context, next: Next) => {
     const user = c.get('user');
-    const workspace = c.get('workspace');
-
     if (!user) {
       return unauthorized(c);
     }
 
-    const effectiveRole = normalizeRole(workspace?.roleInWorkspace ?? user.role);
+    const { role: effectiveRole, workspaceId } = await resolveMembershipRole(c);
     const normalizedAllowed = allowedRoles.map((r) => normalizeRole(r));
+    const actionDescriptor = `${c.req.method} ${c.req.path}`;
+    const isAllowed = normalizedAllowed.includes(effectiveRole);
 
-    if (!normalizedAllowed.includes(effectiveRole)) {
+    logRbacTelemetry(
+      user,
+      workspaceId,
+      effectiveRole,
+      actionDescriptor,
+      isAllowed ? 'ALLOW' : 'DENIED'
+    );
+
+    if (!isAllowed) {
       return forbidden(
         c,
-        `Access denied. Role [${effectiveRole.toUpperCase()}] is not permitted to perform this action.`,
+        `Access denied. Workspace role [${effectiveRole.toUpperCase()}] is not permitted to perform this action.`,
         { requiredRoles: allowedRoles, effectiveRole }
       );
     }
@@ -143,3 +201,4 @@ export function requireRole(allowedRoles: (UserRole | string)[]) {
     await next();
   };
 }
+

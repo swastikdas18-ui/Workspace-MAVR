@@ -19,6 +19,7 @@ import { healthRouter } from './routes/health';
 import { billingRouter } from './routes/billing';
 import { executiveRouter } from './routes/executive';
 import { analyticsRouter, adminRouter } from './routes/protected-modules';
+import { dashboardRouter } from './routes/dashboard';
 import { foundingPartnerRouter } from './routes/founding-partner';
 import { wikiRouter, timeRouter, guestPortalRouter, integrationRouter } from './routes/msme-extensions';
 import { phase14Router } from './routes/phase14-routes';
@@ -265,6 +266,9 @@ app.route('/presence', presenceRouter);
 
 app.route('/api/analytics', analyticsRouter);
 app.route('/analytics', analyticsRouter);
+
+app.route('/api/dashboard', dashboardRouter);
+app.route('/dashboard', dashboardRouter);
 
 // Phase 14 routes (includes /billing/webhook) MUST be mounted BEFORE
 // the billingRouter sub-app so the webhook path is not intercepted

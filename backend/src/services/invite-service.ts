@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { inMemoryDb, WorkspaceInvite, User, WorkspaceMember, Session, TeamMember, getDb, schema } from '../../packages/database';
 import { hashPassword, generateSessionToken, calculateSessionExpiry } from '../auth/auth';
 import { SafeUser, SafeWorkspace, AuthSessionResponse, UserRole } from '../types';
@@ -340,52 +340,52 @@ export class InviteService {
    * Get all invites for a specific workspace
    */
   static async getWorkspaceInvites(workspaceId: string): Promise<any[]> {
+    if (!workspaceId) return [];
+
     const db = getDb();
     if (db) {
       try {
         const dbInvites = await db
           .select()
           .from(schema.workspaceInvites)
-          .where(and(eq(schema.workspaceInvites.workspaceId, workspaceId)));
+          .where(eq(schema.workspaceInvites.workspaceId, workspaceId));
         
-        if (dbInvites.length > 0) {
-          const now = new Date();
-          return dbInvites
-            .filter((inv) => !inv.acceptedAt)
-            .map((inv) => {
-              const isExpired = new Date(inv.expiresAt) < now;
-              const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'sent';
-              return {
-                id: inv.id,
-                workspace_id: inv.workspaceId,
-                workspaceId: inv.workspaceId,
-                email: inv.email,
-                role: inv.role,
-                token: inv.token,
-                invited_by: inv.invitedBy,
-                invitedBy: inv.invitedBy,
-                team_id: inv.teamId,
-                teamId: inv.teamId,
-                expires_at: inv.expiresAt.toISOString(),
-                expiresAt: inv.expiresAt.toISOString(),
-                accepted_at: inv.acceptedAt ? inv.acceptedAt.toISOString() : null,
-                acceptedAt: inv.acceptedAt ? inv.acceptedAt.toISOString() : null,
-                created_at: inv.createdAt.toISOString(),
-                createdAt: inv.createdAt.toISOString(),
-                status,
-                openedAt: null,
-                sentAt: inv.createdAt.toISOString(),
-                resendCount: 0,
-              };
-            });
-        }
+        const now = new Date();
+        return dbInvites
+          .filter((inv) => !inv.acceptedAt)
+          .map((inv) => {
+            const isExpired = inv.expiresAt ? new Date(inv.expiresAt) < now : false;
+            const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'sent';
+            return {
+              id: inv.id,
+              workspace_id: inv.workspaceId,
+              workspaceId: inv.workspaceId,
+              email: inv.email,
+              role: inv.role,
+              token: inv.token,
+              invited_by: inv.invitedBy,
+              invitedBy: inv.invitedBy,
+              team_id: inv.teamId,
+              teamId: inv.teamId,
+              expires_at: inv.expiresAt ? new Date(inv.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400000).toISOString(),
+              expiresAt: inv.expiresAt ? new Date(inv.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400000).toISOString(),
+              accepted_at: inv.acceptedAt ? new Date(inv.acceptedAt).toISOString() : null,
+              acceptedAt: inv.acceptedAt ? new Date(inv.acceptedAt).toISOString() : null,
+              created_at: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+              createdAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+              status,
+              openedAt: null,
+              sentAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+              resendCount: 0,
+            };
+          });
       } catch (err: any) {
         // Fallback to in-memory
       }
     }
 
     const invites = Array.from(inMemoryDb.workspaceInvites.values()).filter(
-      (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt
+      (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt && (inv as any).status !== 'accepted'
     );
 
     // Deduplicate by token
@@ -742,12 +742,12 @@ export class InviteService {
     }
 
     // Mark invite as accepted in inMemoryDb + update status
-    const rawInvite = inMemoryDb.workspaceInvites.get(invite.id) || inMemoryDb.workspaceInvites.get(token);
-    if (rawInvite) {
-      rawInvite.acceptedAt = now;
-      (rawInvite as InviteWithStatus).status = 'accepted';
-      inMemoryDb.workspaceInvites.set(rawInvite.id, rawInvite);
-      inMemoryDb.workspaceInvites.set(token, rawInvite);
+    for (const [key, inv] of inMemoryDb.workspaceInvites.entries()) {
+      if (inv.id === invite.id || inv.token === token || key === invite.id || key === token) {
+        inv.acceptedAt = now;
+        (inv as any).status = 'accepted';
+        inMemoryDb.workspaceInvites.set(key, inv);
+      }
     }
 
     if (db) {
@@ -755,7 +755,7 @@ export class InviteService {
         await db
           .update(schema.workspaceInvites)
           .set({ acceptedAt: now })
-          .where(eq(schema.workspaceInvites.token, token));
+          .where(or(eq(schema.workspaceInvites.token, token), eq(schema.workspaceInvites.id, invite.id)));
       } catch (err: any) {
         console.warn('[InviteService] PostgreSQL mark invite accepted warning:', err.message);
       }

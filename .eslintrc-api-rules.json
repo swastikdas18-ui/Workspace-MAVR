@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "fetch",
+        "message": "Direct fetch() calls are forbidden outside src/lib/api.ts. Import and use the centralized `api` client."
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "window",
+        "property": "fetch",
+        "message": "window.fetch() is forbidden. Use the centralized `api` client from src/lib/api.ts."
+      },
+      {
+        "object": "window.location",
+        "property": "origin",
+        "message": "Direct window.location.origin usage is forbidden in frontend components. Use getFrontendUrl() or API_BASE_URL from src/lib/api.ts."
+      },
+      {
+        "object": "window.location",
+        "property": "host",
+        "message": "Direct window.location.host usage is forbidden in frontend components. Use getWebSocketUrl() from src/lib/api.ts."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/api.ts"],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off"
+      }
+    }
+  ]
+}

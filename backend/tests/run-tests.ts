@@ -22,6 +22,7 @@ import { runTeamCreationPersistenceTests } from './team-creation-persistence.tes
 import { runProjectCreationRbacTests } from './project-creation-rbac.test';
 import { runProjectSystemFullTests } from './project-system-full.test';
 import { runProjectWorkflowTests } from './project-workflow.test';
+import { runExecutiveDashboardV2Tests } from './executive-dashboard-v2.test';
 
 async function main() {
   try {
@@ -69,7 +70,9 @@ async function main() {
     await runProjectSystemFullTests();
     console.log('\n>>> Starting Suite 22: Project Workflow Lifecycle & State Machine');
     await runProjectWorkflowTests();
-    console.log('\n🌟 ALL 22 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 23: Executive Dashboard V2 & Live Aggregations');
+    await runExecutiveDashboardV2Tests();
+    console.log('\n🌟 ALL 23 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

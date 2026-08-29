@@ -789,6 +789,11 @@ export const api = {
     });
   },
 
+  // Executive Dashboard V2
+  async getExecutiveDashboard() {
+    return await fetchApi<any>('/api/dashboard/executive');
+  },
+
   // Phase 30: Client Observability & Error Reporting
   async reportClientError(payload: any) {
     try {

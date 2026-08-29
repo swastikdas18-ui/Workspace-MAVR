@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth';
 import { inMemoryDb, getDb, schema } from '../../packages/database/index.js';
 import { eq } from 'drizzle-orm';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
+import { DashboardService } from '../services/dashboard-service';
 
 export const dashboardRouter = new Hono();
 
@@ -116,5 +117,23 @@ dashboardRouter.get('/', async (c) => {
       },
       200
     );
+  }
+});
+
+/**
+ * GET /api/dashboard/executive - Full real-time executive dashboard aggregates
+ */
+dashboardRouter.get('/executive', async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace?.id) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context required' } }, 404);
+    }
+
+    const data = await DashboardService.getExecutiveMetrics(workspace.id);
+    return c.json(data, 200);
+  } catch (err: any) {
+    console.error('[Dashboard API Error] /executive error:', err.message || err);
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
   }
 });

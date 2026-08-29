@@ -16,6 +16,11 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
+  HeadObjectCommand,
+  ListObjectVersionsCommand,
+  DeleteObjectsCommand,
+  GetBucketVersioningCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
@@ -96,7 +101,11 @@ export class ObjectStorageService {
       }
     }
 
-    if (keyId && applicationKey && process.env.NODE_ENV !== 'test') {
+    // Only attempt real S3Client connection if real B2 endpoint and region are configured
+    const isValidEndpoint = endpoint && endpoint.includes('backblazeb2.com');
+    const isValidRegion = region && /^[a-z0-9-]+$/.test(region) && region.length < 32;
+
+    if (keyId && applicationKey && isValidEndpoint && isValidRegion && process.env.NODE_ENV !== 'test') {
       try {
         this.client = new S3Client({
           region,
@@ -250,7 +259,36 @@ export class ObjectStorageService {
   }
 
   /**
-   * Delete object from Backblaze B2 / Object Storage
+   * Check if object exists in storage
+   */
+  public static async objectExists(workspaceId: string, key: string): Promise<boolean> {
+    if (!key.startsWith(`${workspaceId}/`)) {
+      throw new Error(`[Security Boundary Violation] Access denied to foreign tenant key: ${key}`);
+    }
+
+    const client = this.getClient();
+    const bucketName = this.getBucketName();
+    if (client) {
+      try {
+        const command = new HeadObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+        });
+        await client.send(command);
+        return true;
+      } catch (err: any) {
+        if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+          return false;
+        }
+        throw err;
+      }
+    }
+
+    return this.inMemoryStore.has(key);
+  }
+
+  /**
+   * Delete object and all its historical versions/delete-markers from Backblaze B2 / Object Storage
    */
   public static async deleteObject(workspaceId: string, key: string): Promise<boolean> {
     if (!key.startsWith(`${workspaceId}/`)) {
@@ -259,17 +297,212 @@ export class ObjectStorageService {
 
     const client = this.getClient();
     const bucketName = this.getBucketName();
+
+    console.log('[B2_DELETE_STARTED]', {
+      bucket: bucketName,
+      workspaceId,
+      key,
+      timestamp: new Date().toISOString(),
+    });
+
     if (client) {
-      const command = new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: key,
-      });
-      await client.send(command);
-      return true;
+      try {
+        // 1. Check for historical versions or delete markers
+        try {
+          const versionsCmd = new ListObjectVersionsCommand({
+            Bucket: bucketName,
+            Prefix: key,
+          });
+          const versionsRes = await client.send(versionsCmd);
+
+          const objectsToDelete: Array<{ Key: string; VersionId?: string }> = [];
+
+          if (versionsRes.Versions) {
+            for (const v of versionsRes.Versions) {
+              if (v.Key === key && v.VersionId) {
+                objectsToDelete.push({ Key: v.Key, VersionId: v.VersionId });
+              }
+            }
+          }
+
+          if (versionsRes.DeleteMarkers) {
+            for (const dm of versionsRes.DeleteMarkers) {
+              if (dm.Key === key && dm.VersionId) {
+                objectsToDelete.push({ Key: dm.Key, VersionId: dm.VersionId });
+              }
+            }
+          }
+
+          if (objectsToDelete.length > 0) {
+            console.log('[B2_PURGE_VERSIONS]', {
+              bucket: bucketName,
+              key,
+              versionsCount: objectsToDelete.length,
+            });
+
+            for (const item of objectsToDelete) {
+              await client.send(
+                new DeleteObjectCommand({
+                  Bucket: bucketName,
+                  Key: item.Key,
+                  VersionId: item.VersionId,
+                })
+              );
+            }
+          } else {
+            // Standard non-versioned delete
+            await client.send(
+              new DeleteObjectCommand({
+                Bucket: bucketName,
+                Key: key,
+              })
+            );
+          }
+        } catch (versionErr) {
+          // Fallback to standard delete if ListObjectVersions is unsupported
+          const command = new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: key,
+          });
+          await client.send(command);
+        }
+
+        console.log('[B2_DELETE_SUCCESS]', {
+          bucket: bucketName,
+          workspaceId,
+          key,
+          timestamp: new Date().toISOString(),
+        });
+        return true;
+      } catch (err: any) {
+        console.error('[B2_DELETE_FAILED]', {
+          bucket: bucketName,
+          workspaceId,
+          key,
+          error: err?.message || err,
+          timestamp: new Date().toISOString(),
+        });
+        throw err;
+      }
     }
 
     this.inMemoryStore.delete(key);
+    console.log('[B2_DELETE_SUCCESS]', {
+      bucket: 'in-memory-vault',
+      workspaceId,
+      key,
+      timestamp: new Date().toISOString(),
+    });
     return true;
+  }
+
+  /**
+   * Check whether bucket versioning is enabled
+   */
+  public static async isBucketVersioningEnabled(): Promise<boolean> {
+    const client = this.getClient();
+    const bucketName = this.getBucketName();
+
+    if (!client) return false;
+
+    try {
+      const command = new GetBucketVersioningCommand({
+        Bucket: bucketName,
+      });
+      const response = await client.send(command);
+      return response.Status === 'Enabled';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * List all versions of objects under prefix
+   */
+  public static async listObjectVersions(prefix?: string): Promise<{
+    versions: Array<{ key: string; versionId: string; size: number; isLatest?: boolean; lastModified?: Date }>;
+    deleteMarkers: Array<{ key: string; versionId: string; isLatest?: boolean; lastModified?: Date }>;
+  }> {
+    const client = this.getClient();
+    const bucketName = this.getBucketName();
+
+    if (client) {
+      const command = new ListObjectVersionsCommand({
+        Bucket: bucketName,
+        Prefix: prefix,
+      });
+      const response = await client.send(command);
+      return {
+        versions: (response.Versions || []).map((v) => ({
+          key: v.Key || '',
+          versionId: v.VersionId || '',
+          size: v.Size || 0,
+          isLatest: v.IsLatest,
+          lastModified: v.LastModified,
+        })),
+        deleteMarkers: (response.DeleteMarkers || []).map((dm) => ({
+          key: dm.Key || '',
+          versionId: dm.VersionId || '',
+          isLatest: dm.IsLatest,
+          lastModified: dm.LastModified,
+        })),
+      };
+    }
+
+    return {
+      versions: [],
+      deleteMarkers: [],
+    };
+  }
+
+  /**
+   * List all objects with prefix in Backblaze B2 / In-Memory (for cleanup & audit)
+   */
+  public static async listObjects(prefix?: string): Promise<Array<{ key: string; size: number; lastModified?: Date }>> {
+    const client = this.getClient();
+    const bucketName = this.getBucketName();
+
+    if (client) {
+      const results: Array<{ key: string; size: number; lastModified?: Date }> = [];
+      let continuationToken: string | undefined = undefined;
+
+      do {
+        const command: ListObjectsV2Command = new ListObjectsV2Command({
+          Bucket: bucketName,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        });
+
+        const response = await client.send(command);
+        if (response.Contents) {
+          for (const item of response.Contents) {
+            if (item.Key) {
+              results.push({
+                key: item.Key,
+                size: item.Size || 0,
+                lastModified: item.LastModified,
+              });
+            }
+          }
+        }
+        continuationToken = response.NextContinuationToken;
+      } while (continuationToken);
+
+      return results;
+    }
+
+    // In-memory listing
+    const results: Array<{ key: string; size: number; lastModified?: Date }> = [];
+    for (const [key, val] of this.inMemoryStore.entries()) {
+      if (!prefix || key.startsWith(prefix)) {
+        results.push({
+          key,
+          size: val.size,
+          lastModified: new Date(),
+        });
+      }
+    }
+    return results;
   }
 
   /**

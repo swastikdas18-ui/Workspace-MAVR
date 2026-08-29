@@ -16,6 +16,7 @@ import { runWikiRbacTests } from './wiki-rbac.test';
 import { runTimeTrackingDeleteTests } from './time-tracking-delete.test';
 import { runBillingRateRbacTests } from './billing-rate-rbac.test';
 import { runUtilizationAnalyticsEngineTests } from './utilization-analytics-engine.test';
+import { runB2StorageOrphanCleanupTests } from './b2-storage-orphan-cleanup.test';
 
 async function main() {
   try {
@@ -51,7 +52,9 @@ async function main() {
     await runBillingRateRbacTests();
     console.log('\n>>> Starting Suite 16: Enterprise Utilization Analytics Engine');
     await runUtilizationAnalyticsEngineTests();
-    console.log('\n🌟 ALL 16 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 17: Backblaze B2 Orphan Storage Cleanup & Rollback');
+    await runB2StorageOrphanCleanupTests();
+    console.log('\n🌟 ALL 17 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

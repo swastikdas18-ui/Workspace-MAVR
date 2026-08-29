@@ -233,6 +233,12 @@ export class DocumentService {
 
   /**
    * Delete document and purge object from Backblaze B2
+   * Strict Lifecycle:
+   * 1. Check workspace isolation & RBAC
+   * 2. Retrieve b2FileId / b2FileName / storageKey / objectKey
+   * 3. Call Backblaze B2 deletion API and purge object
+   * 4. Only after successful B2 deletion, delete database record
+   * 5. Emit structured lifecycle logs: DOCUMENT_DELETE_STARTED, B2_DELETE_SUCCESS/FAILED, DOCUMENT_DELETE_COMPLETE
    */
   static async deleteDocument(
     workspaceId: string,
@@ -264,26 +270,59 @@ export class DocumentService {
       throw error;
     }
 
-    const key = existing.storageKey || existing.r2Key;
-    // Delete from Backblaze B2 if key exists
-    if (key) {
+    const storageKey = existing.storageKey || existing.r2Key;
+
+    console.log('[DOCUMENT_DELETE_STARTED]', {
+      workspaceId,
+      documentId,
+      userId,
+      role,
+      title: existing.title,
+      storageKey,
+      fileSizeBytes: existing.fileSizeBytes,
+      timestamp: new Date().toISOString(),
+    });
+
+    // 1. Purge from Backblaze B2 / Object Storage FIRST
+    if (storageKey) {
       try {
-        await ObjectStorageService.deleteObject(workspaceId, key);
-      } catch (err) {
-        console.warn(`[Object Storage Deletion Warning]: Failed to delete object ${key}:`, err);
+        await ObjectStorageService.deleteObject(workspaceId, storageKey);
+      } catch (err: any) {
+        console.error('[B2_DELETE_FAILED]', {
+          workspaceId,
+          documentId,
+          storageKey,
+          error: err?.message || err,
+          timestamp: new Date().toISOString(),
+        });
+        
+        // Rollback protection: If storage deletion fails, abort DB deletion to prevent orphaned inconsistency
+        const storageErr: any = new Error(`Failed to purge document from storage vault: ${err?.message || 'Storage error'}`);
+        storageErr.code = 'STORAGE_PURGE_FAILED';
+        storageErr.status = 502;
+        throw storageErr;
       }
     }
 
+    // 2. Only after B2 deletion succeeds, remove database record
     const deleted = await DocumentRepository.deleteDocument(workspaceId, documentId);
 
-    // Audit Log Entry
+    console.log('[DOCUMENT_DELETE_COMPLETE]', {
+      workspaceId,
+      documentId,
+      storageKey,
+      deletedFromDb: deleted,
+      timestamp: new Date().toISOString(),
+    });
+
+    // 3. Audit Log Entry
     await AuditRepository.logAudit({
       workspaceId,
       userId,
       action: 'document_deleted',
       resource: 'document',
       resourceId: documentId,
-      oldValues: { title: existing.title, storageKey: key },
+      oldValues: { title: existing.title, storageKey },
     });
 
     return deleted;

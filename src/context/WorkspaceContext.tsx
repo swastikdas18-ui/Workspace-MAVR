@@ -947,9 +947,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const res = await api.createTeam(team);
       if (res.team) {
-        setTeams((prev) => [...prev, res.team]);
+        const normalizedTeam: Team = {
+          id: res.team.id,
+          name: res.team.name,
+          description: res.team.description || '',
+          workspace_id: res.team.workspace_id || res.team.workspaceId || currentWorkspace?.id || '',
+          lead_id: res.team.lead_id || res.team.leadId || currentUser?.id || '',
+          color: res.team.color || '#7C3AED',
+          member_count: res.team.member_count || res.team.members_count || 1,
+        };
+        setTeams((prev) => [...prev.filter((t) => t.id !== normalizedTeam.id), normalizedTeam]);
         addToast({ type: 'success', title: 'Team Created', message: `Team "${res.team.name}" initialized.` });
         logAction(`Created team "${res.team.name}"`, 'TEAMS');
+        await refreshWorkspaceData();
         return true;
       }
     } catch (err: any) {

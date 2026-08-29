@@ -7,14 +7,17 @@ export interface CreateTeamInput {
   name: string;
   description?: string;
   leadId?: string;
+  lead_id?: string;
   color?: string;
   memberIds?: string[];
+  member_ids?: string[];
 }
 
 export interface UpdateTeamInput {
   name?: string;
   description?: string;
   leadId?: string;
+  lead_id?: string;
   color?: string;
 }
 
@@ -89,8 +92,9 @@ export class TeamService {
       throw error;
     }
 
-    const leadId = input.leadId || userId;
-    const memberIds = input.memberIds && input.memberIds.length > 0 ? input.memberIds : [leadId];
+    const leadId = input.leadId || input.lead_id || userId;
+    const rawMembers = input.memberIds || input.member_ids;
+    const memberIds = rawMembers && rawMembers.length > 0 ? Array.from(new Set([...rawMembers, leadId])) : [leadId];
 
     const team = await TeamRepository.createTeam({
       name: input.name.trim(),
@@ -120,6 +124,7 @@ export class TeamService {
       lead_id: team.leadId,
       color: team.color,
       created_at: team.createdAt.toISOString().substring(0, 10),
+      member_count: team.memberIds.length,
       members_count: team.memberIds.length,
       members: team.memberIds,
     };

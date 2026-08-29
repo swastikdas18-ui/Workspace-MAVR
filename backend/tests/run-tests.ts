@@ -18,6 +18,8 @@ import { runBillingRateRbacTests } from './billing-rate-rbac.test';
 import { runUtilizationAnalyticsEngineTests } from './utilization-analytics-engine.test';
 import { runB2StorageOrphanCleanupTests } from './b2-storage-orphan-cleanup.test';
 import { runDataPersistenceAuditTests } from './data-persistence-audit.test';
+import { runTeamCreationPersistenceTests } from './team-creation-persistence.test';
+import { runProjectCreationRbacTests } from './project-creation-rbac.test';
 
 async function main() {
   try {
@@ -57,7 +59,11 @@ async function main() {
     await runB2StorageOrphanCleanupTests();
     console.log('\n>>> Starting Suite 18: Data Persistence & Multi-Session Audit');
     await runDataPersistenceAuditTests();
-    console.log('\n🌟 ALL 18 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 19: Team Creation & Member Persistence Regression');
+    await runTeamCreationPersistenceTests();
+    console.log('\n>>> Starting Suite 20: Project Creation RBAC & Role Scoping Regression');
+    await runProjectCreationRbacTests();
+    console.log('\n🌟 ALL 20 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

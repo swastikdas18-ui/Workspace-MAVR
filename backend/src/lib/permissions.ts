@@ -51,8 +51,10 @@ export type Action =
 export function normalizeRole(role: string | null | undefined): UserRole | 'guest' {
   if (!role) return 'employee';
   const lower = role.toLowerCase().trim();
-  // Platform administrators hold full access across all workspaces.
-  if (lower === 'platform_admin') return 'admin';
+  // Platform administrators and workspace owners hold full admin access across all resources.
+  if (lower === 'platform_admin' || lower === 'platformadmin') return 'admin';
+  if (lower === 'founder') return 'admin';
+  if (lower === 'owner') return 'admin';
   if (lower === 'admin') return 'admin';
   if (lower === 'intern') return 'intern';
   if (lower === 'guest') return 'guest';

@@ -192,14 +192,15 @@ export class TeamRepository {
   static async createTeam(data: CreateTeamParams): Promise<TeamEntity> {
     const teamId = data.id || 'team-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const now = new Date();
-    const memberIds = data.memberIds && data.memberIds.length > 0 ? data.memberIds : [data.leadId];
+    const leadId = data.leadId && data.leadId.trim() ? data.leadId.trim() : null;
+    const memberIds = data.memberIds && data.memberIds.length > 0 ? data.memberIds : (leadId ? [leadId] : []);
 
     const newTeam = {
       id: teamId,
       name: data.name,
       description: data.description || '',
       workspaceId: data.workspaceId,
-      leadId: data.leadId,
+      leadId: leadId || '',
       color: data.color || '#3b82f6',
       createdAt: now,
     };
@@ -207,12 +208,12 @@ export class TeamRepository {
     inMemoryDb.teams.set(teamId, newTeam);
 
     for (const mId of memberIds) {
-      const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + mId.slice(-4);
       inMemoryDb.teamMembers.set(tmId, {
         id: tmId,
         teamId,
         userId: mId,
-        roleInTeam: mId === data.leadId ? 'lead' : 'member',
+        roleInTeam: mId === leadId ? 'lead' : 'member',
         joinedAt: now,
       });
     }
@@ -220,31 +221,41 @@ export class TeamRepository {
     try {
       const db = getDb();
       if (db) {
-        await db.transaction(async (tx) => {
-          await tx.insert(schema.teams).values({
-            id: teamId,
-            name: data.name,
-            description: data.description || '',
-            workspaceId: data.workspaceId,
-            leadId: data.leadId,
-            color: data.color || '#3b82f6',
-            createdAt: now,
-          });
-
-          for (const mId of memberIds) {
-            const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-            await tx.insert(schema.teamMembers).values({
-              id: tmId,
-              teamId,
-              userId: mId,
-              roleInTeam: mId === data.leadId ? 'lead' : 'member',
-              joinedAt: now,
-            });
-          }
+        console.log('[TeamRepository] INSERT TEAM to PostgreSQL:', {
+          id: teamId,
+          name: data.name,
+          workspaceId: data.workspaceId,
+          leadId,
         });
+
+        await db.insert(schema.teams).values({
+          id: teamId,
+          name: data.name,
+          description: data.description || '',
+          workspaceId: data.workspaceId,
+          leadId: leadId,
+          color: data.color || '#3b82f6',
+          createdAt: now,
+        });
+
+        for (const mId of memberIds) {
+          const tmId = 'tm-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + mId.slice(-4);
+          await db.insert(schema.teamMembers).values({
+            id: tmId,
+            teamId,
+            userId: mId,
+            roleInTeam: mId === leadId ? 'lead' : 'member',
+            joinedAt: now,
+          });
+        }
+        console.log('[TeamRepository] INSERT RESULT: Successfully persisted team and members');
       }
-    } catch {
-      // In-memory handled
+    } catch (err: any) {
+      console.error('[TeamRepository] PostgreSQL Insert Error in createTeam:', err.message || err);
+      // In production mode, rethrow so it does not fail silently
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to persist team to PostgreSQL: ${err.message}`);
+      }
     }
 
     return {
@@ -352,23 +363,24 @@ export class TeamRepository {
     try {
       const db = getDb();
       if (db) {
-        await db.transaction(async (tx) => {
-          await tx
-            .delete(schema.teamMembers)
-            .where(eq(schema.teamMembers.teamId, teamId));
+        await db
+          .delete(schema.teamMembers)
+          .where(eq(schema.teamMembers.teamId, teamId));
 
-          await tx
-            .delete(schema.teams)
-            .where(
-              and(
-                eq(schema.teams.id, teamId),
-                eq(schema.teams.workspaceId, workspaceId)
-              )
-            );
-        });
+        await db
+          .delete(schema.teams)
+          .where(
+            and(
+              eq(schema.teams.id, teamId),
+              eq(schema.teams.workspaceId, workspaceId)
+            )
+          );
       }
-    } catch {
-      // In-memory handled
+    } catch (err: any) {
+      console.error('[TeamRepository] PostgreSQL Delete Error in deleteTeam:', err.message || err);
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw err;
+      }
     }
 
     return true;

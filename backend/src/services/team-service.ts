@@ -70,6 +70,7 @@ export class TeamService {
     rawRole: UserRole | string,
     input: CreateTeamInput
   ): Promise<any> {
+    console.log('CREATE TEAM SERVICE', workspaceId);
     const role = normalizeRole(rawRole);
     if (!can(role, 'teams:create', undefined, { userId, workspaceId })) {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating teams.`);

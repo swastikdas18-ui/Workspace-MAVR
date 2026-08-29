@@ -368,43 +368,44 @@ export class ProjectRepository {
     try {
       const db = getDb();
       if (db) {
-        await db.transaction(async (tx) => {
-          await tx.insert(schema.projects).values({
-            id: projectId,
-            title: data.title,
-            description: data.description || '',
-            workspaceId: data.workspaceId,
-            createdBy: data.createdBy,
-            status: data.status || 'in_progress',
-            progress: data.progress || 0,
-            startDate,
-            dueDate,
-            budget: data.budget || '$0',
-            createdAt: now,
-          });
-
-          for (const mId of memberIds) {
-            const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-            await tx.insert(schema.projectMembers).values({
-              id: pmId,
-              projectId,
-              userId: mId,
-              role: mId === data.createdBy ? 'owner' : 'contributor',
-            });
-          }
-
-          for (const tId of teamIds) {
-            const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-            await tx.insert(schema.projectTeams).values({
-              id: ptId,
-              projectId,
-              teamId: tId,
-            });
-          }
+        await db.insert(schema.projects).values({
+          id: projectId,
+          title: data.title,
+          description: data.description || '',
+          workspaceId: data.workspaceId,
+          createdBy: data.createdBy,
+          status: data.status || 'in_progress',
+          progress: data.progress || 0,
+          startDate,
+          dueDate,
+          budget: data.budget || '$0',
+          createdAt: now,
         });
+
+        for (const mId of memberIds) {
+          const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + mId.slice(-4);
+          await db.insert(schema.projectMembers).values({
+            id: pmId,
+            projectId,
+            userId: mId,
+            role: mId === data.createdBy ? 'owner' : 'contributor',
+          });
+        }
+
+        for (const tId of teamIds) {
+          const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + tId.slice(-4);
+          await db.insert(schema.projectTeams).values({
+            id: ptId,
+            projectId,
+            teamId: tId,
+          });
+        }
       }
-    } catch {
-      // Retain in-memory copy
+    } catch (err: any) {
+      console.error('[ProjectRepository] PostgreSQL Insert Error in createProject:', err.message || err);
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw err;
+      }
     }
 
     return {

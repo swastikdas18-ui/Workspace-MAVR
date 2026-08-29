@@ -70,6 +70,8 @@ teamRouter.post('/', requirePermission('teams:create'), async (c) => {
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
+    console.log('CREATE TEAM REQUEST', body);
+
     if (!body.name || !body.name.trim()) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Team name is required.' } }, 400);
     }

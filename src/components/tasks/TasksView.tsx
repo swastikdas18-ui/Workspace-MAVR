@@ -11,7 +11,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const TasksView: React.FC = () => {
+interface TasksViewProps {
+  routeTaskId?: string | null;
+  onRouteChange?: (taskId: string | null) => void;
+}
+
+export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange }) => {
   const { 
     tasks, users, projects, currentUser, currentRole, permissions, 
     createTask, updateTaskStatus, deleteTask, searchQuery,
@@ -28,6 +33,23 @@ export const TasksView: React.FC = () => {
   const [commentInput, setCommentInput] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  // Sync routeTaskId with selected task
+  useEffect(() => {
+    if (routeTaskId) {
+      const found = tasks.find((t) => t.id === routeTaskId);
+      if (found) {
+        setSelectedTask(found);
+      }
+    }
+  }, [routeTaskId, tasks]);
+
+  const handleSelectTask = (task: Task | null) => {
+    setSelectedTask(task);
+    if (onRouteChange) {
+      onRouteChange(task ? task.id : null);
+    }
+  };
 
   // Create Form State
   const [title, setTitle] = useState('');
@@ -288,7 +310,7 @@ export const TasksView: React.FC = () => {
                         key={task.id}
                         whileHover={{ y: -2 }}
                         transition={{ duration: 0.15 }}
-                        onClick={() => setSelectedTask(task)}
+                        onClick={() => handleSelectTask(task)}
                         className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-xl p-4 shadow-lg transition-all group cursor-pointer"
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -506,7 +528,7 @@ export const TasksView: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setSelectedTask(null)}
+                  onClick={() => handleSelectTask(null)}
                   className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />

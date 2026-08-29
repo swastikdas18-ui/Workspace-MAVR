@@ -737,6 +737,21 @@ export const api = {
     return await fetchApi<{ report?: any; analytics?: any }>('/api/time/analytics');
   },
 
+  async getEmployeeBillingProfiles() {
+    return await fetchApi<{ profiles: any[] }>('/api/time/profiles');
+  },
+
+  async getEmployeeBillingProfile(userId: string) {
+    return await fetchApi<{ profile: any }>(`/api/time/profiles/${userId}`);
+  },
+
+  async updateEmployeeBillingProfile(userId: string, data: { costRate?: number; billableRate?: number; utilizationTarget?: number }) {
+    return await fetchApi<{ profile: any }>(`/api/time/profiles/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Phase 30: Client Observability & Error Reporting
   async reportClientError(payload: any) {
     try {

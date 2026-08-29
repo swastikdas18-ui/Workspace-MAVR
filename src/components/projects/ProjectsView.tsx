@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Project, ProjectStatus } from '../../types';
 import { 
@@ -13,7 +13,12 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type ViewMode = 'board' | 'list' | 'timeline';
 
-export const ProjectsView: React.FC = () => {
+interface ProjectsViewProps {
+  routeProjectId?: string | null;
+  onRouteChange?: (projectId: string | null) => void;
+}
+
+export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRouteChange }) => {
   const { 
     projects, currentUser, currentRole, permissions, createProject, 
     updateProject, deleteProject, users, teams, searchQuery 
@@ -22,6 +27,26 @@ export const ProjectsView: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('board');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedProjectModal, setSelectedProjectModal] = useState<Project | null>(null);
+
+  // Sync routeProjectId with active modal
+  useEffect(() => {
+    if (routeProjectId) {
+      const found = projects.find((p) => p.id === routeProjectId);
+      if (found) {
+        setSelectedProjectModal(found);
+      }
+    } else {
+      setSelectedProjectModal(null);
+    }
+  }, [routeProjectId, projects]);
+
+  const handleSelectProject = (project: Project | null) => {
+    setSelectedProjectModal(project);
+    if (onRouteChange) {
+      onRouteChange(project ? project.id : null);
+    }
+  };
 
   // Form State
   const [title, setTitle] = useState('');
@@ -253,7 +278,10 @@ export const ProjectsView: React.FC = () => {
                           )}
                         </div>
 
-                        <h4 className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1">
+                        <h4 
+                          onClick={() => handleSelectProject(project)}
+                          className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1 cursor-pointer"
+                        >
                           {project.title}
                         </h4>
                         <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
@@ -613,6 +641,84 @@ export const ProjectsView: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+        {/* PROJECT DETAIL DEEP-LINK DRAWER / MODAL */}
+        {selectedProjectModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#0F172A] border border-white/[0.12] rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${getStatusBadge(selectedProjectModal.status)}`}>
+                      {selectedProjectModal.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-xs text-purple-400 font-mono">ID: {selectedProjectModal.id}</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white tracking-tight">{selectedProjectModal.title}</h2>
+                </div>
+
+                <button
+                  onClick={() => handleSelectProject(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div>
+                  <h4 className="text-slate-400 font-semibold mb-1 uppercase tracking-wider text-[10px]">Description</h4>
+                  <p className="text-slate-200 leading-relaxed bg-[#111827] p-3.5 rounded-xl border border-white/[0.04]">
+                    {selectedProjectModal.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-[#111827] p-3 rounded-xl border border-white/[0.04]">
+                    <span className="text-slate-500 text-[10px] uppercase font-mono">Progress</span>
+                    <p className="text-sm font-mono font-bold text-purple-400 mt-0.5">{selectedProjectModal.progress}%</p>
+                  </div>
+                  <div className="bg-[#111827] p-3 rounded-xl border border-white/[0.04]">
+                    <span className="text-slate-500 text-[10px] uppercase font-mono">Due Date</span>
+                    <p className="text-sm font-mono font-bold text-slate-200 mt-0.5">{selectedProjectModal.due_date}</p>
+                  </div>
+                  <div className="bg-[#111827] p-3 rounded-xl border border-white/[0.04]">
+                    <span className="text-slate-500 text-[10px] uppercase font-mono">Budget</span>
+                    <p className="text-sm font-mono font-bold text-emerald-400 mt-0.5">{selectedProjectModal.budget || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-slate-400 font-semibold mb-2 uppercase tracking-wider text-[10px]">Assigned Members</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {users
+                      .filter((u) => selectedProjectModal.member_ids?.includes(u.id))
+                      .map((u) => (
+                        <div key={u.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-white/[0.06] text-slate-200 text-xs">
+                          <UserAvatar name={u.name} avatar={u.avatar} size="sm" />
+                          <span>{u.name}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-white/[0.08]">
+                <button
+                  onClick={() => handleSelectProject(null)}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Close Project View
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

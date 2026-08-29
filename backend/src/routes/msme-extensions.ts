@@ -44,11 +44,23 @@ wikiRouter.get('/pages', listPagesHandler);
 
 const getPageHandler = async (c: any) => {
   const workspace = c.get('workspace');
+  const user = c.get('user');
+  const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
   const page = await WikiRepository.getPageById(pageId);
   if (!page || (workspace && page.workspaceId !== workspace.id)) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
   }
+
+  // Role visibility checks
+  if (role === 'intern' && page.visibility !== 'public' && page.visibility !== 'learning') {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Interns can only access public or learning wiki documents.' } }, 403);
+  }
+
+  if (role === 'employee' && page.visibility === 'private' && page.createdBy !== user?.id) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Private wiki documents are only accessible to their author or administrators.' } }, 403);
+  }
+
   return c.json({ page }, 200);
 };
 wikiRouter.get('/:id', getPageHandler);
@@ -57,7 +69,12 @@ wikiRouter.get('/pages/:id', getPageHandler);
 const createPageHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
+  const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const body = await c.req.json().catch(() => ({}));
+
+  if (role === 'intern') {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Interns are not permitted to author new wiki pages.' } }, 403);
+  }
 
   const page = await WikiRepository.createPage({
     workspaceId: workspace?.id || 'ws-default',
@@ -65,7 +82,7 @@ const createPageHandler = async (c: any) => {
     title: body.title || 'Untitled Page',
     icon: body.icon || '📄',
     contentJson: body.contentJson,
-    visibility: body.visibility || 'team',
+    visibility: body.visibility || (role === 'admin' ? 'team' : 'team'),
     createdBy: user?.id || 'usr-default',
   });
 
@@ -77,6 +94,7 @@ wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), createPag
 const updatePageHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
+  const effectiveRole = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
   const body = await c.req.json().catch(() => ({}));
 
@@ -93,6 +111,16 @@ const updatePageHandler = async (c: any) => {
       details: { reason: 'cross_workspace_wiki_page' },
     });
     return c.json({ error: { code: 'FORBIDDEN', message: 'Page belongs to another workspace.' } }, 403);
+  }
+
+  // Only Admin can update any page or change visibility; Employee can update pages they created or general team pages if allowed
+  if (effectiveRole === 'intern') {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Interns are not permitted to edit wiki pages.' } }, 403);
+  }
+
+  // If changing visibility to private/admin or updating page authored by admin, employee must be admin or author
+  if (effectiveRole !== 'admin' && body.visibility && body.visibility !== existingPage.visibility) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Only administrators can modify document visibility.' } }, 403);
   }
 
   const updated = await WikiRepository.updatePage(pageId, body, user?.id || 'usr-default');
@@ -235,17 +263,28 @@ timeRouter.get('/entries', async (c) => {
 timeRouter.delete('/entries/:id', async (c) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
-  const role = workspace?.roleInWorkspace || user?.role;
+  const effectiveRole = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const entryId = c.req.param('id');
 
-  const entries = await TimeTrackingRepository.getEntries(workspace?.id || '', {});
-  const entry = entries.find((e) => e.id === entryId);
+  const entry = await TimeTrackingRepository.getEntryById(entryId);
   if (!entry) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Time entry not found.' } }, 404);
   }
 
-  // Admin can delete any entry, others can delete only their own
-  if (role !== 'admin' && entry.userId !== user?.id) {
+  // Cross-workspace tenant check
+  if (workspace && entry.workspaceId !== workspace.id) {
+    await logSecurityEvent('access.forbidden', {
+      actorId: user?.id || null,
+      workspaceId: workspace.id,
+      resourceId: `DELETE /time/entries/${entryId}`,
+      ...requestSecurityMeta(c),
+      details: { reason: 'cross_workspace_time_entry' },
+    });
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Time entry belongs to another workspace.' } }, 403);
+  }
+
+  // Role permissions: Admin can delete any entry in workspace; Employee/intern can only delete their own entries
+  if (effectiveRole !== 'admin' && entry.userId !== user?.id) {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Unauthorized to delete this time entry.' } }, 403);
   }
 
@@ -263,6 +302,36 @@ timeRouter.get('/analytics', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   const report = await TimeTrackingRepository.getUtilizationReport(workspace?.id || '');
   return c.json({ analytics: report }, 200);
+});
+
+// Admin Team Billing Settings APIs
+timeRouter.get('/profiles', requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
+  const profiles = await TimeTrackingRepository.getWorkspaceBillingProfiles(workspace?.id || '');
+  return c.json({ profiles }, 200);
+});
+
+timeRouter.get('/profiles/:userId', requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
+  const userId = c.req.param('userId');
+  const profile = await TimeTrackingRepository.getEmployeeBillingProfile(workspace?.id || '', userId);
+  return c.json({ profile }, 200);
+});
+
+timeRouter.patch('/profiles/:userId', requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
+  const userId = c.req.param('userId');
+  const body = await c.req.json().catch(() => ({}));
+
+  const updated = await TimeTrackingRepository.updateEmployeeBillingProfile({
+    workspaceId: workspace?.id || '',
+    userId,
+    costRate: body.costRate,
+    billableRate: body.billableRate,
+    utilizationTarget: body.utilizationTarget,
+  });
+
+  return c.json({ profile: updated }, 200);
 });
 
 // ============================================================================

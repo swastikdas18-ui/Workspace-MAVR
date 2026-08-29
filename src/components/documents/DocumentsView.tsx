@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { DocumentItem, DocumentVisibility } from '../../types';
 import { 
@@ -11,7 +11,12 @@ import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const DocumentsView: React.FC = () => {
+interface DocumentsViewProps {
+  routeDocumentId?: string | null;
+  onRouteChange?: (documentId: string | null) => void;
+}
+
+export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, onRouteChange }) => {
   const { 
     documents, currentUser, currentRole, currentWorkspace, permissions, uploadDocument, 
     deleteDocument, incrementDocDownload, searchQuery 
@@ -21,6 +26,23 @@ export const DocumentsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
+
+  // Sync routeDocumentId with preview modal
+  useEffect(() => {
+    if (routeDocumentId) {
+      const found = documents.find((d) => d.id === routeDocumentId);
+      if (found) {
+        setPreviewDoc(found);
+      }
+    }
+  }, [routeDocumentId, documents]);
+
+  const handleSelectDoc = (doc: DocumentItem | null) => {
+    setPreviewDoc(doc);
+    if (onRouteChange) {
+      onRouteChange(doc ? doc.id : null);
+    }
+  };
   
   // Upload Form State
   const [title, setTitle] = useState('');
@@ -242,7 +264,7 @@ export const DocumentsView: React.FC = () => {
                 key={doc.id}
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.15 }}
-                onClick={() => setPreviewDoc(doc)}
+                onClick={() => handleSelectDoc(doc)}
                 className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all group shadow-lg cursor-pointer"
               >
                 <div>
@@ -313,7 +335,7 @@ export const DocumentsView: React.FC = () => {
                 return (
                   <tr 
                     key={doc.id}
-                    onClick={() => setPreviewDoc(doc)}
+                    onClick={() => handleSelectDoc(doc)}
                     className="hover:bg-slate-800/40 transition-colors cursor-pointer group"
                   >
                     <td className="py-3.5 px-4">
@@ -365,7 +387,7 @@ export const DocumentsView: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setPreviewDoc(null)}
+              onClick={() => handleSelectDoc(null)}
               className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             />
             <motion.div
@@ -387,7 +409,7 @@ export const DocumentsView: React.FC = () => {
                     <h2 className="text-lg font-bold text-white tracking-tight">{previewDoc.title}</h2>
                   </div>
                 </div>
-                <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-white p-2">
+                <button onClick={() => handleSelectDoc(null)} className="text-slate-400 hover:text-white p-2">
                   <X className="w-4 h-4" />
                 </button>
               </div>

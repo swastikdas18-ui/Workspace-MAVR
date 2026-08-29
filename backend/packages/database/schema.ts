@@ -614,6 +614,26 @@ export const taskTimeEntries = pgTable(
   })
 );
 
+// 4b. Employee Billing Profiles (Admin configured rates and targets)
+export const employeeBillingProfiles = pgTable(
+  'employee_billing_profiles',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    costRate: integer('cost_rate').notNull().default(1000), // in INR (₹1,000/hr)
+    billableRate: integer('billable_rate').notNull().default(2000), // in INR (₹2,000/hr)
+    utilizationTarget: integer('utilization_target').notNull().default(75), // percentage (e.g. 75%)
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    wsUserIdx: uniqueIndex('idx_emp_billing_ws_user').on(table.workspaceId, table.userId),
+    wsIdx: index('idx_emp_billing_ws_id').on(table.workspaceId),
+    userIdx: index('idx_emp_billing_user_id').on(table.userId),
+  })
+);
+
 // 5. Guest Users (Client Portal)
 export const guestUsers = pgTable(
   'guest_users',

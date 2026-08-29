@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { CrmRecord, CrmStatus } from '../../types';
 import { 
@@ -13,7 +13,12 @@ import { EmptyState } from '../common/EmptyState';
 import { UserAvatar } from '../common/UserAvatar';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const CrmView: React.FC = () => {
+interface CrmViewProps {
+  routeLeadId?: string | null;
+  onRouteChange?: (leadId: string | null) => void;
+}
+
+export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) => {
   const { 
     crmRecords, currentUser, currentRole, permissions, createCrmRecord, 
     updateCrmRecord, deleteCrmRecord, users, searchQuery 
@@ -23,6 +28,26 @@ export const CrmView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
+  const [selectedLeadModal, setSelectedLeadModal] = useState<CrmRecord | null>(null);
+
+  // Sync routeLeadId with selectedLeadModal
+  useEffect(() => {
+    if (routeLeadId) {
+      const found = crmRecords.find((r) => r.id === routeLeadId);
+      if (found) {
+        setSelectedLeadModal(found);
+      }
+    } else {
+      setSelectedLeadModal(null);
+    }
+  }, [routeLeadId, crmRecords]);
+
+  const handleSelectLead = (lead: CrmRecord | null) => {
+    setSelectedLeadModal(lead);
+    if (onRouteChange) {
+      onRouteChange(lead ? lead.id : null);
+    }
+  };
 
   // New Lead Form State
   const [customerName, setCustomerName] = useState('');
@@ -227,7 +252,10 @@ export const CrmView: React.FC = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <h4 className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors">
+                            <h4 
+                              onClick={() => handleSelectLead(rec)}
+                              className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors cursor-pointer"
+                            >
                               {rec.company}
                             </h4>
                             <p className="text-[11px] text-slate-400 font-medium">{rec.customer_name}</p>
@@ -446,6 +474,84 @@ export const CrmView: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* LEAD DETAIL DEEP-LINK MODAL */}
+        {selectedLeadModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#0F172A] border border-white/[0.12] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-6"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 font-bold uppercase">
+                      {selectedLeadModal.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-xs text-slate-400 font-mono">ID: {selectedLeadModal.id}</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white tracking-tight">{selectedLeadModal.company}</h2>
+                  <p className="text-xs text-slate-400 font-medium">{selectedLeadModal.customer_name}</p>
+                </div>
+
+                <button
+                  onClick={() => handleSelectLead(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#111827] p-3.5 rounded-xl border border-white/[0.04]">
+                    <span className="text-slate-500 text-[10px] uppercase font-mono">Deal Value</span>
+                    <p className="text-base font-mono font-bold text-emerald-400 mt-0.5">₹{selectedLeadModal.deal_value.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-[#111827] p-3.5 rounded-xl border border-white/[0.04]">
+                    <span className="text-slate-500 text-[10px] uppercase font-mono">Pipeline Stage</span>
+                    <p className="text-sm font-semibold text-white mt-0.5 capitalize">{selectedLeadModal.status.replace('_', ' ')}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 bg-[#111827] p-4 rounded-xl border border-white/[0.04]">
+                  <h4 className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Contact Info</h4>
+                  <div className="space-y-1.5 text-slate-300">
+                    <p className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-blue-400" />
+                      <span>{selectedLeadModal.email || 'No email provided'}</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{selectedLeadModal.phone || 'No phone provided'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {selectedLeadModal.notes && (
+                  <div>
+                    <h4 className="text-slate-400 font-semibold mb-1.5 uppercase tracking-wider text-[10px]">Opportunity Notes</h4>
+                    <p className="text-slate-200 leading-relaxed bg-[#111827] p-3.5 rounded-xl border border-white/[0.04] whitespace-pre-wrap">
+                      {selectedLeadModal.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-white/[0.08]">
+                <button
+                  onClick={() => handleSelectLead(null)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Close Deal View
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

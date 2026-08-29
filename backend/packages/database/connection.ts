@@ -35,6 +35,7 @@ export class InMemoryDatabase {
   public wikiPageVersions: Map<string, any> = new Map();
   public wikiComments: Map<string, any> = new Map();
   public taskTimeEntries: Map<string, any> = new Map();
+  public employeeBillingProfiles: Map<string, any> = new Map();
   public guestUsers: Map<string, any> = new Map();
   public guestPermissions: Map<string, any> = new Map();
   public guestSessions: Map<string, any> = new Map();
@@ -100,6 +101,7 @@ export class InMemoryDatabase {
     this.wikiPageVersions.clear();
     this.wikiComments.clear();
     this.taskTimeEntries.clear();
+    this.employeeBillingProfiles.clear();
     this.guestUsers.clear();
     this.guestPermissions.clear();
     this.guestSessions.clear();

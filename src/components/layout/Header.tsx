@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   Search, Bell, Menu, Plus, Sparkles, CheckCircle2, 
-  AlertCircle, Info, ExternalLink, ShieldCheck, X
+  AlertCircle, Info, ExternalLink, ShieldCheck, X, ChevronRight
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,21 +20,45 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { 
     currentUser, currentRole, searchQuery, setSearchQuery, 
-    activeTab, systemLogs, permissions 
+    activeTab, currentWorkspace, systemLogs, permissions, setActiveTab
   } = useWorkspace();
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const getBreadcrumbLabel = (tab: string) => {
+    switch (tab) {
+      case 'admin_tools': return 'Admin RBAC Tools';
+      case 'dashboard': return currentRole === 'admin' ? 'Executive Center' : currentRole === 'employee' ? 'Productivity Hub' : 'Learning Sandbox';
+      case 'time': return 'Time & Utilization';
+      case 'crm': return 'CRM Pipeline';
+      case 'wiki': return 'Workspace Wiki';
+      case 'portal': return 'Client Portal';
+      default: return tab.charAt(0).toUpperCase() + tab.slice(1);
+    }
+  };
+
   return (
     <header className="h-16 border-b border-white/[0.08] bg-[#0F172A]/80 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 text-slate-200">
-      {/* Left Area: Mobile Menu & Global Search Bar */}
-      <div className="flex items-center gap-3 max-w-lg w-full">
+      {/* Left Area: Mobile Menu, Breadcrumbs & Global Search Bar */}
+      <div className="flex items-center gap-4 max-w-xl w-full">
         <button
           onClick={onOpenMobileSidebar}
-          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-white/[0.06] transition-colors cursor-pointer"
+          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-white/[0.06] transition-colors cursor-pointer shrink-0"
           title="Open Navigation"
         >
           <Menu className="w-4 h-4" />
         </button>
+
+        {/* Dynamic Route Breadcrumb */}
+        <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-400 shrink-0 font-medium select-none">
+          <span 
+            onClick={() => setActiveTab('dashboard')}
+            className="hover:text-white transition-colors cursor-pointer"
+          >
+            {currentWorkspace?.name || 'Workspace OS'}
+          </span>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+          <span className="text-purple-400 font-semibold">{getBreadcrumbLabel(activeTab)}</span>
+        </div>
 
         {/* Global Search / Command Bar */}
         <button

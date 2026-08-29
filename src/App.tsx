@@ -45,6 +45,7 @@ const pathToTabMap: Record<string, string> = {
   '/admin/settings': 'settings',
   '/admin/tools': 'admin_tools',
   '/admin/audit': 'admin_tools',
+  '/admin/wiki': 'wiki',
   '/automations': 'automations',
   '/employee/dashboard': 'dashboard',
   '/employee/projects': 'projects',
@@ -52,9 +53,11 @@ const pathToTabMap: Record<string, string> = {
   '/employee/documents': 'documents',
   '/employee/crm': 'crm',
   '/employee/teams': 'teams',
+  '/employee/wiki': 'wiki',
   '/intern/dashboard': 'dashboard',
   '/intern/tasks': 'tasks',
   '/intern/documents': 'documents',
+  '/intern/wiki': 'wiki',
   '/analytics': 'analytics',
   '/billing': 'billing',
   '/settings': 'settings',
@@ -63,6 +66,10 @@ const pathToTabMap: Record<string, string> = {
   '/documents': 'documents',
   '/crm': 'crm',
   '/teams': 'teams',
+  '/wiki': 'wiki',
+  '/time': 'time',
+  '/portal': 'portal',
+  '/integrations': 'integrations',
   '/workspace': 'workspace',
   '/dashboard': 'dashboard',
   '/onboarding': 'onboarding',
@@ -79,6 +86,10 @@ const tabToPathMap: Record<string, string> = {
   documents: '/documents',
   crm: '/crm',
   teams: '/teams',
+  wiki: '/wiki',
+  time: '/time',
+  portal: '/portal',
+  integrations: '/integrations',
   workspace: '/workspace',
   dashboard: '/dashboard',
   onboarding: '/onboarding',
@@ -88,6 +99,13 @@ const tabToPathMap: Record<string, string> = {
 const MainAppContent: React.FC = () => {
   const { isLandingPage, isAuthBootstrapping, currentRole, activeTab, setActiveTab, userWorkspaces, currentWorkspace } = useWorkspace();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  
+  // Standalone Route ID Parameters
+  const [wikiPageIdParam, setWikiPageIdParam] = useState<string | null>(null);
+  const [projectIdParam, setProjectIdParam] = useState<string | null>(null);
+  const [taskIdParam, setTaskIdParam] = useState<string | null>(null);
+  const [crmLeadIdParam, setCrmLeadIdParam] = useState<string | null>(null);
+  const [documentIdParam, setDocumentIdParam] = useState<string | null>(null);
 
   // Check URL on initial load and handle invite tokens or deep paths
   useEffect(() => {
@@ -109,14 +127,80 @@ const MainAppContent: React.FC = () => {
       }
     }
 
-    // Check for deep linking
+    // Check for deep entity routes:
+    // /projects/:id
+    if (path.startsWith('/projects/')) {
+      const pId = path.replace('/projects/', '').trim();
+      if (pId) setProjectIdParam(pId);
+      setActiveTab('projects');
+      return;
+    }
+
+    // /tasks/:id
+    if (path.startsWith('/tasks/')) {
+      const tId = path.replace('/tasks/', '').trim();
+      if (tId) setTaskIdParam(tId);
+      setActiveTab('tasks');
+      return;
+    }
+
+    // /crm/:id
+    if (path.startsWith('/crm/')) {
+      const cId = path.replace('/crm/', '').trim();
+      if (cId) setCrmLeadIdParam(cId);
+      setActiveTab('crm');
+      return;
+    }
+
+    // /documents/:id
+    if (path.startsWith('/documents/')) {
+      const dId = path.replace('/documents/', '').trim();
+      if (dId) setDocumentIdParam(dId);
+      setActiveTab('documents');
+      return;
+    }
+
+    // /wiki/:pageId
+    if (path.startsWith('/wiki/')) {
+      const pId = path.replace('/wiki/', '').trim();
+      if (pId) setWikiPageIdParam(pId);
+      setActiveTab('wiki');
+      return;
+    }
+
+    // Check for standard top-level routes
     if (pathToTabMap[path]) {
       setActiveTab(pathToTabMap[path]);
     }
 
     const handlePopState = () => {
       const currentPath = window.location.pathname;
-      if (pathToTabMap[currentPath]) {
+      if (currentPath.startsWith('/projects/')) {
+        const pId = currentPath.replace('/projects/', '').trim();
+        setProjectIdParam(pId || null);
+        setActiveTab('projects');
+      } else if (currentPath.startsWith('/tasks/')) {
+        const tId = currentPath.replace('/tasks/', '').trim();
+        setTaskIdParam(tId || null);
+        setActiveTab('tasks');
+      } else if (currentPath.startsWith('/crm/')) {
+        const cId = currentPath.replace('/crm/', '').trim();
+        setCrmLeadIdParam(cId || null);
+        setActiveTab('crm');
+      } else if (currentPath.startsWith('/documents/')) {
+        const dId = currentPath.replace('/documents/', '').trim();
+        setDocumentIdParam(dId || null);
+        setActiveTab('documents');
+      } else if (currentPath.startsWith('/wiki/')) {
+        const pId = currentPath.replace('/wiki/', '').trim();
+        setWikiPageIdParam(pId || null);
+        setActiveTab('wiki');
+      } else if (pathToTabMap[currentPath]) {
+        setProjectIdParam(null);
+        setTaskIdParam(null);
+        setCrmLeadIdParam(null);
+        setDocumentIdParam(null);
+        setWikiPageIdParam(null);
         setActiveTab(pathToTabMap[currentPath]);
       }
     };
@@ -125,12 +209,22 @@ const MainAppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [setActiveTab]);
 
-  // Synchronize browser URL with activeTab & role prefix
+  // Synchronize browser URL with activeTab & deep entity params
   useEffect(() => {
     if (isLandingPage || isAuthBootstrapping || inviteToken) return;
 
     let targetPath = tabToPathMap[activeTab];
-    if (activeTab === 'dashboard') {
+    if (activeTab === 'projects' && projectIdParam) {
+      targetPath = `/projects/${projectIdParam}`;
+    } else if (activeTab === 'tasks' && taskIdParam) {
+      targetPath = `/tasks/${taskIdParam}`;
+    } else if (activeTab === 'crm' && crmLeadIdParam) {
+      targetPath = `/crm/${crmLeadIdParam}`;
+    } else if (activeTab === 'documents' && documentIdParam) {
+      targetPath = `/documents/${documentIdParam}`;
+    } else if (activeTab === 'wiki' && wikiPageIdParam) {
+      targetPath = `/wiki/${wikiPageIdParam}`;
+    } else if (activeTab === 'dashboard') {
       targetPath = `/${currentRole}/dashboard`;
     } else if (activeTab === 'workspaces') {
       targetPath = '/workspaces';
@@ -143,7 +237,18 @@ const MainAppContent: React.FC = () => {
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, '', targetPath);
     }
-  }, [activeTab, isLandingPage, isAuthBootstrapping, inviteToken, currentRole]);
+  }, [
+    activeTab, 
+    projectIdParam, 
+    taskIdParam, 
+    crmLeadIdParam, 
+    documentIdParam, 
+    wikiPageIdParam, 
+    isLandingPage, 
+    isAuthBootstrapping, 
+    inviteToken, 
+    currentRole
+  ]);
 
   if (isAuthBootstrapping) {
     return (
@@ -216,15 +321,46 @@ const MainAppContent: React.FC = () => {
       case 'projects':
         return (
           <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}>
-            <ProjectsView />
+            <ProjectsView
+              routeProjectId={projectIdParam}
+              onRouteChange={(newPId) => {
+                setProjectIdParam(newPId || null);
+                const targetUrl = newPId ? `/projects/${newPId}` : '/projects';
+                if (window.location.pathname !== targetUrl) {
+                  window.history.pushState(null, '', targetUrl);
+                }
+              }}
+            />
           </RoleGuard>
         );
 
       case 'tasks':
-        return <TasksView />;
+        return (
+          <TasksView
+            routeTaskId={taskIdParam}
+            onRouteChange={(newTId) => {
+              setTaskIdParam(newTId || null);
+              const targetUrl = newTId ? `/tasks/${newTId}` : '/tasks';
+              if (window.location.pathname !== targetUrl) {
+                window.history.pushState(null, '', targetUrl);
+              }
+            }}
+          />
+        );
 
       case 'wiki':
-        return <WikiView />;
+        return (
+          <WikiView
+            routePageId={wikiPageIdParam}
+            onRouteChange={(newPageId) => {
+              setWikiPageIdParam(newPageId || null);
+              const targetUrl = newPageId ? `/wiki/${newPageId}` : '/wiki';
+              if (window.location.pathname !== targetUrl) {
+                window.history.pushState(null, '', targetUrl);
+              }
+            }}
+          />
+        );
 
       case 'time':
         return <TimeTrackingView />;
@@ -240,12 +376,32 @@ const MainAppContent: React.FC = () => {
         );
 
       case 'documents':
-        return <DocumentsView />;
+        return (
+          <DocumentsView
+            routeDocumentId={documentIdParam}
+            onRouteChange={(newDocId) => {
+              setDocumentIdParam(newDocId || null);
+              const targetUrl = newDocId ? `/documents/${newDocId}` : '/documents';
+              if (window.location.pathname !== targetUrl) {
+                window.history.pushState(null, '', targetUrl);
+              }
+            }}
+          />
+        );
 
       case 'crm':
         return (
           <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="CRM customer pipelines, deal values, and forecasting are restricted to Administrators." />}>
-            <CrmView />
+            <CrmView
+              routeLeadId={crmLeadIdParam}
+              onRouteChange={(newLeadId) => {
+                setCrmLeadIdParam(newLeadId || null);
+                const targetUrl = newLeadId ? `/crm/${newLeadId}` : '/crm';
+                if (window.location.pathname !== targetUrl) {
+                  window.history.pushState(null, '', targetUrl);
+                }
+              }}
+            />
           </RequireRole>
         );
 

@@ -23,21 +23,29 @@ export const TimeTrackingView: React.FC = () => {
 
   // Entries state
   const [entries, setEntries] = useState<TaskTimeEntryItem[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
 
-  // Load entries from API
+  // Load entries and analytics from API
   const loadEntries = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await api.getTimeEntries();
-      if (res && Array.isArray(res.entries)) {
-        setEntries(res.entries);
+      const [entriesRes, analyticsRes] = await Promise.all([
+        api.getTimeEntries(),
+        currentRole === 'admin' ? api.getTimeUtilization() : Promise.resolve(null),
+      ]);
+
+      if (entriesRes && Array.isArray(entriesRes.entries)) {
+        setEntries(entriesRes.entries);
+      }
+      if (analyticsRes?.analytics) {
+        setAnalytics(analyticsRes.analytics);
       }
     } catch (err: any) {
-      console.error('[TimeTrackingView] Failed to load entries:', err);
+      console.error('[TimeTrackingView] Failed to load entries/analytics:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentRole]);
 
   // Check active timer on mount
   const checkActiveTimer = useCallback(async () => {
@@ -59,7 +67,7 @@ export const TimeTrackingView: React.FC = () => {
   useEffect(() => {
     loadEntries();
     checkActiveTimer();
-  }, [currentWorkspace?.id]);
+  }, [currentWorkspace?.id, loadEntries, checkActiveTimer]);
 
   // Stopwatch interval
   useEffect(() => {
@@ -167,11 +175,17 @@ export const TimeTrackingView: React.FC = () => {
   const totalRevenue = entries.filter((e) => e.billable).reduce((acc, curr) => acc + ((curr.durationMinutes || 0) / 60) * (curr.hourlyRate || 0), 0);
   const utilizationRate = totalMinutes > 0 ? Math.round((billableMinutes / totalMinutes) * 100) : 0;
 
+  const isAdmin = currentRole === 'admin';
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Time Tracking & Billable Utilization"
-        description="Live stopwatch timers, weekly timesheets, and client revenue billing for MSMEs and agencies."
+        title={isAdmin ? "Time Tracking & Billable Utilization" : "Productivity Timesheet"}
+        description={
+          isAdmin 
+            ? "Live stopwatch timers, weekly timesheets, and client revenue billing for MSMEs and agencies."
+            : "Track your focused time on assigned initiatives and review your timesheet logs."
+        }
       />
 
       {/* 1. LIVE STOPWATCH CONTROLLER */}
@@ -188,19 +202,21 @@ export const TimeTrackingView: React.FC = () => {
               onChange={(e) => setActiveTaskTitle(e.target.value)}
               className="w-full sm:w-80 px-4 py-2.5 rounded-xl bg-slate-950 border border-white/[0.08] text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
             />
-            <div className="flex items-center gap-3 mt-2">
-              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isBillable}
-                  onChange={(e) => setIsBillable(e.target.checked)}
-                  className="rounded text-blue-500 bg-slate-900"
-                />
-                <span>Billable Time</span>
-              </label>
-              <span className="text-slate-600">•</span>
-              <span className="text-xs font-mono text-emerald-400">Rate: ₹{hourlyRate}/hr</span>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-3 mt-2">
+                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isBillable}
+                    onChange={(e) => setIsBillable(e.target.checked)}
+                    className="rounded text-blue-500 bg-slate-900"
+                  />
+                  <span>Billable Time</span>
+                </label>
+                <span className="text-slate-600">•</span>
+                <span className="text-xs font-mono text-emerald-400">Rate: ₹{hourlyRate}/hr</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -234,43 +250,179 @@ export const TimeTrackingView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. UTILIZATION & REVENUE KPIS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          label="Total Hours"
-          value={`${(totalMinutes / 60).toFixed(1)} hrs`}
-          icon={Clock}
-          color="blue"
-          trend={{ value: `${entries.length} logs`, direction: 'neutral', label: 'recorded' }}
-          sparklineData={entries.length > 0 ? [0, totalMinutes / 60] : [0]}
-        />
-        <MetricCard
-          label="Billable Hours"
-          value={`${(billableMinutes / 60).toFixed(1)} hrs`}
-          icon={DollarSign}
-          color="emerald"
-          trend={{ value: `${((totalMinutes - billableMinutes) / 60).toFixed(1)} non-billable`, direction: 'up', label: 'client focus' }}
-          sparklineData={entries.length > 0 ? [0, billableMinutes / 60] : [0]}
-        />
-        <MetricCard
-          label="Billable Revenue"
-          value={`₹${Math.round(totalRevenue).toLocaleString()}`}
-          icon={TrendingUp}
-          color="purple"
-          trend={{ value: `₹${hourlyRate}/hr rate`, direction: 'up', label: 'realized' }}
-          sparklineData={entries.length > 0 ? [0, totalRevenue] : [0]}
-        />
-        <MetricCard
-          label="Team Utilization"
-          value={`${utilizationRate}%`}
-          icon={BarChart3}
-          color="amber"
-          trend={{ value: 'Target: >75%', direction: 'up', label: 'efficiency' }}
-          sparklineData={entries.length > 0 ? [0, utilizationRate] : [0]}
-        />
-      </div>
+      {/* 2. ENTERPRISE UTILIZATION & FINANCIAL KPIS (Admin gets full revenue, Employees see productivity) */}
+      {isAdmin ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              label="Total Tracked Hours"
+              value={`${analytics?.totalHours !== undefined ? analytics.totalHours : (totalMinutes / 60).toFixed(1)} hrs`}
+              icon={Clock}
+              color="blue"
+              trend={{ value: `${analytics?.nonBillableHours || 0}h non-billable`, direction: 'neutral', label: 'logged' }}
+              sparklineData={[0, analytics?.totalHours || 0]}
+            />
+            <MetricCard
+              label="Billable Hours"
+              value={`${analytics?.billableHours !== undefined ? analytics.billableHours : (billableMinutes / 60).toFixed(1)} hrs`}
+              icon={DollarSign}
+              color="emerald"
+              trend={{ value: `${analytics?.teamUtilizationPercent || utilizationRate}% utilization`, direction: 'up', label: 'efficiency' }}
+              sparklineData={[0, analytics?.billableHours || 0]}
+            />
+            <MetricCard
+              label="Revenue Generated"
+              value={`₹${(analytics?.revenueGenerated || totalRevenue).toLocaleString()}`}
+              icon={TrendingUp}
+              color="purple"
+              trend={{ value: `Billable client focus`, direction: 'up', label: 'realization' }}
+              sparklineData={[0, analytics?.revenueGenerated || 0]}
+            />
+            <MetricCard
+              label="Payroll Cost"
+              value={`₹${(analytics?.payrollCost || 0).toLocaleString()}`}
+              icon={Users}
+              color="rose"
+              trend={{ value: `Internal team cost`, direction: 'neutral', label: 'expended' }}
+              sparklineData={[0, analytics?.payrollCost || 0]}
+            />
+          </div>
 
-      {/* 3. LOGGED TIMESHEET ENTRIES TABLE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              label="Gross Profit Margin"
+              value={`₹${(analytics?.grossMargin || 0).toLocaleString()}`}
+              icon={DollarSign}
+              color="emerald"
+              trend={{ value: `${analytics?.grossMarginPercent || 0}% margin`, direction: 'up', label: 'net profit' }}
+              sparklineData={[0, analytics?.grossMargin || 0]}
+            />
+            <MetricCard
+              label="Team Utilization"
+              value={`${analytics?.teamUtilizationPercent !== undefined ? analytics.teamUtilizationPercent : utilizationRate}%`}
+              icon={BarChart3}
+              color="amber"
+              trend={{ value: 'Target: >75%', direction: 'up', label: 'fleet target' }}
+              sparklineData={[0, analytics?.teamUtilizationPercent || 0]}
+            />
+            <MetricCard
+              label="Total Timesheets"
+              value={`${analytics?.entriesCount !== undefined ? analytics.entriesCount : entries.length} logs`}
+              icon={FileText}
+              color="blue"
+              trend={{ value: 'Recorded activities', direction: 'neutral', label: 'audited' }}
+              sparklineData={[0, entries.length]}
+            />
+            <MetricCard
+              label="Realized Margin %"
+              value={`${analytics?.grossMarginPercent || 0}%`}
+              icon={TrendingUp}
+              color="purple"
+              trend={{ value: 'Revenue - Payroll', direction: 'up', label: 'health' }}
+              sparklineData={[0, analytics?.grossMarginPercent || 0]}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <MetricCard
+            label="Total Hours Tracked"
+            value={`${(totalMinutes / 60).toFixed(1)} hrs`}
+            icon={Clock}
+            color="blue"
+            trend={{ value: `${entries.length} logs`, direction: 'neutral', label: 'recorded' }}
+            sparklineData={entries.length > 0 ? [0, totalMinutes / 60] : [0]}
+          />
+          <MetricCard
+            label="Focus Score"
+            value={`${Math.min(100, Math.round((totalMinutes / 240) * 100))}%`}
+            icon={TrendingUp}
+            color="emerald"
+            trend={{ value: 'Daily goal: 4+ hrs', direction: 'up', label: 'focus' }}
+            sparklineData={entries.length > 0 ? [0, totalMinutes] : [0]}
+          />
+          <MetricCard
+            label="Total Logs"
+            value={`${entries.length}`}
+            icon={FileText}
+            color="purple"
+            trend={{ value: 'Timesheet records', direction: 'neutral', label: 'submitted' }}
+            sparklineData={entries.length > 0 ? [0, entries.length] : [0]}
+          />
+        </div>
+      )}
+
+      {/* 3. ADMIN ONLY: EMPLOYEE UTILIZATION & PROFITABILITY RANKINGS */}
+      {isAdmin && analytics?.employeeRankings && analytics.employeeRankings.length > 0 && (
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <span>Employee Utilization & Profitability Leaderboard</span>
+            </h3>
+            <span className="text-xs text-slate-400 font-mono">
+              {analytics.employeeRankings.length} team members audited
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-white/[0.04] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                  <th className="pb-3">Employee ID</th>
+                  <th className="pb-3">Total Hours</th>
+                  <th className="pb-3">Billable Hours</th>
+                  <th className="pb-3">Utilization (%)</th>
+                  <th className="pb-3">Revenue Realized</th>
+                  <th className="pb-3">Payroll Cost</th>
+                  <th className="pb-3 text-right">Gross Margin</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {analytics.employeeRankings.map((emp: any, idx: number) => (
+                  <tr key={emp.userId} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3">
+                      <div className="font-semibold text-white font-mono text-[11px] flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full bg-slate-800 text-[10px] text-slate-400 flex items-center justify-center font-mono">
+                          {idx + 1}
+                        </span>
+                        <span>{emp.userId.slice(0, 14)}...</span>
+                      </div>
+                    </td>
+                    <td className="py-3 font-mono font-bold text-slate-200">
+                      {emp.totalHours}h
+                    </td>
+                    <td className="py-3 font-mono font-bold text-emerald-400">
+                      {emp.billableHours}h
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono font-bold ${emp.utilizationPercent >= emp.targetUtilization ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {emp.utilizationPercent}%
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          (target: {emp.targetUtilization}%)
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 font-mono font-bold text-purple-400">
+                      ₹{emp.revenue.toLocaleString()}
+                    </td>
+                    <td className="py-3 font-mono text-rose-400">
+                      ₹{emp.payrollCost.toLocaleString()}
+                    </td>
+                    <td className="py-3 font-mono font-bold text-emerald-400 text-right">
+                      ₹{emp.grossMargin.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 4. LOGGED TIMESHEET ENTRIES TABLE */}
       <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
           <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
@@ -283,7 +435,7 @@ export const TimeTrackingView: React.FC = () => {
         <div className="overflow-x-auto">
           {entries.length === 0 ? (
             <div className="py-12 text-center text-xs text-slate-500">
-              No time entries recorded for this workspace yet. Start the stopwatch above or log your billable hours.
+              No time entries recorded for this workspace yet. Start the stopwatch above to log your hours.
             </div>
           ) : (
             <table className="w-full text-left text-xs">
@@ -292,8 +444,8 @@ export const TimeTrackingView: React.FC = () => {
                   <th className="pb-3 font-semibold">Date & Time</th>
                   <th className="pb-3 font-semibold">Task / Initiative</th>
                   <th className="pb-3 font-semibold">Duration</th>
-                  <th className="pb-3 font-semibold">Billable</th>
-                  <th className="pb-3 font-semibold">Revenue</th>
+                  {isAdmin && <th className="pb-3 font-semibold">Billable</th>}
+                  {isAdmin && <th className="pb-3 font-semibold">Revenue</th>}
                   <th className="pb-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
@@ -310,20 +462,24 @@ export const TimeTrackingView: React.FC = () => {
                     <td className="py-3 font-mono font-bold text-slate-200">
                       {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
                     </td>
-                    <td className="py-3">
-                      {entry.billable ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3" /> Yes
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
-                          Internal
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 font-mono font-bold text-emerald-400">
-                      {entry.billable ? `₹${Math.round((entry.durationMinutes / 60) * entry.hourlyRate).toLocaleString()}` : '—'}
-                    </td>
+                    {isAdmin && (
+                      <td className="py-3">
+                        {entry.billable ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            <CheckCircle2 className="w-3 h-3" /> Yes
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                            Internal
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {isAdmin && (
+                      <td className="py-3 font-mono font-bold text-emerald-400">
+                        {entry.billable ? `₹${Math.round((entry.durationMinutes / 60) * (entry.hourlyRate || 0)).toLocaleString()}` : '—'}
+                      </td>
+                    )}
                     <td className="py-3 text-right">
                       {(currentRole === 'admin' || entry.userId === currentUser.id) && (
                         <button

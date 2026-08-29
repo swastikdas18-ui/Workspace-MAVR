@@ -12,6 +12,10 @@ import { runB2StorageTests } from './b2-storage.test';
 import { runPhase19bTests } from './phase19b-production-validation';
 import { runInviteMembershipAuditTests } from './invite-membership-audit.test';
 import { runPhase29Audit } from './phase29-default-plan-audit';
+import { runWikiRbacTests } from './wiki-rbac.test';
+import { runTimeTrackingDeleteTests } from './time-tracking-delete.test';
+import { runBillingRateRbacTests } from './billing-rate-rbac.test';
+import { runUtilizationAnalyticsEngineTests } from './utilization-analytics-engine.test';
 
 async function main() {
   try {
@@ -39,7 +43,15 @@ async function main() {
     await runInviteMembershipAuditTests();
     console.log('\n>>> Starting Suite 12: Phase 29 Default Plan Audit');
     await runPhase29Audit();
-    console.log('\n🌟 ALL 12 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 13: Wiki RBAC & Multi-Tenant Isolation');
+    await runWikiRbacTests();
+    console.log('\n>>> Starting Suite 14: Time Tracking Deletion & Recalculation');
+    await runTimeTrackingDeleteTests();
+    console.log('\n>>> Starting Suite 15: Billing Rate RBAC & Server Enforcement');
+    await runBillingRateRbacTests();
+    console.log('\n>>> Starting Suite 16: Enterprise Utilization Analytics Engine');
+    await runUtilizationAnalyticsEngineTests();
+    console.log('\n🌟 ALL 16 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

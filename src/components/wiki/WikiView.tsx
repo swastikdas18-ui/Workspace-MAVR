@@ -11,12 +11,17 @@ import { EmptyState } from '../common/EmptyState';
 import { api } from '../../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const WikiView: React.FC = () => {
+interface WikiViewProps {
+  routePageId?: string | null;
+  onRouteChange?: (pageId: string | null) => void;
+}
+
+export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }) => {
   const { currentRole, currentUser, currentWorkspace, addToast } = useWorkspace();
   const [pages, setPages] = useState<WikiPageItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [selectedPageId, setSelectedPageId] = useState<string>('');
+  const [selectedPageId, setSelectedPageId] = useState<string>(routePageId || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -27,14 +32,33 @@ export const WikiView: React.FC = () => {
   const [comments, setComments] = useState<WikiCommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
 
+  // Sync routePageId prop changes into state
+  useEffect(() => {
+    if (routePageId && routePageId !== selectedPageId) {
+      setSelectedPageId(routePageId);
+      setIsEditing(false);
+    }
+  }, [routePageId]);
+
   const loadPages = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await api.getWikiPages();
       if (res && Array.isArray(res.pages)) {
         setPages(res.pages);
-        if (res.pages.length > 0 && !selectedPageId) {
+        
+        // If routePageId is provided in URL, prioritize finding that page (or matching by slug or id)
+        if (routePageId) {
+          const match = res.pages.find((p) => p.id === routePageId || p.slug === routePageId);
+          if (match) {
+            setSelectedPageId(match.id);
+          } else {
+            // Invalid or missing page ID
+            setSelectedPageId(routePageId); // Let selectedPage resolve to undefined for 404 UI
+          }
+        } else if (res.pages.length > 0) {
           setSelectedPageId(res.pages[0].id);
+          onRouteChange?.(res.pages[0].id);
         }
       }
     } catch (err: any) {
@@ -42,13 +66,20 @@ export const WikiView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPageId]);
+  }, [routePageId, onRouteChange]);
 
   useEffect(() => {
     loadPages();
   }, [currentWorkspace?.id]);
 
-  const selectedPage = pages.find((p) => p.id === selectedPageId) || pages[0];
+  const selectPage = (pageId: string) => {
+    setSelectedPageId(pageId);
+    setIsEditing(false);
+    onRouteChange?.(pageId);
+  };
+
+  // Resolve selected page by exact ID or slug match
+  const selectedPage = pages.find((p) => p.id === selectedPageId || p.slug === selectedPageId);
 
   const loadComments = useCallback(async (pageId: string) => {
     if (!pageId) return;
@@ -85,7 +116,7 @@ export const WikiView: React.FC = () => {
 
       if (res?.page) {
         setPages((prev) => [res.page, ...prev]);
-        setSelectedPageId(res.page.id);
+        selectPage(res.page.id);
         setEditTitle(res.page.title);
         setEditContentText('Type your documentation content here or insert bullet checklists.');
         setIsEditing(true);
@@ -141,10 +172,12 @@ export const WikiView: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this wiki document?')) return;
     try {
       await api.deleteWikiPage(pageId);
-      setPages((prev) => prev.filter((p) => p.id !== pageId));
+      const remaining = pages.filter((p) => p.id !== pageId);
+      setPages(remaining);
       if (selectedPageId === pageId) {
-        const remaining = pages.filter((p) => p.id !== pageId);
-        setSelectedPageId(remaining[0]?.id || '');
+        const nextId = remaining[0]?.id || null;
+        setSelectedPageId(nextId || '');
+        onRouteChange?.(nextId);
       }
       addToast({
         type: 'success',
@@ -248,10 +281,7 @@ export const WikiView: React.FC = () => {
                 return (
                   <div
                     key={page.id}
-                    onClick={() => {
-                      setSelectedPageId(page.id);
-                      setIsEditing(false);
-                    }}
+                    onClick={() => selectPage(page.id)}
                     className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer group ${
                       isSubpage ? 'ml-3' : ''
                     } ${
@@ -288,17 +318,22 @@ export const WikiView: React.FC = () => {
 
         {/* MAIN CANVAS: Document Viewer / Editor */}
         <div className="lg:col-span-3 bg-[#111827] border border-white/[0.08] rounded-2xl p-6 sm:p-8 flex flex-col shadow-xl">
-          {selectedPage ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 space-y-3">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+              <p className="text-xs text-slate-400 font-mono">Loading documentation...</p>
+            </div>
+          ) : selectedPage ? (
             <div>
               {/* Breadcrumb Navigation */}
               <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 pb-3 border-b border-white/[0.06]">
                 <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-                <span>Wiki</span>
+                <span onClick={() => onRouteChange?.(null)} className="cursor-pointer hover:text-white">Wiki</span>
                 {getBreadcrumbs().map((crumb, idx) => (
                   <React.Fragment key={crumb.id}>
                     <ChevronRight className="w-3 h-3 text-slate-600" />
                     <span
-                      onClick={() => setSelectedPageId(crumb.id)}
+                      onClick={() => selectPage(crumb.id)}
                       className={`cursor-pointer hover:text-white ${
                         idx === getBreadcrumbs().length - 1 ? 'text-white font-semibold' : ''
                       }`}
@@ -485,13 +520,40 @@ export const WikiView: React.FC = () => {
               )}
             </div>
           ) : (
-            <EmptyState
-              title={pages.length === 0 ? "No Wiki Documents Yet" : "No Page Selected"}
-              description={pages.length === 0 ? "Create company playbooks, engineering checklists, or intern onboarding guides." : "Select a wiki page from the sidebar or create a new one."}
-              icon={BookOpen}
-              actionLabel={currentRole !== 'intern' ? 'Create First Page' : undefined}
-              onAction={currentRole !== 'intern' ? () => handleCreatePage(null) : undefined}
-            />
+            <div className="py-12 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/[0.08] flex items-center justify-center mb-4 text-slate-400">
+                <BookOpen className="w-6 h-6 text-blue-400" />
+              </div>
+              <h3 className="text-base font-semibold text-white mb-1">
+                {pages.length === 0 ? "No Wiki Documents Yet" : "Page Not Found"}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+                {pages.length === 0
+                  ? "Create company playbooks, engineering checklists, or intern onboarding guides."
+                  : routePageId
+                  ? `The requested document ID or slug "${routePageId}" could not be found or may have been deleted.`
+                  : "Select a wiki page from the sidebar navigation or create a new document."}
+              </p>
+              <div className="flex items-center gap-3">
+                {pages.length > 0 && (
+                  <button
+                    onClick={() => selectPage(pages[0].id)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/[0.08] transition-colors cursor-pointer"
+                  >
+                    Go to {pages[0].title}
+                  </button>
+                )}
+                {currentRole !== 'intern' && (
+                  <button
+                    onClick={() => handleCreatePage(null)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Document</span>
+                  </button>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

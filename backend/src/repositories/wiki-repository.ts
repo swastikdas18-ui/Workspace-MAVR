@@ -1,4 +1,5 @@
-import { inMemoryDb } from '../../packages/database/index.js';
+import { eq, and, desc } from 'drizzle-orm';
+import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface WikiPage {
   id: string;
@@ -28,9 +29,35 @@ export interface WikiComment {
 
 export class WikiRepository {
   /**
-   * Get all wiki pages for workspace
+   * Get all wiki pages for workspace from PostgreSQL / In-Memory
    */
   public static async getWorkspacePages(workspaceId: string): Promise<WikiPage[]> {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.wikiPages)
+          .where(eq(schema.wikiPages.workspaceId, workspaceId))
+          .orderBy(desc(schema.wikiPages.updatedAt));
+
+        return rows.map((p) => ({
+          id: p.id,
+          workspaceId: p.workspaceId,
+          parentId: p.parentId,
+          title: p.title,
+          icon: p.icon || '📄',
+          coverImage: p.coverImage,
+          slug: p.slug,
+          contentJson: (p.contentJson as Record<string, any>) || {},
+          visibility: (p.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+          createdBy: p.createdBy,
+          createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
+          updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
+        }));
+      }
+    } catch {}
+
     const list: WikiPage[] = [];
     for (const page of inMemoryDb.wikiPages.values()) {
       if (page.workspaceId === workspaceId) {
@@ -44,11 +71,40 @@ export class WikiRepository {
    * Get page by ID
    */
   public static async getPageById(pageId: string): Promise<WikiPage | null> {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.wikiPages)
+          .where(eq(schema.wikiPages.id, pageId))
+          .limit(1);
+
+        if (rows.length > 0) {
+          const p = rows[0];
+          return {
+            id: p.id,
+            workspaceId: p.workspaceId,
+            parentId: p.parentId,
+            title: p.title,
+            icon: p.icon || '📄',
+            coverImage: p.coverImage,
+            slug: p.slug,
+            contentJson: (p.contentJson as Record<string, any>) || {},
+            visibility: (p.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+            createdBy: p.createdBy,
+            createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
+            updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
+          };
+        }
+      }
+    } catch {}
+
     return inMemoryDb.wikiPages.get(pageId) || null;
   }
 
   /**
-   * Create page
+   * Create page in PostgreSQL and In-Memory
    */
   public static async createPage(data: {
     workspaceId: string;
@@ -61,7 +117,8 @@ export class WikiRepository {
   }): Promise<WikiPage> {
     const id = `wiki-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'page';
-    
+    const now = new Date();
+
     const page: WikiPage = {
       id,
       workspaceId: data.workspaceId,
@@ -73,36 +130,74 @@ export class WikiRepository {
       contentJson: data.contentJson || { blocks: [{ id: 'b1', type: 'paragraph', content: 'Start typing here...' }] },
       visibility: data.visibility || 'team',
       createdBy: data.createdBy,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     inMemoryDb.wikiPages.set(id, page);
 
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.wikiPages).values({
+          id,
+          workspaceId: page.workspaceId,
+          parentId: page.parentId,
+          title: page.title,
+          icon: page.icon,
+          coverImage: page.coverImage,
+          slug: page.slug,
+          contentJson: page.contentJson,
+          visibility: page.visibility,
+          createdBy: page.createdBy,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    } catch {}
+
     // Record initial revision
-    this.createVersion(id, 1, page.contentJson, data.createdBy);
+    await this.createVersion(id, 1, page.contentJson, data.createdBy);
 
     return page;
   }
 
   /**
-   * Update page
+   * Update page in PostgreSQL and In-Memory
    */
   public static async updatePage(
     pageId: string,
     updates: Partial<Pick<WikiPage, 'title' | 'icon' | 'contentJson' | 'visibility' | 'parentId'>>,
     userId: string
   ): Promise<WikiPage | null> {
-    const page = inMemoryDb.wikiPages.get(pageId);
+    const page = await this.getPageById(pageId);
     if (!page) return null;
 
+    const now = new Date();
     const updated: WikiPage = {
       ...page,
       ...updates,
-      updatedAt: new Date(),
+      updatedAt: now,
     };
 
     inMemoryDb.wikiPages.set(pageId, updated);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db
+          .update(schema.wikiPages)
+          .set({
+            title: updated.title,
+            icon: updated.icon,
+            contentJson: updated.contentJson,
+            visibility: updated.visibility,
+            parentId: updated.parentId,
+            updatedAt: now,
+          })
+          .where(eq(schema.wikiPages.id, pageId));
+      }
+    } catch {}
 
     // Save revision if content changed
     if (updates.contentJson) {
@@ -115,13 +210,23 @@ export class WikiRepository {
   }
 
   /**
-   * Delete page and its subpages
+   * Delete page and its subpages from PostgreSQL and In-Memory
    */
   public static async deletePage(pageId: string): Promise<boolean> {
-    const page = inMemoryDb.wikiPages.get(pageId);
-    if (!page) return false;
+    try {
+      const db = getDb();
+      if (db) {
+        // Delete subpages
+        await db.delete(schema.wikiPages).where(eq(schema.wikiPages.parentId, pageId));
+        // Delete main page
+        await db.delete(schema.wikiPages).where(eq(schema.wikiPages.id, pageId));
+      }
+    } catch {}
 
-    // Delete subpages
+    const page = inMemoryDb.wikiPages.get(pageId);
+    if (!page) return true;
+
+    // Delete subpages from in-memory
     for (const p of inMemoryDb.wikiPages.values()) {
       if (p.parentId === pageId) {
         inMemoryDb.wikiPages.delete(p.id);
@@ -142,15 +247,31 @@ export class WikiRepository {
     createdBy: string
   ) {
     const id = `ver-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const now = new Date();
     const version = {
       id,
       pageId,
       versionNumber,
       contentSnapshot,
       createdBy,
-      createdAt: new Date(),
+      createdAt: now,
     };
     inMemoryDb.wikiPageVersions.set(id, version);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.wikiPageVersions).values({
+          id,
+          pageId,
+          versionNumber,
+          contentSnapshot,
+          createdBy,
+          createdAt: now,
+        });
+      }
+    } catch {}
+
     return version;
   }
 
@@ -158,6 +279,28 @@ export class WikiRepository {
    * Get page versions
    */
   public static async getPageVersions(pageId: string) {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.wikiPageVersions)
+          .where(eq(schema.wikiPageVersions.pageId, pageId))
+          .orderBy(desc(schema.wikiPageVersions.versionNumber));
+
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            pageId: r.pageId,
+            versionNumber: r.versionNumber,
+            contentSnapshot: r.contentSnapshot as Record<string, any>,
+            createdBy: r.createdBy,
+            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+          }));
+        }
+      }
+    } catch {}
+
     const list: any[] = [];
     for (const ver of inMemoryDb.wikiPageVersions.values()) {
       if (ver.pageId === pageId) {
@@ -178,6 +321,7 @@ export class WikiRepository {
     comment: string;
   }): Promise<WikiComment> {
     const id = `comm-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const now = new Date();
     const comment: WikiComment = {
       id,
       pageId: data.pageId,
@@ -186,9 +330,25 @@ export class WikiRepository {
       blockId: data.blockId,
       comment: data.comment,
       resolved: false,
-      createdAt: new Date(),
+      createdAt: now,
     };
     inMemoryDb.wikiComments.set(id, comment);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.wikiComments).values({
+          id,
+          pageId: data.pageId,
+          userId: data.userId,
+          blockId: data.blockId,
+          comment: data.comment,
+          resolved: false,
+          createdAt: now,
+        });
+      }
+    } catch {}
+
     return comment;
   }
 
@@ -196,6 +356,28 @@ export class WikiRepository {
    * Get page comments
    */
   public static async getPageComments(pageId: string): Promise<WikiComment[]> {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.wikiComments)
+          .where(eq(schema.wikiComments.pageId, pageId));
+
+        if (rows.length > 0) {
+          return rows.map((c) => ({
+            id: c.id,
+            pageId: c.pageId,
+            userId: c.userId,
+            blockId: c.blockId || undefined,
+            comment: c.comment,
+            resolved: c.resolved || false,
+            createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
+          }));
+        }
+      }
+    } catch {}
+
     const list: WikiComment[] = [];
     for (const c of inMemoryDb.wikiComments.values()) {
       if (c.pageId === pageId) {

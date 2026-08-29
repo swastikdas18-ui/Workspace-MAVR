@@ -304,6 +304,12 @@ timeRouter.get('/analytics', requireWorkspaceRole(['admin']), async (c) => {
   return c.json({ analytics: report }, 200);
 });
 
+timeRouter.get('/utilization', requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
+  const report = await TimeTrackingRepository.getUtilizationReport(workspace?.id || '');
+  return c.json({ analytics: report }, 200);
+});
+
 // Admin Team Billing Settings APIs
 timeRouter.get('/profiles', requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');

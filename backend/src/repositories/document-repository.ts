@@ -72,6 +72,9 @@ export class DocumentRepository {
             downloadCount: d.downloadCount || 0,
             createdAt: d.createdAt,
           }));
+        } else {
+          // PostgreSQL is connected and legitimately returned 0 documents for this workspace
+          return [];
         }
       }
     } catch {

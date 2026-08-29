@@ -249,6 +249,9 @@ export class WorkspaceRepository {
               createdAt: m.user.createdAt,
             },
           }));
+        } else {
+          // PostgreSQL is connected and legitimately returned 0 members
+          return [];
         }
       }
     } catch {

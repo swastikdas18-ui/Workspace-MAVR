@@ -135,6 +135,9 @@ export class TaskRepository {
             createdAt: t.createdAt,
             commentsCount: commentCounts.get(t.id) || 0,
           }));
+        } else {
+          // PostgreSQL is connected and legitimately returned 0 tasks for this workspace
+          return [];
         }
       }
     } catch {

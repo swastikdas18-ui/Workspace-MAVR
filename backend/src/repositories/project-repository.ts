@@ -152,10 +152,13 @@ export class ProjectRepository {
             teamIds: teamsByProject.get(p.id) || [],
             tags: ['Enterprise', 'Core'],
           }));
+        } else {
+          // PostgreSQL is connected and legitimately returned 0 projects for this workspace
+          return [];
         }
       }
     } catch {
-      // Fallback to in-memory store
+      // Fallback to in-memory store if DB query threw error
     }
 
     // In-Memory fallback for test isolation / offline mode

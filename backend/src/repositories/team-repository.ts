@@ -92,6 +92,9 @@ export class TeamRepository {
             createdAt: t.createdAt,
             memberIds: Array.from(membersByTeam.get(t.id) || [t.leadId]),
           }));
+        } else {
+          // PostgreSQL is connected and legitimately returned 0 teams for this workspace
+          return [];
         }
       }
     } catch {

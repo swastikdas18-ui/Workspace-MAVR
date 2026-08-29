@@ -140,6 +140,11 @@ export class InMemoryDatabase {
 
 export const inMemoryDb = new InMemoryDatabase();
 
+// In local non-database environment, seed initial Polo accounts for dev/tests
+import('./seed.js').then(({ seedPoloTechnologies }) => {
+  seedPoloTechnologies();
+}).catch(() => {});
+
 let dbInstance: NeonHttpDatabase<typeof schema> | null = null;
 
 /**

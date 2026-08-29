@@ -56,11 +56,29 @@ export interface Project {
   start_date: string;
   due_date: string;
   budget?: string;
+  started_at?: string;
+  submitted_for_review_at?: string;
+  submitted_by?: string;
+  completed_at?: string;
+  approved_by?: string;
+  review_feedback?: string;
   member_ids: string[];
   team_ids?: string[];
   teams?: any[];
   members?: any[];
   tags: string[];
+  created_at?: string;
+}
+
+export interface ProjectUpdate {
+  id: string;
+  project_id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar?: string;
+  progress: number;
+  note?: string;
+  created_at: string;
 }
 
 export interface ProjectMember {

@@ -147,6 +147,12 @@ export const projects = pgTable(
     startDate: timestamp('start_date').defaultNow().notNull(),
     dueDate: timestamp('due_date').notNull(),
     budget: text('budget'),
+    startedAt: timestamp('started_at'),
+    submittedForReviewAt: timestamp('submitted_for_review_at'),
+    submittedBy: text('submitted_by').references(() => users.id),
+    completedAt: timestamp('completed_at'),
+    approvedBy: text('approved_by').references(() => users.id),
+    reviewFeedback: text('review_feedback'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -154,6 +160,23 @@ export const projects = pgTable(
     createdByIdx: index('idx_projects_created_by').on(table.createdBy),
     statusIdx: index('idx_projects_status').on(table.status),
     titleIdx: index('idx_projects_title').on(table.title),
+  })
+);
+
+export const projectUpdates = pgTable(
+  'project_updates',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    progress: integer('progress').notNull(),
+    note: text('note'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    projectIdx: index('idx_project_updates_project_id').on(table.projectId),
+    userIdIdx: index('idx_project_updates_user_id').on(table.userId),
+    createdAtIdx: index('idx_project_updates_created_at').on(table.createdAt),
   })
 );
 

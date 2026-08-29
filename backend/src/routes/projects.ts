@@ -147,6 +147,162 @@ projectRouter.patch(
 );
 
 /**
+ * POST /api/projects/:id/start - Start work on project (planning -> in_progress)
+ */
+projectRouter.post('/:id/start', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const result = await ProjectService.startProject(workspace.id, user.id, role, projectId);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to start project.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/projects/:id/progress - Update project progress with note
+ */
+projectRouter.post('/:id/progress', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json();
+
+    const progress = Number(body.progress);
+    const note = body.note || body.comment;
+
+    const result = await ProjectService.updateProgress(workspace.id, user.id, role, projectId, progress, note);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update progress.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/projects/:id/submit-review - Submit project for review (in_progress -> review)
+ */
+projectRouter.post('/:id/submit-review', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const result = await ProjectService.submitReview(workspace.id, user.id, role, projectId);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to submit review.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/projects/:id/approve - Approve review and complete project (review -> completed)
+ */
+projectRouter.post('/:id/approve', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const result = await ProjectService.approveReview(workspace.id, user.id, role, projectId);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to approve project review.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/projects/:id/request-changes - Request changes on project (review -> in_progress)
+ */
+projectRouter.post('/:id/request-changes', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json();
+    const feedback = body.feedback || body.reviewFeedback || body.note;
+
+    const result = await ProjectService.requestChanges(workspace.id, user.id, role, projectId, feedback);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to request changes.' } },
+      status
+    );
+  }
+});
+
+/**
+ * GET /api/projects/:id/updates - Get project progress update history / timeline
+ */
+projectRouter.get('/:id/updates', requirePermission('projects:read'), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const projectId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const updates = await ProjectService.getProjectUpdates(workspace.id, user.id, role, projectId);
+    return c.json({ updates }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch project updates.' } },
+      status
+    );
+  }
+});
+
+/**
  * DELETE /api/projects/:id - Delete project (Admin only)
  */
 projectRouter.delete('/:id', requirePermission('projects:delete'), async (c) => {

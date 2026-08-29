@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface UserAvatarProps {
+  user?: { name?: string; avatar?: string } | null;
   name?: string;
   avatar?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -15,11 +16,14 @@ export function getUserInitials(name?: string): string {
 }
 
 export const UserAvatar: React.FC<UserAvatarProps> = ({
+  user,
   name,
   avatar,
   size = 'md',
   className = '',
 }) => {
+  const effectiveName = name || user?.name;
+  const effectiveAvatar = avatar || user?.avatar;
   const sizeClasses = {
     xs: 'w-5 h-5 text-[9px]',
     sm: 'w-6 h-6 text-[10px]',
@@ -28,11 +32,11 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     xl: 'w-12 h-12 text-base',
   }[size];
 
-  if (avatar && avatar.trim().length > 0) {
+  if (effectiveAvatar && effectiveAvatar.trim().length > 0) {
     return (
       <img
-        src={avatar}
-        alt={name}
+        src={effectiveAvatar}
+        alt={effectiveName}
         className={`${sizeClasses} rounded-full object-cover ring-1 ring-slate-700 ${className}`}
         onError={(e) => {
           // If image fails to load, replace with initials div
@@ -46,7 +50,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     <div
       className={`${sizeClasses} rounded-full bg-slate-800 border border-slate-700 text-slate-200 font-bold flex items-center justify-center select-none uppercase tracking-wider shrink-0 ${className}`}
     >
-      {getUserInitials(name)}
+      {getUserInitials(effectiveName)}
     </div>
   );
 };

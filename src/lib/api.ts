@@ -276,6 +276,42 @@ export const api = {
     });
   },
 
+  async startProject(id: string) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}/start`, {
+      method: 'POST',
+    });
+  },
+
+  async updateProjectProgress(id: string, progress: number, note?: string) {
+    return await fetchApi<{ update: any; project: any }>(`/api/projects/${id}/progress`, {
+      method: 'POST',
+      body: JSON.stringify({ progress, note }),
+    });
+  },
+
+  async submitProjectReview(id: string) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}/submit-review`, {
+      method: 'POST',
+    });
+  },
+
+  async approveProjectReview(id: string) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}/approve`, {
+      method: 'POST',
+    });
+  },
+
+  async requestProjectChanges(id: string, feedback: string) {
+    return await fetchApi<{ project: any }>(`/api/projects/${id}/request-changes`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    });
+  },
+
+  async getProjectUpdates(id: string) {
+    return await fetchApi<{ updates: any[] }>(`/api/projects/${id}/updates`);
+  },
+
   // Tasks API
   async getTasks() {
     return await fetchApi<{ tasks: any[] }>('/api/tasks');

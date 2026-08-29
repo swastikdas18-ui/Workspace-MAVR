@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
-  User, UserRole, Workspace, Team, Project, Task, DocumentItem, CrmRecord, SystemLog, Invoice, TaskComment, WorkspaceInvite
+  User, UserRole, Workspace, Team, Project, Task, DocumentItem, CrmRecord, SystemLog, Invoice, TaskComment, WorkspaceInvite, ProjectUpdate
 } from '../types';
 import {
   INITIAL_USERS, INITIAL_WORKSPACE, INITIAL_TEAMS, INITIAL_PROJECTS,
@@ -54,6 +54,12 @@ interface WorkspaceContextType {
   createProject: (project: Omit<Project, 'id' | 'created_by' | 'progress'>) => Promise<boolean>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<boolean>;
   deleteProject: (id: string) => Promise<boolean>;
+  startProject: (id: string) => Promise<boolean>;
+  updateProjectProgress: (id: string, progress: number, note?: string) => Promise<boolean>;
+  submitProjectReview: (id: string) => Promise<boolean>;
+  approveProjectReview: (id: string) => Promise<boolean>;
+  requestProjectChanges: (id: string, feedback: string) => Promise<boolean>;
+  getProjectUpdates: (id: string) => Promise<ProjectUpdate[]>;
 
   // Tasks
   createTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<boolean>;
@@ -657,6 +663,91 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return false;
   };
 
+  const startProject = async (id: string): Promise<boolean> => {
+    try {
+      const res = await api.startProject(id);
+      if (res.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, status: 'in_progress' } : p)));
+        addToast({ type: 'success', title: 'Work Started', message: 'Project moved to In Progress.' });
+        logAction(`Started work on project ${id}`, 'PROJECTS');
+        return true;
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to start project.' });
+    }
+    return false;
+  };
+
+  const updateProjectProgress = async (id: string, progress: number, note?: string): Promise<boolean> => {
+    try {
+      const res = await api.updateProjectProgress(id, progress, note);
+      if (res.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, progress } : p)));
+        addToast({ type: 'success', title: 'Progress Updated', message: `Project progress updated to ${progress}%.` });
+        logAction(`Updated progress on project ${id} to ${progress}%`, 'PROJECTS');
+        return true;
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to update progress.' });
+    }
+    return false;
+  };
+
+  const submitProjectReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await api.submitProjectReview(id);
+      if (res.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, status: 'review' } : p)));
+        addToast({ type: 'success', title: 'Submitted for Review', message: 'Project moved to Review stage.' });
+        logAction(`Submitted project ${id} for review`, 'PROJECTS');
+        return true;
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to submit review.' });
+    }
+    return false;
+  };
+
+  const approveProjectReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await api.approveProjectReview(id);
+      if (res.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, status: 'completed', progress: 100 } : p)));
+        addToast({ type: 'success', title: 'Review Approved', message: 'Project completed successfully!' });
+        logAction(`Approved review and completed project ${id}`, 'PROJECTS');
+        return true;
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to approve review.' });
+    }
+    return false;
+  };
+
+  const requestProjectChanges = async (id: string, feedback: string): Promise<boolean> => {
+    try {
+      const res = await api.requestProjectChanges(id, feedback);
+      if (res.project) {
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...res.project, status: 'in_progress', review_feedback: feedback } : p)));
+        addToast({ type: 'warning', title: 'Changes Requested', message: 'Project sent back to In Progress.' });
+        logAction(`Requested changes for project ${id}`, 'PROJECTS');
+        return true;
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to request changes.' });
+    }
+    return false;
+  };
+
+  const getProjectUpdates = async (id: string): Promise<ProjectUpdate[]> => {
+    try {
+      const res = await api.getProjectUpdates(id);
+      return res.updates || [];
+    } catch (err: any) {
+      console.error('[getProjectUpdates] error:', err);
+      return [];
+    }
+  };
+
   // Tasks Actions
   const createTask = async (data: Omit<Task, 'id' | 'created_at'>): Promise<boolean> => {
     if (!permissions.tasks.create) {
@@ -1222,6 +1313,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createProject,
         updateProject,
         deleteProject,
+        startProject,
+        updateProjectProgress,
+        submitProjectReview,
+        approveProjectReview,
+        requestProjectChanges,
+        getProjectUpdates,
         createTask,
         updateTaskStatus,
         updateTask,

@@ -689,4 +689,39 @@ export class TeamRepository {
 
     return Array.from(teamIds);
   }
+
+  /**
+   * Get all team IDs where the user is lead
+   */
+  static async getUserLedTeams(userId: string): Promise<string[]> {
+    const ledTeamIds = new Set<string>();
+
+    try {
+      const db = getDb();
+      if (db) {
+        const ledTeams = await db
+          .select({ id: schema.teams.id })
+          .from(schema.teams)
+          .where(eq(schema.teams.leadId, userId));
+        ledTeams.forEach((t) => ledTeamIds.add(t.id));
+
+        const leadMemberships = await db
+          .select({ teamId: schema.teamMembers.teamId })
+          .from(schema.teamMembers)
+          .where(and(eq(schema.teamMembers.userId, userId), eq(schema.teamMembers.roleInTeam, 'lead')));
+        leadMemberships.forEach((lm) => ledTeamIds.add(lm.teamId));
+      }
+    } catch {
+      // In-memory fallback
+    }
+
+    Array.from(inMemoryDb.teams.values()).forEach((t) => {
+      if (t.leadId === userId) ledTeamIds.add(t.id);
+    });
+    Array.from(inMemoryDb.teamMembers.values()).forEach((tm) => {
+      if (tm.userId === userId && tm.roleInTeam === 'lead') ledTeamIds.add(tm.teamId);
+    });
+
+    return Array.from(ledTeamIds);
+  }
 }

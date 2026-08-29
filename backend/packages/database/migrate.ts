@@ -131,6 +131,26 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS submitted_for_review_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS submitted_by TEXT REFERENCES users(id);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS approved_by TEXT REFERENCES users(id);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS review_feedback TEXT;`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        progress INTEGER NOT NULL CHECK (progress >= 0 AND progress <= 100),
+        note TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_updates_project_id ON project_updates(project_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_updates_user_id ON project_updates(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_updates_created_at ON project_updates(created_at);`;
 
     // 8. Project Members table
     await sql`

@@ -3,7 +3,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   FolderKanban, CheckSquare, Users, DollarSign, 
   Clock, CheckCircle2, ArrowRight, Plus, Sparkles,
-  Calendar, Layers, FileText, Play, Pause, Square, Timer
+  Calendar, Layers, FileText, Play, Pause, Square, Timer,
+  Send, CheckCircle
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
 import { api } from '../../lib/api';
@@ -196,46 +197,92 @@ export const EmployeeDashboard: React.FC = () => {
       )}
 
       {/* KPI Metrics & Time Tracking Widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          label="Today's Hours"
-          value={`${(todayMinutes / 60).toFixed(1)} hrs`}
-          icon={Clock}
-          color="blue"
-          trend={{ value: 'Daily focus', direction: 'up', label: 'today' }}
-          sparklineData={[0, todayMinutes]}
-          onClick={() => setActiveTab('time')}
-        />
+      <div className="space-y-4">
+        {/* Row 1: Time & Task Velocity */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="Today's Hours"
+            value={`${(todayMinutes / 60).toFixed(1)} hrs`}
+            icon={Clock}
+            color="blue"
+            trend={{ value: 'Daily focus', direction: 'up', label: 'today' }}
+            sparklineData={[0, todayMinutes]}
+            onClick={() => setActiveTab('time')}
+          />
 
-        <MetricCard
-          label="Weekly Hours"
-          value={`${(weeklyMinutes / 60).toFixed(1)} hrs`}
-          icon={Calendar}
-          color="purple"
-          trend={{ value: `${Math.round((weeklyMinutes / (40 * 60)) * 100)}% of target`, direction: 'up', label: 'week' }}
-          sparklineData={[0, weeklyMinutes]}
-          onClick={() => setActiveTab('time')}
-        />
+          <MetricCard
+            label="Weekly Hours"
+            value={`${(weeklyMinutes / 60).toFixed(1)} hrs`}
+            icon={Calendar}
+            color="purple"
+            trend={{ value: `${Math.round((weeklyMinutes / (40 * 60)) * 100)}% of target`, direction: 'up', label: 'week' }}
+            sparklineData={[0, weeklyMinutes]}
+            onClick={() => setActiveTab('time')}
+          />
 
-        <MetricCard
-          label="Pending Tasks"
-          value={myPendingTasks.length}
-          icon={CheckSquare}
-          color="amber"
-          trend={{ value: `${myTasks.filter(t => t.priority === 'urgent' || t.priority === 'critical').length} urgent`, direction: 'down', label: 'action required' }}
-          sparklineData={[50, 45, 40, 30, 25, 20, 15]}
-          onClick={() => setActiveTab('tasks')}
-        />
+          <MetricCard
+            label="Pending Tasks"
+            value={myPendingTasks.length}
+            icon={CheckSquare}
+            color="amber"
+            trend={{ value: `${myTasks.filter(t => t.priority === 'urgent' || t.priority === 'critical').length} urgent`, direction: 'down', label: 'action required' }}
+            sparklineData={[50, 45, 40, 30, 25, 20, 15]}
+            onClick={() => setActiveTab('tasks')}
+          />
 
-        <MetricCard
-          label="Tasks Completed"
-          value={myCompletedTasks.length}
-          icon={CheckCircle2}
-          color="emerald"
-          trend={{ value: `${Math.round((myCompletedTasks.length / (myTasks.length || 1)) * 100)}%`, direction: 'up', label: 'velocity' }}
-          sparklineData={[10, 20, 35, 50, 65, 80, 100]}
-          onClick={() => setActiveTab('tasks')}
-        />
+          <MetricCard
+            label="Tasks Completed"
+            value={myCompletedTasks.length}
+            icon={CheckCircle2}
+            color="emerald"
+            trend={{ value: `${Math.round((myCompletedTasks.length / (myTasks.length || 1)) * 100)}%`, direction: 'up', label: 'velocity' }}
+            sparklineData={[10, 20, 35, 50, 65, 80, 100]}
+            onClick={() => setActiveTab('tasks')}
+          />
+        </div>
+
+        {/* Row 2: Project Workflow Lifecycle Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="Assigned Initiatives"
+            value={assignedProjects.length}
+            icon={FolderKanban}
+            color="purple"
+            trend={{ value: 'Active Scope', direction: 'up', label: 'assigned' }}
+            sparklineData={[1, 2, 3, assignedProjects.length]}
+            onClick={() => setActiveTab('projects')}
+          />
+
+          <MetricCard
+            label="In Progress"
+            value={assignedProjects.filter(p => p.status === 'in_progress').length}
+            icon={Play}
+            color="blue"
+            trend={{ value: 'Active Execution', direction: 'up', label: 'in flight' }}
+            sparklineData={[0, 1, 2, assignedProjects.filter(p => p.status === 'in_progress').length]}
+            onClick={() => setActiveTab('projects')}
+          />
+
+          <MetricCard
+            label="Pending Review"
+            value={assignedProjects.filter(p => p.status === 'review').length}
+            icon={Send}
+            color="amber"
+            trend={{ value: 'Awaiting Lead Approval', direction: 'up', label: 'review' }}
+            sparklineData={[0, 1, 1, assignedProjects.filter(p => p.status === 'review').length]}
+            onClick={() => setActiveTab('projects')}
+          />
+
+          <MetricCard
+            label="Completed Initiatives"
+            value={assignedProjects.filter(p => p.status === 'completed').length}
+            icon={CheckCircle}
+            color="emerald"
+            trend={{ value: 'Delivered', direction: 'up', label: 'done' }}
+            sparklineData={[0, 1, 2, assignedProjects.filter(p => p.status === 'completed').length]}
+            onClick={() => setActiveTab('projects')}
+          />
+        </div>
       </div>
 
       {/* Main Focus Area: Tasks, Projects & Recent Timesheet Entries */}

@@ -12,6 +12,12 @@ export interface ProjectEntity {
   startDate: Date;
   dueDate: Date;
   budget?: string | null;
+  startedAt?: Date | null;
+  submittedForReviewAt?: Date | null;
+  submittedBy?: string | null;
+  completedAt?: Date | null;
+  approvedBy?: string | null;
+  reviewFeedback?: string | null;
   createdAt: Date;
   memberIds: string[];
   teamIds: string[];
@@ -29,6 +35,12 @@ export interface CreateProjectParams {
   startDate?: Date;
   dueDate: Date;
   budget?: string;
+  startedAt?: Date | null;
+  submittedForReviewAt?: Date | null;
+  submittedBy?: string | null;
+  completedAt?: Date | null;
+  approvedBy?: string | null;
+  reviewFeedback?: string | null;
   tags?: string[];
   memberIds?: string[];
   teamIds?: string[];
@@ -42,6 +54,12 @@ export interface UpdateProjectParams {
   startDate?: Date;
   dueDate?: Date;
   budget?: string;
+  startedAt?: Date | null;
+  submittedForReviewAt?: Date | null;
+  submittedBy?: string | null;
+  completedAt?: Date | null;
+  approvedBy?: string | null;
+  reviewFeedback?: string | null;
   tags?: string[];
   memberIds?: string[];
   teamIds?: string[];
@@ -177,6 +195,12 @@ export class ProjectRepository {
             startDate: p.startDate,
             dueDate: p.dueDate,
             budget: p.budget,
+            startedAt: p.startedAt,
+            submittedForReviewAt: p.submittedForReviewAt,
+            submittedBy: p.submittedBy,
+            completedAt: p.completedAt,
+            approvedBy: p.approvedBy,
+            reviewFeedback: p.reviewFeedback,
             createdAt: p.createdAt,
             memberIds: membersByProject.get(p.id) || [p.createdBy],
             teamIds: teamsByProject.get(p.id) || [],
@@ -252,6 +276,12 @@ export class ProjectRepository {
         startDate: p.startDate ? new Date(p.startDate) : new Date(),
         dueDate: p.dueDate ? new Date(p.dueDate) : new Date(),
         budget: p.budget || undefined,
+        startedAt: p.startedAt ? new Date(p.startedAt) : undefined,
+        submittedForReviewAt: p.submittedForReviewAt ? new Date(p.submittedForReviewAt) : undefined,
+        submittedBy: p.submittedBy || undefined,
+        completedAt: p.completedAt ? new Date(p.completedAt) : undefined,
+        approvedBy: p.approvedBy || undefined,
+        reviewFeedback: p.reviewFeedback || undefined,
         createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
         memberIds: members.length > 0 ? members : [p.createdBy],
         teamIds: teams.length > 0 ? teams : ((p as any).teamIds || []),
@@ -307,6 +337,12 @@ export class ProjectRepository {
             startDate: project.startDate,
             dueDate: project.dueDate,
             budget: project.budget,
+            startedAt: project.startedAt,
+            submittedForReviewAt: project.submittedForReviewAt,
+            submittedBy: project.submittedBy,
+            completedAt: project.completedAt,
+            approvedBy: project.approvedBy,
+            reviewFeedback: project.reviewFeedback,
             createdAt: project.createdAt,
             memberIds: memberIds.length > 0 ? memberIds : [project.createdBy],
             teamIds,
@@ -340,6 +376,12 @@ export class ProjectRepository {
       startDate: p.startDate ? new Date(p.startDate) : new Date(),
       dueDate: p.dueDate ? new Date(p.dueDate) : new Date(),
       budget: p.budget || undefined,
+      startedAt: p.startedAt ? new Date(p.startedAt) : undefined,
+      submittedForReviewAt: p.submittedForReviewAt ? new Date(p.submittedForReviewAt) : undefined,
+      submittedBy: p.submittedBy || undefined,
+      completedAt: p.completedAt ? new Date(p.completedAt) : undefined,
+      approvedBy: p.approvedBy || undefined,
+      reviewFeedback: p.reviewFeedback || undefined,
       createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
       memberIds: members.length > 0 ? members : [p.createdBy],
       teamIds: teams.length > 0 ? teams : ((p as any).teamIds || []),
@@ -579,6 +621,12 @@ export class ProjectRepository {
         if (updates.startDate !== undefined) setValues.startDate = updates.startDate;
         if (updates.dueDate !== undefined) setValues.dueDate = updates.dueDate;
         if (updates.budget !== undefined) setValues.budget = updates.budget;
+        if (updates.startedAt !== undefined) setValues.startedAt = updates.startedAt;
+        if (updates.submittedForReviewAt !== undefined) setValues.submittedForReviewAt = updates.submittedForReviewAt;
+        if (updates.submittedBy !== undefined) setValues.submittedBy = updates.submittedBy;
+        if (updates.completedAt !== undefined) setValues.completedAt = updates.completedAt;
+        if (updates.approvedBy !== undefined) setValues.approvedBy = updates.approvedBy;
+        if (updates.reviewFeedback !== undefined) setValues.reviewFeedback = updates.reviewFeedback;
 
         if (Object.keys(setValues).length > 0) {
           console.log('[ProjectRepository] UPDATE project status/progress:', { projectId, setValues });
@@ -667,11 +715,204 @@ export class ProjectRepository {
       startDate: updated.startDate ? new Date(updated.startDate) : new Date(),
       dueDate: updated.dueDate ? new Date(updated.dueDate) : new Date(),
       budget: updated.budget,
+      startedAt: updated.startedAt ? new Date(updated.startedAt) : undefined,
+      submittedForReviewAt: updated.submittedForReviewAt ? new Date(updated.submittedForReviewAt) : undefined,
+      submittedBy: updated.submittedBy || undefined,
+      completedAt: updated.completedAt ? new Date(updated.completedAt) : undefined,
+      approvedBy: updated.approvedBy || undefined,
+      reviewFeedback: updated.reviewFeedback || undefined,
       createdAt: updated.createdAt ? new Date(updated.createdAt) : new Date(),
       memberIds: currentMembers.length > 0 ? currentMembers : [updated.createdBy],
       teamIds: currentTeams,
       tags: updated.tags || ['Enterprise', 'Core'],
     };
+  }
+
+  /**
+   * Start Work on a project (planning -> in_progress)
+   */
+  static async startProject(workspaceId: string, projectId: string, userId: string): Promise<ProjectEntity | null> {
+    const startedAt = new Date();
+    const updated = await this.updateProject(workspaceId, projectId, {
+      status: 'in_progress',
+      startedAt,
+    });
+
+    if (updated) {
+      await this.addProjectUpdate(workspaceId, projectId, userId, updated.progress || 0, 'Started work on initiative');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Add a project progress update with note
+   */
+  static async addProjectUpdate(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    progress: number,
+    note?: string
+  ): Promise<any> {
+    const updateId = 'pu-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const now = new Date();
+    const cleanProgress = Math.max(0, Math.min(100, Math.round(progress)));
+
+    const updateRecord = {
+      id: updateId,
+      projectId,
+      userId,
+      progress: cleanProgress,
+      note: note?.trim() || null,
+      createdAt: now,
+    };
+
+    inMemoryDb.projectUpdates.set(updateId, updateRecord);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.projectUpdates).values({
+          id: updateId,
+          projectId,
+          userId,
+          progress: cleanProgress,
+          note: note?.trim() || null,
+          createdAt: now,
+        });
+      }
+    } catch (err: any) {
+      console.error('[ProjectRepository] Failed to insert project_updates to DB:', err.message || err);
+    }
+
+    // Update project progress
+    await this.updateProject(workspaceId, projectId, { progress: cleanProgress });
+
+    return updateRecord;
+  }
+
+  /**
+   * Submit project for review (in_progress -> review)
+   */
+  static async submitForReview(workspaceId: string, projectId: string, userId: string): Promise<ProjectEntity | null> {
+    const submittedForReviewAt = new Date();
+    const updated = await this.updateProject(workspaceId, projectId, {
+      status: 'review',
+      submittedForReviewAt,
+      submittedBy: userId,
+    });
+
+    if (updated) {
+      await this.addProjectUpdate(workspaceId, projectId, userId, updated.progress, 'Submitted initiative for review');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Approve project review and mark completed (review -> completed)
+   */
+  static async approveProject(workspaceId: string, projectId: string, userId: string): Promise<ProjectEntity | null> {
+    const completedAt = new Date();
+    const updated = await this.updateProject(workspaceId, projectId, {
+      status: 'completed',
+      completedAt,
+      approvedBy: userId,
+      progress: 100,
+    });
+
+    if (updated) {
+      await this.addProjectUpdate(workspaceId, projectId, userId, 100, 'Review approved. Initiative completed.');
+    }
+
+    return updated;
+  }
+
+  /**
+   * Request changes on project (review -> in_progress)
+   */
+  static async requestChanges(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    feedback: string
+  ): Promise<ProjectEntity | null> {
+    const updated = await this.updateProject(workspaceId, projectId, {
+      status: 'in_progress',
+      reviewFeedback: feedback.trim(),
+    });
+
+    if (updated) {
+      await this.addProjectUpdate(
+        workspaceId,
+        projectId,
+        userId,
+        updated.progress,
+        `Changes requested: "${feedback.trim()}"`
+      );
+    }
+
+    return updated;
+  }
+
+  /**
+   * Get all progress updates & timeline history for a project
+   */
+  static async getProjectUpdates(projectId: string): Promise<any[]> {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select({
+            id: schema.projectUpdates.id,
+            projectId: schema.projectUpdates.projectId,
+            userId: schema.projectUpdates.userId,
+            userName: schema.users.name,
+            userAvatar: schema.users.avatar,
+            progress: schema.projectUpdates.progress,
+            note: schema.projectUpdates.note,
+            createdAt: schema.projectUpdates.createdAt,
+          })
+          .from(schema.projectUpdates)
+          .leftJoin(schema.users, eq(schema.projectUpdates.userId, schema.users.id))
+          .where(eq(schema.projectUpdates.projectId, projectId))
+          .orderBy(schema.projectUpdates.createdAt);
+
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            project_id: r.projectId,
+            user_id: r.userId,
+            user_name: r.userName || 'Team Member',
+            user_avatar: r.userAvatar,
+            progress: r.progress,
+            note: r.note,
+            created_at: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+          }));
+        }
+      }
+    } catch {
+      // Fallback to in-memory
+    }
+
+    const updates = Array.from(inMemoryDb.projectUpdates.values())
+      .filter((pu) => pu.projectId === projectId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    return updates.map((u) => {
+      const user = inMemoryDb.users.get(u.userId);
+      return {
+        id: u.id,
+        project_id: u.projectId,
+        user_id: u.userId,
+        user_name: user?.name || 'Team Member',
+        user_avatar: user?.avatar,
+        progress: u.progress,
+        note: u.note,
+        created_at: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+      };
+    });
   }
 
   /**

@@ -21,6 +21,7 @@ import { runDataPersistenceAuditTests } from './data-persistence-audit.test';
 import { runTeamCreationPersistenceTests } from './team-creation-persistence.test';
 import { runProjectCreationRbacTests } from './project-creation-rbac.test';
 import { runProjectSystemFullTests } from './project-system-full.test';
+import { runProjectWorkflowTests } from './project-workflow.test';
 
 async function main() {
   try {
@@ -66,7 +67,9 @@ async function main() {
     await runProjectCreationRbacTests();
     console.log('\n>>> Starting Suite 21: Project System Full Integration (Bugs 1, 2, 3)');
     await runProjectSystemFullTests();
-    console.log('\n🌟 ALL 21 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 22: Project Workflow Lifecycle & State Machine');
+    await runProjectWorkflowTests();
+    console.log('\n🌟 ALL 22 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

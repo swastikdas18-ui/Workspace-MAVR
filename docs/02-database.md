@@ -63,6 +63,12 @@ The database uses PostgreSQL with Drizzle ORM.
    - `start_date`: timestamp
    - `due_date`: timestamp
    - `budget`: text
+   - `started_at`: timestamp
+   - `submitted_for_review_at`: timestamp
+   - `submitted_by`: references `users.id`
+   - `completed_at`: timestamp
+   - `approved_by`: references `users.id`
+   - `review_feedback`: text
    - `created_at`: timestamp
 
 8. **project_members**
@@ -75,6 +81,14 @@ The database uses PostgreSQL with Drizzle ORM.
    - `id`: UUID / text primary key
    - `project_id`: references `projects.id`, cascade delete
    - `team_id`: references `teams.id`, cascade delete
+
+8c. **project_updates**
+   - `id`: UUID / text primary key
+   - `project_id`: references `projects.id`, cascade delete
+   - `user_id`: references `users.id`, cascade delete
+   - `progress`: integer, not null
+   - `note`: text
+   - `created_at`: timestamp, default now
 
 9. **tasks**
    - `id`: UUID / text primary key

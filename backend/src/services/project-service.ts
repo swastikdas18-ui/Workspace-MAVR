@@ -36,7 +36,11 @@ export class ProjectService {
     const projects = await ProjectRepository.listProjects(workspaceId, userId, role);
     console.log(`[ProjectService.getProjects] received ${projects.length} projects from repository`);
 
-    return projects.map((p) => ({
+    return projects.map((p) => this.formatProject(p));
+  }
+
+  static formatProject(p: any) {
+    return {
       id: p.id,
       title: p.title,
       description: p.description || '',
@@ -47,10 +51,26 @@ export class ProjectService {
       start_date: p.startDate ? new Date(p.startDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       due_date: p.dueDate ? new Date(p.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       budget: p.budget || undefined,
+      started_at: p.startedAt ? new Date(p.startedAt).toISOString() : undefined,
+      submitted_for_review_at: p.submittedForReviewAt ? new Date(p.submittedForReviewAt).toISOString() : undefined,
+      submitted_by: p.submittedBy || undefined,
+      completed_at: p.completedAt ? new Date(p.completedAt).toISOString() : undefined,
+      approved_by: p.approvedBy || undefined,
+      review_feedback: p.reviewFeedback || undefined,
       member_ids: p.memberIds && p.memberIds.length > 0 ? p.memberIds : [p.createdBy],
       team_ids: p.teamIds || [],
       tags: p.tags || ['Enterprise', 'Core'],
-    }));
+      created_at: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Helper to check if a user is team lead of any of the project's assigned teams
+   */
+  private static async isProjectTeamLead(userId: string, projectTeamIds: string[]): Promise<boolean> {
+    if (!projectTeamIds || projectTeamIds.length === 0) return false;
+    const ledTeams = await TeamRepository.getUserLedTeams(userId);
+    return projectTeamIds.some((tId) => ledTeams.includes(tId));
   }
 
   /**
@@ -104,7 +124,7 @@ export class ProjectService {
       description: input.description?.trim() || '',
       workspaceId,
       createdBy: userId,
-      status: input.status || 'in_progress',
+      status: input.status || 'planning',
       progress: 0,
       startDate: input.startDate ? new Date(input.startDate) : new Date(),
       dueDate: parsedDue,
@@ -126,21 +146,7 @@ export class ProjectService {
       }
     );
 
-    const projectPayload = {
-      id: created.id,
-      title: created.title,
-      description: created.description || '',
-      workspace_id: created.workspaceId,
-      created_by: created.createdBy,
-      status: created.status,
-      progress: created.progress,
-      start_date: created.startDate ? new Date(created.startDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      due_date: created.dueDate ? new Date(created.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      budget: created.budget,
-      member_ids: created.memberIds || [userId],
-      team_ids: created.teamIds || [],
-      tags: created.tags,
-    };
+    const projectPayload = this.formatProject(created);
 
     return {
       project: projectPayload,
@@ -180,23 +186,329 @@ export class ProjectService {
       throw error;
     }
 
-    const members = existing.memberIds || [existing.createdBy];
-
+    const projectPayload = this.formatProject(existing);
     return {
-      id: existing.id,
-      title: existing.title,
-      description: existing.description || '',
-      workspace_id: existing.workspaceId,
-      created_by: existing.createdBy,
-      status: existing.status,
-      progress: existing.progress || 0,
-      start_date: existing.startDate ? new Date(existing.startDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      budget: existing.budget || undefined,
-      member_ids: members.length > 0 ? members : [existing.createdBy],
-      team_ids: existing.teamIds || [],
-      tags: existing.tags || ['Enterprise', 'Core'],
+      project: projectPayload,
+      ...projectPayload,
     };
+  }
+
+  /**
+   * Start Work on a project (Planning -> In Progress)
+   * Allowed: Admin or Team Lead (or project creator)
+   */
+  static async startProject(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns cannot start projects.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.status !== 'planning') {
+      const error: any = new Error(`Cannot start project with status "${existing.status}". Must be in "planning" state.`);
+      error.code = 'INVALID_TRANSITION';
+      error.status = 400;
+      throw error;
+    }
+
+    const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
+    const isOwner = existing.createdBy === userId;
+    const currentMemberIds = existing.memberIds || [existing.createdBy];
+    const isMember = currentMemberIds.includes(userId);
+    const userTeams = await TeamRepository.getUserTeams(userId);
+    const isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+
+    if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember) {
+      const error: any = new Error('You can only start work on initiatives assigned to you or your teams.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const updated = await ProjectRepository.startProject(workspaceId, projectId, userId);
+    if (!updated) {
+      const error: any = new Error('Failed to start project.');
+      error.code = 'INTERNAL_SERVER_ERROR';
+      error.status = 500;
+      throw error;
+    }
+
+    const projectPayload = this.formatProject(updated);
+    return { project: projectPayload, ...projectPayload };
+  }
+
+  /**
+   * Update Progress (with note and historical log in project_updates)
+   * Allowed: Admin, Team Lead, or Assigned Member
+   */
+  static async updateProgress(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string,
+    progress: number,
+    note?: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns cannot update project progress.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (typeof progress !== 'number' || isNaN(progress) || progress < 0 || progress > 100) {
+      const error: any = new Error('Progress must be a number between 0 and 100.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const currentMemberIds = existing.memberIds || [existing.createdBy];
+    const isOwner = existing.createdBy === userId;
+    const isMember = currentMemberIds.includes(userId);
+    const userTeams = await TeamRepository.getUserTeams(userId);
+    const isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+
+    if (role === 'employee' && !isOwner && !isMember && !isTeamMember) {
+      const error: any = new Error('You can only update progress for projects assigned to you or your teams.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const updateRecord = await ProjectRepository.addProjectUpdate(workspaceId, projectId, userId, progress, note);
+    const updated = await ProjectRepository.getProjectById(workspaceId, projectId);
+
+    const projectPayload = this.formatProject(updated!);
+    return {
+      update: updateRecord,
+      project: projectPayload,
+      ...projectPayload,
+    };
+  }
+
+  /**
+   * Submit Project for Review (In Progress -> Review)
+   * Allowed: Admin, Team Lead, or Assigned Member
+   */
+  static async submitReview(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns cannot submit project reviews.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.status !== 'in_progress') {
+      const error: any = new Error(`Cannot submit project for review from status "${existing.status}". Must be "in_progress".`);
+      error.code = 'INVALID_TRANSITION';
+      error.status = 400;
+      throw error;
+    }
+
+    const currentMemberIds = existing.memberIds || [existing.createdBy];
+    const isOwner = existing.createdBy === userId;
+    const isMember = currentMemberIds.includes(userId);
+    const userTeams = await TeamRepository.getUserTeams(userId);
+    const isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+
+    if (role === 'employee' && !isOwner && !isMember && !isTeamMember) {
+      const error: any = new Error('You can only submit assigned projects for review.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const updated = await ProjectRepository.submitForReview(workspaceId, projectId, userId);
+    if (!updated) {
+      const error: any = new Error('Failed to submit project for review.');
+      error.code = 'INTERNAL_SERVER_ERROR';
+      error.status = 500;
+      throw error;
+    }
+
+    const projectPayload = this.formatProject(updated);
+    return { project: projectPayload, ...projectPayload };
+  }
+
+  /**
+   * Approve Project Review and complete initiative (Review -> Completed)
+   * Allowed: Admin or Team Lead only
+   */
+  static async approveReview(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns cannot approve reviews.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.status !== 'review') {
+      const error: any = new Error(`Cannot approve project with status "${existing.status}". Must be in "review" state.`);
+      error.code = 'INVALID_TRANSITION';
+      error.status = 400;
+      throw error;
+    }
+
+    const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
+    if (role === 'employee' && !isLead) {
+      const error: any = new Error('Only Admins or Team Leads can approve project reviews.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const updated = await ProjectRepository.approveProject(workspaceId, projectId, userId);
+    if (!updated) {
+      const error: any = new Error('Failed to approve project.');
+      error.code = 'INTERNAL_SERVER_ERROR';
+      error.status = 500;
+      throw error;
+    }
+
+    const projectPayload = this.formatProject(updated);
+    return { project: projectPayload, ...projectPayload };
+  }
+
+  /**
+   * Request Changes on project (Review -> In Progress)
+   * Allowed: Admin or Team Lead only
+   */
+  static async requestChanges(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string,
+    feedback: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns cannot request changes.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (!feedback || !feedback.trim()) {
+      const error: any = new Error('Review feedback explanation is required when requesting changes.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    if (existing.status !== 'review') {
+      const error: any = new Error(`Cannot request changes on project with status "${existing.status}". Must be in "review" state.`);
+      error.code = 'INVALID_TRANSITION';
+      error.status = 400;
+      throw error;
+    }
+
+    const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
+    if (role === 'employee' && !isLead) {
+      const error: any = new Error('Only Admins or Team Leads can request changes on project reviews.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const updated = await ProjectRepository.requestChanges(workspaceId, projectId, userId, feedback.trim());
+    if (!updated) {
+      const error: any = new Error('Failed to request changes on project.');
+      error.code = 'INTERNAL_SERVER_ERROR';
+      error.status = 500;
+      throw error;
+    }
+
+    const projectPayload = this.formatProject(updated);
+    return { project: projectPayload, ...projectPayload };
+  }
+
+  /**
+   * Get all progress updates and timeline events for a project
+   */
+  static async getProjectUpdates(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    projectId: string
+  ): Promise<any[]> {
+    const role = normalizeRole(rawRole);
+    if (!can(role, 'projects:read', undefined, { userId, workspaceId })) {
+      const error: any = new Error('Interns cannot access project timeline details.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
+    if (!existing) {
+      const error: any = new Error('Project not found.');
+      error.code = 'PROJECT_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    return ProjectRepository.getProjectUpdates(projectId);
   }
 
   /**
@@ -242,12 +554,58 @@ export class ProjectService {
       const userTeams = await TeamRepository.getUserTeams(userId);
       isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
     }
+    
+    const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
 
-    if (role === 'employee' && !isOwner && !isMember && !isTeamMember) {
+    if (role === 'employee' && !isOwner && !isMember && !isTeamMember && !isLead) {
       const error: any = new Error('You can only update projects assigned to you or your teams.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
+    }
+
+    // Strict status transition state machine validation
+    if (updates.status !== undefined && updates.status !== existing.status) {
+      const from = existing.status;
+      const to = updates.status;
+
+      // Allowable paths:
+      // 1. planning -> in_progress (Admin / Lead / Owner)
+      // 2. in_progress -> review (Admin / Lead / Assigned Employee)
+      // 3. review -> completed (Admin / Lead only)
+      // 4. review -> in_progress (Admin / Lead only)
+      // 5. in_progress -> planning (Admin only)
+      if (from === 'planning' && to === 'in_progress') {
+        if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember) {
+          const error: any = new Error('You can only start work on projects assigned to you or your teams.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      } else if (from === 'in_progress' && to === 'review') {
+        // Allowed for all assigned
+      } else if (from === 'review' && to === 'completed') {
+        if (role === 'employee' && !isLead) {
+          const error: any = new Error('Only Admins or Team Leads can approve reviews and complete projects.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      } else if (from === 'review' && to === 'in_progress') {
+        if (role === 'employee' && !isLead) {
+          const error: any = new Error('Only Admins or Team Leads can request changes and move projects back to In Progress.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      } else if (role === 'admin') {
+        // Admin has superuser override if needed
+      } else {
+        const error: any = new Error(`Illegal status transition from "${from}" to "${to}". Must follow Planning -> In Progress -> Review -> Completed.`);
+        error.code = 'INVALID_TRANSITION';
+        error.status = 400;
+        throw error;
+      }
     }
 
     if (updates.title !== undefined && (!updates.title || !updates.title.trim())) {
@@ -286,6 +644,18 @@ export class ProjectService {
     if (memberIds !== undefined) updateParams.memberIds = memberIds;
     if (teamIds !== undefined) updateParams.teamIds = teamIds;
 
+    // Automatic audit timestamp assignment on status change
+    if (updates.status === 'in_progress' && existing.status === 'planning') {
+      updateParams.startedAt = new Date();
+    } else if (updates.status === 'review' && existing.status === 'in_progress') {
+      updateParams.submittedForReviewAt = new Date();
+      updateParams.submittedBy = userId;
+    } else if (updates.status === 'completed' && existing.status === 'review') {
+      updateParams.completedAt = new Date();
+      updateParams.approvedBy = userId;
+      updateParams.progress = 100;
+    }
+
     const updated = await ProjectRepository.updateProject(workspaceId, projectId, updateParams);
     if (!updated) {
       const error: any = new Error('Project not found.');
@@ -313,21 +683,7 @@ export class ProjectService {
       }
     );
 
-    const projectPayload = {
-      id: updated.id,
-      title: updated.title,
-      description: updated.description || '',
-      workspace_id: updated.workspaceId,
-      created_by: updated.createdBy,
-      status: updated.status,
-      progress: updated.progress,
-      start_date: updated.startDate ? new Date(updated.startDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      due_date: updated.dueDate ? new Date(updated.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-      budget: updated.budget,
-      member_ids: updated.memberIds || currentMemberIds,
-      team_ids: updated.teamIds || [],
-      tags: updated.tags,
-    };
+    const projectPayload = this.formatProject(updated);
 
     return {
       project: projectPayload,

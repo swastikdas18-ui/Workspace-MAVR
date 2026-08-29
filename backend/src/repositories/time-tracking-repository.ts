@@ -209,34 +209,15 @@ export class TimeTrackingRepository {
     try {
       const db = getDb();
       if (db) {
-        let effectiveTaskId = data.taskId;
-        if (effectiveTaskId) {
+        let effectiveTaskId: string | null = null;
+        if (data.taskId) {
           const [existingTask] = await db
             .select({ id: schema.tasks.id })
             .from(schema.tasks)
-            .where(eq(schema.tasks.id, effectiveTaskId));
+            .where(eq(schema.tasks.id, data.taskId));
 
-          if (!existingTask) {
-            const defaultTaskId = `task-gen-${data.workspaceId}`;
-            const [genTask] = await db
-              .select({ id: schema.tasks.id })
-              .from(schema.tasks)
-              .where(eq(schema.tasks.id, defaultTaskId));
-
-            if (!genTask) {
-              await db.insert(schema.tasks).values({
-                id: defaultTaskId,
-                title: 'General Time Tracking',
-                description: 'Default task for general time tracking entries',
-                workspaceId: data.workspaceId,
-                createdBy: data.userId,
-                status: 'in_progress',
-                priority: 'medium',
-                dueDate: new Date(Date.now() + 365 * 86400000),
-                createdAt: now,
-              });
-            }
-            effectiveTaskId = defaultTaskId;
+          if (existingTask) {
+            effectiveTaskId = data.taskId;
           }
         }
 
@@ -345,34 +326,15 @@ export class TimeTrackingRepository {
     try {
       const db = getDb();
       if (db) {
-        let effectiveTaskId = data.taskId;
-        if (effectiveTaskId) {
+        let effectiveTaskId: string | null = null;
+        if (data.taskId) {
           const [existingTask] = await db
             .select({ id: schema.tasks.id })
             .from(schema.tasks)
-            .where(eq(schema.tasks.id, effectiveTaskId));
+            .where(eq(schema.tasks.id, data.taskId));
 
-          if (!existingTask) {
-            const defaultTaskId = `task-gen-${data.workspaceId}`;
-            const [genTask] = await db
-              .select({ id: schema.tasks.id })
-              .from(schema.tasks)
-              .where(eq(schema.tasks.id, defaultTaskId));
-
-            if (!genTask) {
-              await db.insert(schema.tasks).values({
-                id: defaultTaskId,
-                title: 'General Time Tracking',
-                description: 'Default task for general time tracking entries',
-                workspaceId: data.workspaceId,
-                createdBy: data.userId,
-                status: 'in_progress',
-                priority: 'medium',
-                dueDate: new Date(Date.now() + 365 * 86400000),
-                createdAt: now,
-              });
-            }
-            effectiveTaskId = defaultTaskId;
+          if (existingTask) {
+            effectiveTaskId = data.taskId;
           }
         }
 

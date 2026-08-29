@@ -21,15 +21,18 @@ export async function authMiddleware(c: Context, next: Next) {
   let token: string | null = null;
   let transport: 'header' | 'cookie' = 'header';
 
-  // Primary: HttpOnly session cookie (Strict OWASP compliance)
-  const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(cookieHeader, WORKSPACE_SESSION_COOKIE);
-  if (cookieToken) {
-    token = cookieToken;
-    transport = 'cookie';
-  } else if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+  // An explicit token is the current SPA session. Prefer it over a cookie so a
+  // stale browser cookie cannot invalidate a freshly authenticated session.
+  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
     token = authHeader.substring(7).trim();
   } else if (customHeader) {
     token = customHeader.trim();
+  } else {
+    const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(cookieHeader, WORKSPACE_SESSION_COOKIE);
+    if (cookieToken) {
+      token = cookieToken;
+      transport = 'cookie';
+    }
   }
 
   console.log(`[Auth] AUTH MIDDLEWARE -> Path: ${c.req.path}, Transport: ${transport}, Token Present: ${!!token}`);

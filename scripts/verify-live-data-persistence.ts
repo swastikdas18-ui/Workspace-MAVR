@@ -210,13 +210,12 @@ async function verifyProductionDataPersistence() {
       timeEntries: tmCnt.count,
     };
   } else {
-    // API verification of counts
     const [pRes, tRes, tmRes, wRes, timeEntriesRes] = await Promise.all([
-      app.request('/api/projects', { headers: { Authorization: `Bearer ${token1}` } }).then(r => r.json()),
-      app.request('/api/tasks', { headers: { Authorization: `Bearer ${token1}` } }).then(r => r.json()),
-      app.request('/api/teams', { headers: { Authorization: `Bearer ${token1}` } }).then(r => r.json()),
-      app.request('/api/wiki', { headers: { Authorization: `Bearer ${token1}` } }).then(r => r.json()),
-      app.request('/api/time/entries', { headers: { Authorization: `Bearer ${token1}` } }).then(r => r.json()),
+      (await app.request('/api/projects', { headers: { Authorization: `Bearer ${token1}` } })).json(),
+      (await app.request('/api/tasks', { headers: { Authorization: `Bearer ${token1}` } })).json(),
+      (await app.request('/api/teams', { headers: { Authorization: `Bearer ${token1}` } })).json(),
+      (await app.request('/api/wiki', { headers: { Authorization: `Bearer ${token1}` } })).json(),
+      (await app.request('/api/time/entries', { headers: { Authorization: `Bearer ${token1}` } })).json(),
     ]);
 
     beforeCounts = {
@@ -335,11 +334,11 @@ async function verifyProductionDataPersistence() {
     };
   } else {
     const [pRes2, tRes2, tmRes2, wRes2, timeEntriesRes2] = await Promise.all([
-      app.request('/api/projects', { headers: { Authorization: `Bearer ${token2}` } }).then(r => r.json()),
-      app.request('/api/tasks', { headers: { Authorization: `Bearer ${token2}` } }).then(r => r.json()),
-      app.request('/api/teams', { headers: { Authorization: `Bearer ${token2}` } }).then(r => r.json()),
-      app.request('/api/wiki', { headers: { Authorization: `Bearer ${token2}` } }).then(r => r.json()),
-      app.request('/api/time/entries', { headers: { Authorization: `Bearer ${token2}` } }).then(r => r.json()),
+      (await app.request('/api/projects', { headers: { Authorization: `Bearer ${token2}` } })).json(),
+      (await app.request('/api/tasks', { headers: { Authorization: `Bearer ${token2}` } })).json(),
+      (await app.request('/api/teams', { headers: { Authorization: `Bearer ${token2}` } })).json(),
+      (await app.request('/api/wiki', { headers: { Authorization: `Bearer ${token2}` } })).json(),
+      (await app.request('/api/time/entries', { headers: { Authorization: `Bearer ${token2}` } })).json(),
     ]);
 
     afterCounts = {

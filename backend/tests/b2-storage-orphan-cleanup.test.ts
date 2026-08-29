@@ -152,8 +152,8 @@ export async function runB2StorageOrphanCleanupTests() {
       title: 'Atlas Confidential Blueprint',
       visibility: 'team',
       category: 'Technical',
-      filename: 'blueprint.pdf',
-      body: Buffer.from('Atlas Blueprint Secret'),
+      fileType: 'pdf',
+      content: Buffer.from('Atlas Blueprint Secret'),
     }
   );
 

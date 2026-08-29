@@ -145,17 +145,14 @@ export class ProjectRepository {
               }
             });
 
-            // Find projects where user is assigned or created tasks
+            // Find projects where user has assigned tasks
             const taskRows = await db
               .select()
               .from(schema.tasks)
               .where(
                 and(
                   eq(schema.tasks.workspaceId, workspaceId),
-                  or(
-                    eq(schema.tasks.assignedTo, userId),
-                    eq(schema.tasks.createdBy, userId)
-                  )
+                  eq(schema.tasks.assignedTo, userId)
                 )
               );
             taskRows.forEach((t) => {

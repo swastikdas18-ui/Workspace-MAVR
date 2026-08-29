@@ -881,7 +881,7 @@ export async function runMigrations() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('migrate.ts')) {
+if (process.argv[1]?.endsWith('migrate.ts') || process.argv[1]?.endsWith('migrate.js')) {
   runMigrations().catch((err) => {
     console.error(err);
     process.exit(1);

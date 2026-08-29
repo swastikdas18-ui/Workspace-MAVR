@@ -212,36 +212,14 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Select Plan Tier
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { id: 'free', name: 'Free', price: '$0/mo', desc: 'Up to 5 members' },
-                      { id: 'pro', name: 'Pro', price: '$49/mo', desc: 'Unlimited teams & tasks' },
-                      { id: 'enterprise', name: 'Enterprise', price: '$199/mo', desc: 'Dedicated DB & SLA' },
-                    ].map((tier) => (
-                      <button
-                        key={tier.id}
-                        type="button"
-                        onClick={() => setPlan(tier.id as any)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          plan === tier.id
-                            ? 'bg-purple-950/30 border-purple-500 shadow-lg shadow-purple-950/30'
-                            : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold uppercase ${plan === tier.id ? 'text-purple-400' : 'text-slate-300'}`}>
-                            {tier.name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">{tier.price}</span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-1">{tier.desc}</p>
-                      </button>
-                    ))}
+                <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>Workspace OS MVP — All Features Unlocked</span>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    Full unmetered access to projects, tasks engine, team directory, document vault, and CRM pipelines with zero usage restrictions.
+                  </p>
                 </div>
 
                 <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.05] space-y-2">

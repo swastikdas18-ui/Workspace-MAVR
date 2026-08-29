@@ -8,6 +8,7 @@
 
 import { inMemoryDb, getDb, subscriptions, invoices, workspaces } from '../../packages/database/index.js';
 import { eq, desc } from 'drizzle-orm';
+import { BILLING_ENABLED } from '../config/features';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -259,6 +260,18 @@ export class BillingRepository {
    * Get Trial status and days remaining
    */
   public static async getTrialStatus(workspaceId: string) {
+    if (!BILLING_ENABLED) {
+      return {
+        isTrialActive: false,
+        plan: 'enterprise',
+        trialStart: new Date(),
+        trialEnd: new Date(Date.now() + 365 * 86400000),
+        daysRemaining: 365,
+        promptLevel: 'none',
+        upgradeRequired: false,
+      };
+    }
+
     const sub = await this.getSubscription(workspaceId);
     const now = Date.now();
     const trialEnd = sub.trialEnd

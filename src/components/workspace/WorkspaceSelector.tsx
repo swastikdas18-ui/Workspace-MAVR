@@ -87,7 +87,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                 {currentWorkspace?.name || 'Workspace OS'}
               </span>
               <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
-                {(currentWorkspace?.plan || 'FREE').toUpperCase()}
+                MVP
               </span>
             </div>
             <span className="text-[10px] text-slate-400 font-mono block truncate">
@@ -144,8 +144,8 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                           <span className="text-xs font-medium truncate block max-w-[130px]">
                             {ws.name}
                           </span>
-                          <span className="text-[9px] uppercase font-mono px-1 py-0.1 rounded bg-slate-800 text-slate-400">
-                            {ws.plan}
+                          <span className="text-[9px] uppercase font-mono px-1 py-0.1 rounded bg-purple-500/20 text-purple-300 font-bold">
+                            MVP
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-500 block truncate">
@@ -227,29 +227,14 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Select Initial Plan
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['free', 'pro', 'enterprise'] as const).map((tier) => (
-                      <button
-                        key={tier}
-                        type="button"
-                        onClick={() => setNewPlan(tier)}
-                        className={`p-2.5 rounded-lg border text-center transition-all cursor-pointer ${
-                          newPlan === tier
-                            ? 'bg-purple-900/30 border-purple-500 text-white'
-                            : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="text-xs font-bold uppercase block">{tier}</span>
-                        <span className="text-[10px] text-slate-400 block mt-0.5">
-                          {tier === 'free' ? '$0/mo' : tier === 'pro' ? '$49/mo' : '$199/mo'}
-                        </span>
-                      </button>
-                    ))}
+                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Workspace OS MVP — Free & Unlimited</span>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Every workspace includes unlimited projects, teams, members, tasks, document vault, and full operational features.
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pt-2">

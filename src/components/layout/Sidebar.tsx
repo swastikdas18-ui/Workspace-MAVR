@@ -44,14 +44,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'teams', label: 'Team Directory', icon: Users, badge: null },
         { id: 'documents', label: 'Vault Documents', icon: FileText, badge: 'Docs' },
         { id: 'analytics', label: 'Analytics & Velocity', icon: BarChart3, badge: null },
-        { 
-          id: 'billing', 
-          label: 'Billing & Plan', 
-          icon: CreditCard, 
-          badge: currentWorkspace?.plan 
-            ? currentWorkspace.plan.charAt(0).toUpperCase() + currentWorkspace.plan.slice(1) 
-            : 'Free' 
-        },
         { id: 'settings', label: 'Settings', icon: Settings, badge: null },
         { id: 'admin_tools', label: 'Admin RBAC Tools', icon: ShieldAlert, badge: 'Sec' },
       ];

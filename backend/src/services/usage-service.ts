@@ -17,6 +17,7 @@
 import { inMemoryDb } from '../../packages/database/index.js';
 import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
 import { PricingEngine } from './pricing-engine';
+import { BILLING_ENABLED } from '../config/features';
 
 export type SeatWarningLevel = 'ok' | 'approaching' | 'critical' | 'exceeded';
 
@@ -178,6 +179,28 @@ export class UsageService {
     const overageData = PricingEngine.getSeatOverage(normalizedPlan, membersCount);
     const hasOverage = overageData.hasOverage;
     const overageCostMonthly = overageData.overageCostMonthly;
+
+    if (!BILLING_ENABLED) {
+      const currentPeriod = new Date().toISOString().substring(0, 7);
+      return {
+        workspaceId,
+        plan: normalizedPlan,
+        period: currentPeriod,
+        usage: {
+          members:     { current: membersCount, limit: includedSeats, percent: calcPercent(membersCount, includedSeats) },
+          projects:    { current: projectsCount, limit: planLimits.maxProjects, percent: calcPercent(projectsCount, planLimits.maxProjects) },
+          storageMb:   { current: storageMb, limit: planLimits.maxStorageMb, percent: calcPercent(storageMb, planLimits.maxStorageMb) },
+          apiRequests: { current: apiRequests, limit: planLimits.maxApiRequestsMonthly, percent: calcPercent(apiRequests, planLimits.maxApiRequestsMonthly) },
+          automations: { current: automationsCount, limit: planLimits.maxAutomations, percent: calcPercent(automationsCount, planLimits.maxAutomations) },
+          activeUsers: { current: membersCount, limit: includedSeats, percent: calcPercent(membersCount, includedSeats) },
+        },
+        seatWarning: { level: 'ok', percent: 0, message: '' },
+        hasOverage: false,
+        overageCostMonthly: 0,
+        warnings: [],
+        recommendation: undefined,
+      };
+    }
 
     const warnings: string[] = [];
     if (seatWarning.level !== 'ok') warnings.push(seatWarning.message);

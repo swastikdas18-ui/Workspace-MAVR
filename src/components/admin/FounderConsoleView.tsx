@@ -175,7 +175,7 @@ export const FounderConsoleView: React.FC = () => {
               <MetricCard label="Monthly Recurring Revenue" value={`₹${mrrVal.toLocaleString('en-IN')}`} subtext="INR / Month" icon={<TrendingUp className="w-4 h-4" />} trend={{ value: 18, positive: true }} color="emerald" />
               <MetricCard label="Annual Run Rate" value={`₹${(arrVal / 100000).toFixed(1)}L`} subtext="Projected ARR" icon={<BarChart3 className="w-4 h-4" />} trend={{ value: 22, positive: true }} color="emerald" />
               <MetricCard label="Paid Workspaces" value={paidWorkspacesCount} subtext={`${conversionRate}% conversion`} icon={<CreditCard className="w-4 h-4" />} trend={{ value: 8, positive: true }} color="blue" />
-              <MetricCard label="Trial Workspaces" value={trialWorkspacesCount} subtext="Free plan" icon={<Zap className="w-4 h-4" />} color="amber" />
+              <MetricCard label="Trial Workspaces" value={trialWorkspacesCount} subtext="MVP workspaces" icon={<Zap className="w-4 h-4" />} color="amber" />
             </div>
           </div>
 

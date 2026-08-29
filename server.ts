@@ -6,6 +6,8 @@ import { app as honoApp } from './backend/src/app';
 import { wsServer } from './backend/src/realtime/websocket-server';
 import { assertProductionSecrets } from './backend/src/config/env';
 import { AuthService } from './backend/src/services/auth-service';
+import { runMigrations } from './backend/packages/database/migrate';
+import { validateDatabaseSchema } from './backend/packages/database/schema-validator';
 
 async function startServer() {
   const app = express();
@@ -49,6 +51,23 @@ async function startServer() {
       'Silent in-memory fallback is strictly prohibited in production. ' +
       'Please configure DATABASE_URL in your deployment environment variables.'
     );
+  }
+
+  // Auto-run schema migrations on database startup to ensure newly added columns/tables are synchronized
+  if (databaseUrl) {
+    try {
+      console.log('[Workspace OS] Auto-synchronizing relational database migrations...');
+      await runMigrations();
+      console.log('[Workspace OS] Database migrations synchronized successfully.');
+      
+      // Strict Startup Schema Validation: Verify required columns exist before accepting traffic
+      await validateDatabaseSchema(databaseUrl);
+    } catch (migErr: any) {
+      if (migErr.message?.includes('[Workspace OS Schema Error]')) {
+        throw migErr;
+      }
+      console.error('[Workspace OS Migration Notice]:', migErr.message || migErr);
+    }
   }
 
   // SECURITY (Phase 17 — Fix #6): Fail fast when required secrets are absent.

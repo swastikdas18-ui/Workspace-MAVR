@@ -64,35 +64,27 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* 14-Day Business Trial Banner */}
-      {isTrial && trialDaysRemaining <= 14 && (
-        <div className="bg-gradient-to-r from-blue-900/40 via-slate-900 to-indigo-900/40 border border-blue-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <Zap className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                  14-Day Business Plan Trial Active
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold">
-                  {trialDaysRemaining} Days Remaining
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Enjoy full access to 50 staff seats, 5 GB encrypted vault, automations, and advanced CRM.
-              </p>
-            </div>
+      {/* Workspace OS MVP All Features Unlocked Banner */}
+      <div className="bg-gradient-to-r from-purple-900/30 via-slate-900 to-indigo-900/30 border border-purple-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <button
-            onClick={() => setActiveTab('billing')}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-blue-500/25 transition-all shrink-0 cursor-pointer"
-          >
-            Manage Subscription
-          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                Workspace OS MVP — All Features Unlocked
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">
+                Free Unlimited
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Full unmetered access to projects, tasks engine, team directory, document vault, automations, and CRM.
+            </p>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Onboarding Checklist for Rapid 15-Minute Activation */}
       <OnboardingChecklist />

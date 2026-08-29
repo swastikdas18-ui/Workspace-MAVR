@@ -75,7 +75,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         { id: 'nav-crm', label: 'Go to CRM Pipeline', icon: DollarSign, category: 'Navigation', tab: 'crm', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
         { id: 'nav-teams', label: 'Go to Team Directory', icon: Users, category: 'Navigation', tab: 'teams', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
         { id: 'nav-analytics', label: 'Go to Analytics & Velocity', icon: BarChart3, category: 'Navigation', tab: 'analytics', roles: ['admin', 'founder', 'platform_admin'] },
-        { id: 'nav-billing', label: 'Go to Billing & Subscriptions', icon: CreditCard, category: 'Navigation', tab: 'billing', roles: ['admin', 'founder', 'platform_admin'] },
         { id: 'nav-settings', label: 'Go to Workspace Settings', icon: Settings, category: 'Navigation', tab: 'settings', roles: ['admin', 'founder', 'platform_admin'] },
         { id: 'nav-admin_tools', label: 'Go to Admin RBAC Tools', icon: ShieldAlert, category: 'Navigation', tab: 'admin_tools', roles: ['admin', 'founder', 'platform_admin'] },
       ];

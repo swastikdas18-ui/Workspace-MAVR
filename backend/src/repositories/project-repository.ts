@@ -1,4 +1,4 @@
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, or } from 'drizzle-orm';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 
 export interface ProjectEntity {
@@ -98,7 +98,7 @@ export class ProjectRepository {
           let filteredProjects = projectRows;
 
           if (role === 'employee' && userId) {
-            // Find project IDs where user is member
+            // Find project IDs where user is direct member
             const userProjectIds = new Set(
               memberRows.filter((m) => m.userId === userId).map((m) => m.projectId)
             );
@@ -110,7 +110,28 @@ export class ProjectRepository {
               .where(eq(schema.teamMembers.userId, userId));
             const userTeamIds = new Set(userTeamMemberships.map((tm) => tm.teamId));
 
-            // Find projects assigned to the user's teams
+            // Also check users.teamId (direct user team assignment)
+            const [userRow] = await db
+              .select({ teamId: schema.users.teamId })
+              .from(schema.users)
+              .where(eq(schema.users.id, userId));
+            if (userRow?.teamId) {
+              userTeamIds.add(userRow.teamId);
+            }
+
+            // Also check if user is a team lead
+            const ledTeams = await db
+              .select({ id: schema.teams.id })
+              .from(schema.teams)
+              .where(
+                and(
+                  eq(schema.teams.workspaceId, workspaceId),
+                  eq(schema.teams.leadId, userId)
+                )
+              );
+            ledTeams.forEach((lt) => userTeamIds.add(lt.id));
+
+            // Find projects assigned to the user's teams (projects -> project_teams)
             teamRows.forEach((tr) => {
               if (userTeamIds.has(tr.teamId)) {
                 userProjectIds.add(tr.projectId);
@@ -124,10 +145,15 @@ export class ProjectRepository {
               .where(
                 and(
                   eq(schema.tasks.workspaceId, workspaceId),
-                  eq(schema.tasks.assignedTo, userId)
+                  or(
+                    eq(schema.tasks.assignedTo, userId),
+                    eq(schema.tasks.createdBy, userId)
+                  )
                 )
               );
-            taskRows.forEach((t) => userProjectIds.add(t.projectId));
+            taskRows.forEach((t) => {
+              if (t.projectId) userProjectIds.add(t.projectId);
+            });
 
             filteredProjects = projectRows.filter((p) => {
               const isOwner = p.createdBy === userId;
@@ -346,7 +372,10 @@ export class ProjectRepository {
 
     inMemoryDb.projects.set(projectId, newProject);
 
-    for (const mId of memberIds) {
+    const validMemberIds = memberIds.filter((mId) => typeof mId === 'string' && mId.trim().length > 0);
+    const validTeamIds = teamIds.filter((tId) => typeof tId === 'string' && tId.trim().length > 0);
+
+    for (const mId of validMemberIds) {
       const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       inMemoryDb.projectMembers.set(pmId, {
         id: pmId,
@@ -356,7 +385,7 @@ export class ProjectRepository {
       });
     }
 
-    for (const tId of teamIds) {
+    for (const tId of validTeamIds) {
       const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       inMemoryDb.projectTeams.set(ptId, {
         id: ptId,
@@ -368,6 +397,13 @@ export class ProjectRepository {
     try {
       const db = getDb();
       if (db) {
+        console.log('[ProjectRepository] INSERT project to PostgreSQL:', {
+          id: projectId,
+          title: data.title,
+          workspaceId: data.workspaceId,
+          createdBy: data.createdBy,
+        });
+
         await db.insert(schema.projects).values({
           id: projectId,
           title: data.title,
@@ -382,8 +418,9 @@ export class ProjectRepository {
           createdAt: now,
         });
 
-        for (const mId of memberIds) {
+        for (const mId of validMemberIds) {
           const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + mId.slice(-4);
+          console.log('[ProjectRepository] INSERT project_members:', { pmId, projectId, userId: mId });
           await db.insert(schema.projectMembers).values({
             id: pmId,
             projectId,
@@ -392,19 +429,39 @@ export class ProjectRepository {
           });
         }
 
-        for (const tId of teamIds) {
-          const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + tId.slice(-4);
-          await db.insert(schema.projectTeams).values({
-            id: ptId,
-            projectId,
-            teamId: tId,
-          });
+        if (validTeamIds.length > 0) {
+          // Verify teams exist in workspace to prevent foreign key errors
+          const existingTeams = await db
+            .select({ id: schema.teams.id })
+            .from(schema.teams)
+            .where(
+              and(
+                eq(schema.teams.workspaceId, data.workspaceId),
+                inArray(schema.teams.id, validTeamIds)
+              )
+            );
+          const existingTeamIds = new Set(existingTeams.map((t) => t.id));
+
+          for (const tId of validTeamIds) {
+            if (existingTeamIds.has(tId)) {
+              const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + tId.slice(-4);
+              console.log('[ProjectRepository] INSERT project_teams:', { ptId, projectId, teamId: tId });
+              await db.insert(schema.projectTeams).values({
+                id: ptId,
+                projectId,
+                teamId: tId,
+              });
+            } else {
+              console.warn(`[ProjectRepository] Skipped project_teams insertion: Team ${tId} not found in workspace.`);
+            }
+          }
         }
+        console.log('[ProjectRepository] INSERT RESULT: Successfully created project in PostgreSQL');
       }
     } catch (err: any) {
       console.error('[ProjectRepository] PostgreSQL Insert Error in createProject:', err.message || err);
       if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
-        throw err;
+        throw new Error(`Failed to persist project to PostgreSQL: ${err.message}`);
       }
     }
 
@@ -420,8 +477,8 @@ export class ProjectRepository {
       dueDate: newProject.dueDate,
       budget: newProject.budget,
       createdAt: newProject.createdAt,
-      memberIds,
-      teamIds,
+      memberIds: validMemberIds,
+      teamIds: validTeamIds,
       tags: newProject.tags,
     };
   }
@@ -463,14 +520,13 @@ export class ProjectRepository {
       ...updates,
       title: updates.title !== undefined ? updates.title : existing?.title || '',
       description: updates.description !== undefined ? updates.description : existing?.description || '',
-      dueDate: updates.dueDate || existing?.dueDate || new Date(),
+      status: updates.status !== undefined ? updates.status : existing?.status || 'in_progress',
+      progress: updates.progress !== undefined ? updates.progress : existing?.progress || 0,
       startDate: updates.startDate || existing?.startDate || new Date(),
+      dueDate: updates.dueDate || existing?.dueDate || new Date(),
+      budget: updates.budget !== undefined ? updates.budget : existing?.budget,
       workspaceId,
       createdBy: existing?.createdBy || '',
-      status: updates.status || existing?.status || 'in_progress',
-      progress: updates.progress !== undefined ? updates.progress : existing?.progress || 0,
-      budget: updates.budget !== undefined ? updates.budget : existing?.budget || '$0',
-      tags: updates.tags || existing?.tags || ['General'],
     };
 
     inMemoryDb.projects.set(projectId, updated);
@@ -517,6 +573,7 @@ export class ProjectRepository {
         if (updates.budget !== undefined) setValues.budget = updates.budget;
 
         if (Object.keys(setValues).length > 0) {
+          console.log('[ProjectRepository] UPDATE project status/progress:', { projectId, setValues });
           await db
             .update(schema.projects)
             .set(setValues)
@@ -529,12 +586,13 @@ export class ProjectRepository {
         }
 
         if (updates.memberIds) {
+          const validMemberIds = updates.memberIds.filter((mId) => typeof mId === 'string' && mId.trim().length > 0);
           await db
             .delete(schema.projectMembers)
             .where(eq(schema.projectMembers.projectId, projectId));
 
-          for (const mId of updates.memberIds) {
-            const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+          for (const mId of validMemberIds) {
+            const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + mId.slice(-4);
             await db.insert(schema.projectMembers).values({
               id: pmId,
               projectId,
@@ -545,22 +603,41 @@ export class ProjectRepository {
         }
 
         if (updates.teamIds) {
+          const validTeamIds = updates.teamIds.filter((tId) => typeof tId === 'string' && tId.trim().length > 0);
           await db
             .delete(schema.projectTeams)
             .where(eq(schema.projectTeams.projectId, projectId));
 
-          for (const tId of updates.teamIds) {
-            const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-            await db.insert(schema.projectTeams).values({
-              id: ptId,
-              projectId,
-              teamId: tId,
-            });
+          if (validTeamIds.length > 0) {
+            const existingTeams = await db
+              .select({ id: schema.teams.id })
+              .from(schema.teams)
+              .where(
+                and(
+                  eq(schema.teams.workspaceId, workspaceId),
+                  inArray(schema.teams.id, validTeamIds)
+                )
+              );
+            const existingTeamIds = new Set(existingTeams.map((t) => t.id));
+
+            for (const tId of validTeamIds) {
+              if (existingTeamIds.has(tId)) {
+                const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + tId.slice(-4);
+                await db.insert(schema.projectTeams).values({
+                  id: ptId,
+                  projectId,
+                  teamId: tId,
+                });
+              }
+            }
           }
         }
       }
-    } catch {
-      // In-memory already updated
+    } catch (err: any) {
+      console.error('[ProjectRepository] PostgreSQL Update Error in updateProject:', err.message || err);
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to update project in PostgreSQL: ${err.message}`);
+      }
     }
 
     const currentMembers = updates.memberIds || Array.from(inMemoryDb.projectMembers.values())
@@ -631,4 +708,3 @@ export class ProjectRepository {
     return true;
   }
 }
-

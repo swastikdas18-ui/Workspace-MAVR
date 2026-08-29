@@ -102,18 +102,19 @@ teamRouter.post('/:id/members', requirePermission('teams:update'), async (c) => 
     const teamId = c.req.param('id');
     const body = await c.req.json();
 
-    if (Array.isArray(body.userIds) && body.userIds.length > 0) {
+    const idsList = body.userIds || body.memberIds || body.member_ids;
+    if (Array.isArray(idsList) && idsList.length > 0) {
       const result = await TeamService.addMembers(
         workspace.id,
         teamId,
-        body.userIds,
+        idsList,
         role,
         user.id
       );
       return c.json(result, 200);
     }
 
-    const targetUserId = body.userId || body.user_id;
+    const targetUserId = body.userId || body.user_id || body.memberId || body.member_id;
     if (!targetUserId) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'User ID is required.' } }, 400);
     }

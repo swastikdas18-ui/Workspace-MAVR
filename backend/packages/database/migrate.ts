@@ -142,6 +142,18 @@ export async function runMigrations() {
       );
     `;
 
+    // 8b. Project Teams table (Assign teams directly to projects)
+    await sql`
+      CREATE TABLE IF NOT EXISTS project_teams (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_teams_project_id ON project_teams(project_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_teams_team_id ON project_teams(team_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_project_teams_proj_team ON project_teams(project_id, team_id);`;
+
     // 9. Tasks table
     await sql`
       CREATE TABLE IF NOT EXISTS tasks (

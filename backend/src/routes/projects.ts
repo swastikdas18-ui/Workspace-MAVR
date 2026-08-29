@@ -121,6 +121,7 @@ projectRouter.patch(
 
       return c.json(result);
     } catch (err: any) {
+      console.error('[projects.ts] Error in patch /:id:', err.message || err, err.stack);
       const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
       return c.json(
         { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update project.' } },

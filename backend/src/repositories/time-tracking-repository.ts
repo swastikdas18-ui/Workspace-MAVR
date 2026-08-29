@@ -209,10 +209,41 @@ export class TimeTrackingRepository {
     try {
       const db = getDb();
       if (db) {
+        let effectiveTaskId = data.taskId;
+        if (effectiveTaskId) {
+          const [existingTask] = await db
+            .select({ id: schema.tasks.id })
+            .from(schema.tasks)
+            .where(eq(schema.tasks.id, effectiveTaskId));
+
+          if (!existingTask) {
+            const defaultTaskId = `task-gen-${data.workspaceId}`;
+            const [genTask] = await db
+              .select({ id: schema.tasks.id })
+              .from(schema.tasks)
+              .where(eq(schema.tasks.id, defaultTaskId));
+
+            if (!genTask) {
+              await db.insert(schema.tasks).values({
+                id: defaultTaskId,
+                title: 'General Time Tracking',
+                description: 'Default task for general time tracking entries',
+                workspaceId: data.workspaceId,
+                createdBy: data.userId,
+                status: 'in_progress',
+                priority: 'medium',
+                dueDate: new Date(Date.now() + 365 * 86400000),
+                createdAt: now,
+              });
+            }
+            effectiveTaskId = defaultTaskId;
+          }
+        }
+
         await db.insert(schema.taskTimeEntries).values({
           id,
           workspaceId: data.workspaceId,
-          taskId: data.taskId,
+          taskId: effectiveTaskId,
           userId: data.userId,
           startTime: now,
           endTime: null,
@@ -314,10 +345,41 @@ export class TimeTrackingRepository {
     try {
       const db = getDb();
       if (db) {
+        let effectiveTaskId = data.taskId;
+        if (effectiveTaskId) {
+          const [existingTask] = await db
+            .select({ id: schema.tasks.id })
+            .from(schema.tasks)
+            .where(eq(schema.tasks.id, effectiveTaskId));
+
+          if (!existingTask) {
+            const defaultTaskId = `task-gen-${data.workspaceId}`;
+            const [genTask] = await db
+              .select({ id: schema.tasks.id })
+              .from(schema.tasks)
+              .where(eq(schema.tasks.id, defaultTaskId));
+
+            if (!genTask) {
+              await db.insert(schema.tasks).values({
+                id: defaultTaskId,
+                title: 'General Time Tracking',
+                description: 'Default task for general time tracking entries',
+                workspaceId: data.workspaceId,
+                createdBy: data.userId,
+                status: 'in_progress',
+                priority: 'medium',
+                dueDate: new Date(Date.now() + 365 * 86400000),
+                createdAt: now,
+              });
+            }
+            effectiveTaskId = defaultTaskId;
+          }
+        }
+
         await db.insert(schema.taskTimeEntries).values({
           id,
           workspaceId: data.workspaceId,
-          taskId: data.taskId,
+          taskId: effectiveTaskId,
           userId: data.userId,
           startTime: data.startTime,
           endTime,
@@ -328,7 +390,9 @@ export class TimeTrackingRepository {
           createdAt: now,
         });
       }
-    } catch {}
+    } catch (err: any) {
+      // In-memory already updated
+    }
 
     return entry;
   }

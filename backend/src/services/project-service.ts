@@ -2,6 +2,7 @@ import { UserRole } from '../types';
 import { WorkspaceBoundaryValidator } from '../lib/validation';
 import { can, normalizeRole } from '../lib/permissions';
 import { ProjectRepository, CreateProjectParams, UpdateProjectParams } from '../repositories/project-repository';
+import { TeamRepository } from '../repositories/team-repository';
 import { EventService } from './event-service';
 
 export interface CreateProjectInput {
@@ -233,8 +234,14 @@ export class ProjectService {
     const isOwner = existing.createdBy === userId;
     const isMember = currentMemberIds.includes(userId);
 
-    if (role === 'employee' && !isOwner && !isMember) {
-      const error: any = new Error('You can only update your own projects');
+    let isTeamMember = false;
+    if (existing.teamIds && existing.teamIds.length > 0) {
+      const userTeams = await TeamRepository.getUserTeams(userId);
+      isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+    }
+
+    if (role === 'employee' && !isOwner && !isMember && !isTeamMember) {
+      const error: any = new Error('You can only update projects assigned to you or your teams.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;

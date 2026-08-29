@@ -20,6 +20,7 @@ import { runB2StorageOrphanCleanupTests } from './b2-storage-orphan-cleanup.test
 import { runDataPersistenceAuditTests } from './data-persistence-audit.test';
 import { runTeamCreationPersistenceTests } from './team-creation-persistence.test';
 import { runProjectCreationRbacTests } from './project-creation-rbac.test';
+import { runProjectSystemFullTests } from './project-system-full.test';
 
 async function main() {
   try {
@@ -63,7 +64,9 @@ async function main() {
     await runTeamCreationPersistenceTests();
     console.log('\n>>> Starting Suite 20: Project Creation RBAC & Role Scoping Regression');
     await runProjectCreationRbacTests();
-    console.log('\n🌟 ALL 20 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 21: Project System Full Integration (Bugs 1, 2, 3)');
+    await runProjectSystemFullTests();
+    console.log('\n🌟 ALL 21 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

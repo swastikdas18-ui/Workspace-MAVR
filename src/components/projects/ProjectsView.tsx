@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Project, ProjectStatus } from '../../types';
-import { 
-  FolderKanban, Plus, LayoutGrid, List, Calendar, DollarSign, 
+import {
+  FolderKanban, Plus, LayoutGrid, List, Calendar, DollarSign,
   Trash2, Users, CheckCircle2, Clock, X, ArrowUpRight,
   TrendingUp, BarChart2, Tag, Layers, Check, Shield
 } from 'lucide-react';
@@ -19,9 +19,9 @@ interface ProjectsViewProps {
 }
 
 export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRouteChange }) => {
-  const { 
-    projects, currentUser, currentRole, permissions, createProject, 
-    updateProject, deleteProject, users, teams, searchQuery 
+  const {
+    projects, currentUser, currentRole, permissions, createProject,
+    updateProject, deleteProject, users, teams, searchQuery
   } = useWorkspace();
 
   const [viewMode, setViewMode] = useState<ViewMode>('board');
@@ -104,7 +104,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   };
 
   const handleProgressChange = (id: string, newProgress: number) => {
-    updateProject(id, { 
+    updateProject(id, {
       progress: newProgress,
       status: newProgress === 100 ? 'completed' : 'in_progress'
     });
@@ -163,33 +163,30 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
               <button
                 onClick={() => setViewMode('board')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'board'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'board'
                     ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Board</span>
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'list'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'list'
                     ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 <List className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">List</span>
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'timeline'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'timeline'
                     ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 <Calendar className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Timeline</span>
@@ -278,7 +275,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           )}
                         </div>
 
-                        <h4 
+                        <h4
                           onClick={() => handleSelectProject(project)}
                           className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1 cursor-pointer"
                         >
@@ -572,11 +569,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             key={team.id}
                             type="button"
                             onClick={() => toggleTeamSelection(team.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
-                              isSelected
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
                                 ? 'bg-blue-600 text-white font-medium shadow-sm'
                                 : 'bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
+                              }`}
                           >
                             <Users className="w-3 h-3" />
                             <span>{team.name}</span>
@@ -599,11 +595,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           key={user.id}
                           type="button"
                           onClick={() => toggleMemberSelection(user.id)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${
-                            isSelected
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
                               ? 'bg-[#7C3AED] text-white font-medium'
                               : 'bg-slate-800 text-slate-400 hover:text-white'
-                          }`}
+                            }`}
                         >
                           <UserAvatar name={user.name} avatar={user.avatar} size="sm" />
                           <span>{user.name}</span>

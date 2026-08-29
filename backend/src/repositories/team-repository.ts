@@ -584,23 +584,23 @@ export class TeamRepository {
         ...m,
         user: userObj
           ? {
-              id: userObj.id,
-              name: userObj.name,
-              email: userObj.email,
-              role: userObj.role,
-              avatar: userObj.avatar || '',
-              title: userObj.title || '',
-              teamId: userObj.teamId || teamId,
-            }
+            id: userObj.id,
+            name: userObj.name,
+            email: userObj.email,
+            role: userObj.role,
+            avatar: userObj.avatar || '',
+            title: userObj.title || '',
+            teamId: userObj.teamId || teamId,
+          }
           : {
-              id: m.userId,
-              name: 'Workspace Member',
-              email: '',
-              role: 'employee',
-              avatar: '',
-              title: '',
-              teamId,
-            },
+            id: m.userId,
+            name: 'Workspace Member',
+            email: '',
+            role: 'employee',
+            avatar: '',
+            title: '',
+            teamId,
+          },
       });
     }
 
@@ -644,5 +644,49 @@ export class TeamRepository {
       roleInTeam: m.roleInTeam || 'member',
       joinedAt: m.joinedAt ? new Date(m.joinedAt) : new Date(),
     }));
+  }
+
+  /**
+   * Get all team IDs associated with a user
+   */
+  static async getUserTeams(userId: string): Promise<string[]> {
+    const teamIds = new Set<string>();
+
+    try {
+      const db = getDb();
+      if (db) {
+        const memberRows = await db
+          .select({ teamId: schema.teamMembers.teamId })
+          .from(schema.teamMembers)
+          .where(eq(schema.teamMembers.userId, userId));
+        memberRows.forEach((r) => teamIds.add(r.teamId));
+
+        const [userRow] = await db
+          .select({ teamId: schema.users.teamId })
+          .from(schema.users)
+          .where(eq(schema.users.id, userId));
+        if (userRow?.teamId) {
+          teamIds.add(userRow.teamId);
+        }
+
+        const ledTeams = await db
+          .select({ id: schema.teams.id })
+          .from(schema.teams)
+          .where(eq(schema.teams.leadId, userId));
+        ledTeams.forEach((t) => teamIds.add(t.id));
+      }
+    } catch {
+      // In-memory fallback
+    }
+
+    Array.from(inMemoryDb.teamMembers.values()).forEach((tm) => {
+      if (tm.userId === userId) teamIds.add(tm.teamId);
+    });
+
+    Array.from(inMemoryDb.teams.values()).forEach((t) => {
+      if (t.leadId === userId) teamIds.add(t.id);
+    });
+
+    return Array.from(teamIds);
   }
 }

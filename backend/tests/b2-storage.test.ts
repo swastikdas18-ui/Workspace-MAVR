@@ -139,7 +139,7 @@ export async function runB2StorageTests() {
   assert(!!rawUpload.key, 'Step 2.1: B2 object uploaded with key');
   assert(rawUpload.key.startsWith(`${wsApexId}/doc_direct_b2/`), 'Step 2.2: B2 storage key follows tenant prefix path');
   assert(rawUpload.sizeBytes > 0, 'Step 2.3: B2 object size calculated accurately');
-  assert(rawUpload.bucket === 'workspace-os-vault', 'Step 2.4: B2 target bucket verified');
+  assert(rawUpload.bucket === (process.env.B2_BUCKET_NAME || 'workspace-os-vault'), 'Step 2.4: B2 target bucket verified');
 
   const signedUrl = await ObjectStorageService.getSignedDownloadUrl(wsApexId, rawUpload.key, 900);
   assert(typeof signedUrl === 'string' && signedUrl.length > 10, 'Step 2.5: Signed download URL generated successfully');
@@ -278,7 +278,7 @@ export async function runB2StorageTests() {
   assert(readyRes.status === 200, 'Step 9.1: GET /health/ready returned 200 OK');
   assert(readyRes.data.checks.storage === 'operational', 'Step 9.2: Object storage operational status verified');
   assert(readyRes.data.checks.storage_ok === true, 'Step 9.3: Storage subsystem health check flag is true');
-  assert(readyRes.data.checks.bucket === 'workspace-os-vault', 'Step 9.4: Backblaze B2 bucket target verified');
+  assert(readyRes.data.checks.bucket === (process.env.B2_BUCKET_NAME || 'workspace-os-vault'), 'Step 9.4: Backblaze B2 bucket target verified');
 
   console.log('\n===============================================================');
   console.log(` BACKBLAZE B2 STORAGE TESTS: ${passCount} PASSED, ${failCount} FAILED`);

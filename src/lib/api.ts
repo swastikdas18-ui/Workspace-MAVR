@@ -658,6 +658,85 @@ export const api = {
     );
   },
 
+  // Phase 31: Workspace Wiki API Methods
+  async getWikiPages() {
+    return await fetchApi<{ pages: any[] }>('/api/wiki');
+  },
+
+  async getWikiPage(id: string) {
+    return await fetchApi<{ page: any }>(`/api/wiki/${id}`);
+  },
+
+  async createWikiPage(data: { title?: string; icon?: string; contentJson?: any; parentId?: string | null; visibility?: string }) {
+    return await fetchApi<{ page: any }>('/api/wiki', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateWikiPage(id: string, data: { title?: string; icon?: string; contentJson?: any; visibility?: string }) {
+    return await fetchApi<{ page: any }>(`/api/wiki/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteWikiPage(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/wiki/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getWikiComments(pageId: string) {
+    return await fetchApi<{ comments: any[] }>(`/api/wiki/pages/${pageId}/comments`);
+  },
+
+  async addWikiComment(pageId: string, data: { comment: string; blockId?: string }) {
+    return await fetchApi<{ comment: any }>(`/api/wiki/pages/${pageId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Phase 31: Time Tracking & Timesheet API Methods
+  async startTimeTimer(data: { taskId?: string; billable?: boolean; hourlyRate?: number; notes?: string }) {
+    return await fetchApi<{ entry: any }>('/api/time/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async stopTimeTimer() {
+    return await fetchApi<{ entry: any }>('/api/time/stop', {
+      method: 'POST',
+    });
+  },
+
+  async getActiveTimer() {
+    return await fetchApi<{ activeTimer: any }>('/api/time/active');
+  },
+
+  async logManualTime(data: { taskId?: string; startTime?: string; durationMinutes: number; billable?: boolean; hourlyRate?: number; notes?: string }) {
+    return await fetchApi<{ entry: any }>('/api/time/manual', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getTimeEntries() {
+    return await fetchApi<{ entries: any[] }>('/api/time/entries');
+  },
+
+  async deleteTimeEntry(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/time/entries/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getTimeUtilization() {
+    return await fetchApi<{ report?: any; analytics?: any }>('/api/time/analytics');
+  },
+
   // Phase 30: Client Observability & Error Reporting
   async reportClientError(payload: any) {
     try {

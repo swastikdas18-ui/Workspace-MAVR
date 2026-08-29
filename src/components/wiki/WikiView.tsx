@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   BookOpen, Plus, Search, ChevronRight, FileText, Lock, Globe, 
   Users, Trash2, Edit3, MessageSquare, Clock, ArrowLeft, Send,
-  Sparkles, Check, CheckCircle2, History, ChevronDown
+  Sparkles, Check, CheckCircle2, History, ChevronDown, Loader2
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { WikiPageItem, WikiCommentItem } from '../../types';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
+import { api } from '../../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const WikiView: React.FC = () => {
-  const { currentRole, currentUser, currentWorkspace } = useWorkspace();
+  const { currentRole, currentUser, currentWorkspace, addToast } = useWorkspace();
   const [pages, setPages] = useState<WikiPageItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedPageId, setSelectedPageId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,71 +27,154 @@ export const WikiView: React.FC = () => {
   const [comments, setComments] = useState<WikiCommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
 
+  const loadPages = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.getWikiPages();
+      if (res && Array.isArray(res.pages)) {
+        setPages(res.pages);
+        if (res.pages.length > 0 && !selectedPageId) {
+          setSelectedPageId(res.pages[0].id);
+        }
+      }
+    } catch (err: any) {
+      console.error('[WikiView] Failed to load wiki pages:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedPageId]);
+
+  useEffect(() => {
+    loadPages();
+  }, [currentWorkspace?.id]);
+
   const selectedPage = pages.find((p) => p.id === selectedPageId) || pages[0];
 
-  const handleCreatePage = (parentId: string | null = null) => {
-    const newPage: WikiPageItem = {
-      id: `wiki-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'ws-default',
-      parentId,
-      title: 'Untitled Document',
-      icon: '📄',
-      slug: `untitled-document-${Date.now()}`,
-      contentJson: {
-        blocks: [
-          { type: 'header', text: 'Untitled Document' },
-          { type: 'paragraph', text: 'Type your documentation content here or insert bullet checklists.' }
-        ]
-      },
-      visibility: 'team',
-      createdBy: currentUser.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    setPages((prev) => [newPage, ...prev]);
-    setSelectedPageId(newPage.id);
-    setEditTitle(newPage.title);
-    setEditContentText('Type your documentation content here or insert bullet checklists.');
-    setIsEditing(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (!selectedPage) return;
-    const updated = pages.map((p) => {
-      if (p.id === selectedPage.id) {
-        return {
-          ...p,
-          title: editTitle || p.title,
-          contentJson: {
-            blocks: [
-              { type: 'header', text: editTitle || p.title },
-              { type: 'paragraph', text: editContentText }
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        };
+  const loadComments = useCallback(async (pageId: string) => {
+    if (!pageId) return;
+    try {
+      const res = await api.getWikiComments(pageId);
+      if (res && Array.isArray(res.comments)) {
+        setComments(res.comments);
       }
-      return p;
-    });
-    setPages(updated);
-    setIsEditing(false);
+    } catch (err) {
+      console.error('[WikiView] Failed to load comments:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPage?.id) {
+      loadComments(selectedPage.id);
+    }
+  }, [selectedPage?.id, loadComments]);
+
+  const handleCreatePage = async (parentId: string | null = null) => {
+    try {
+      const res = await api.createWikiPage({
+        parentId,
+        title: 'Untitled Document',
+        icon: '📄',
+        visibility: currentRole === 'intern' ? 'learning' : 'team',
+        contentJson: {
+          blocks: [
+            { type: 'header', text: 'Untitled Document' },
+            { type: 'paragraph', text: 'Type your documentation content here or insert bullet checklists.' }
+          ]
+        },
+      });
+
+      if (res?.page) {
+        setPages((prev) => [res.page, ...prev]);
+        setSelectedPageId(res.page.id);
+        setEditTitle(res.page.title);
+        setEditContentText('Type your documentation content here or insert bullet checklists.');
+        setIsEditing(true);
+        addToast({
+          type: 'success',
+          title: 'Page Created',
+          message: 'New wiki page ready for editing.',
+        });
+      }
+    } catch (err: any) {
+      console.error('[WikiView] Failed to create page:', err);
+      addToast({
+        type: 'error',
+        title: 'Creation Failed',
+        message: err.message || 'Could not create wiki page.',
+      });
+    }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleSaveEdit = async () => {
+    if (!selectedPage) return;
+    try {
+      const res = await api.updateWikiPage(selectedPage.id, {
+        title: editTitle || selectedPage.title,
+        contentJson: {
+          blocks: [
+            { type: 'header', text: editTitle || selectedPage.title },
+            { type: 'paragraph', text: editContentText }
+          ]
+        }
+      });
+
+      if (res?.page) {
+        setPages((prev) => prev.map((p) => (p.id === selectedPage.id ? res.page : p)));
+        setIsEditing(false);
+        addToast({
+          type: 'success',
+          title: 'Wiki Updated',
+          message: 'Your revisions were saved to the cloud.',
+        });
+      }
+    } catch (err: any) {
+      console.error('[WikiView] Failed to update page:', err);
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message || 'Could not save page changes.',
+      });
+    }
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this wiki document?')) return;
+    try {
+      await api.deleteWikiPage(pageId);
+      setPages((prev) => prev.filter((p) => p.id !== pageId));
+      if (selectedPageId === pageId) {
+        const remaining = pages.filter((p) => p.id !== pageId);
+        setSelectedPageId(remaining[0]?.id || '');
+      }
+      addToast({
+        type: 'success',
+        title: 'Page Deleted',
+        message: 'Wiki document removed successfully.',
+      });
+    } catch (err: any) {
+      console.error('[WikiView] Delete failed:', err);
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: err.message || 'Could not delete page.',
+      });
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !selectedPage) return;
-    const commentItem: WikiCommentItem = {
-      id: `c-${Date.now()}`,
-      pageId: selectedPage.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      comment: newComment.trim(),
-      resolved: false,
-      createdAt: new Date().toISOString()
-    };
-    setComments((prev) => [...prev, commentItem]);
-    setNewComment('');
+    try {
+      const res = await api.addWikiComment(selectedPage.id, {
+        comment: newComment.trim(),
+      });
+      if (res?.comment) {
+        setComments((prev) => [...prev, res.comment]);
+        setNewComment('');
+      }
+    } catch (err: any) {
+      console.error('[WikiView] Comment failed:', err);
+    }
   };
 
   // Build breadcrumbs
@@ -264,19 +349,30 @@ export const WikiView: React.FC = () => {
                         <span>Save Page</span>
                       </button>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setEditTitle(selectedPage.title);
-                          setEditContentText(
-                            selectedPage.contentJson.blocks?.find((b: any) => b.type === 'paragraph')?.text || ''
-                          );
-                          setIsEditing(true);
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#1E293B] hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/[0.08] flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Edit</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditTitle(selectedPage.title);
+                            setEditContentText(
+                              selectedPage.contentJson.blocks?.find((b: any) => b.type === 'paragraph')?.text || ''
+                            );
+                            setIsEditing(true);
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#1E293B] hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/[0.08] flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Edit</span>
+                        </button>
+                        {(currentRole === 'admin' || selectedPage.createdBy === currentUser.id) && (
+                          <button
+                            onClick={() => handleDeletePage(selectedPage.id)}
+                            className="p-1.5 rounded-xl bg-[#1E293B] hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 border border-white/[0.08] cursor-pointer transition-colors"
+                            title="Delete Document"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

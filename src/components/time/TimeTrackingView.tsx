@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Clock, Play, Pause, Square, Plus, Calendar, DollarSign, 
-  CheckCircle2, TrendingUp, BarChart3, Users, FileText, Check
+  CheckCircle2, TrendingUp, BarChart3, Users, FileText, Check,
+  Trash2, Loader2
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { TaskTimeEntryItem } from '../../types';
 import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
+import { api } from '../../lib/api';
 
 export const TimeTrackingView: React.FC = () => {
-  const { currentRole, currentUser, currentWorkspace, tasks } = useWorkspace();
+  const { currentRole, currentUser, currentWorkspace, tasks, addToast } = useWorkspace();
 
   // Stopwatch state
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -17,9 +19,47 @@ export const TimeTrackingView: React.FC = () => {
   const [activeTaskTitle, setActiveTaskTitle] = useState(tasks[0]?.title || 'Product Development');
   const [isBillable, setIsBillable] = useState(true);
   const [hourlyRate, setHourlyRate] = useState(2000); // ₹2,000 / hr
+  const [isLoading, setIsLoading] = useState(true);
 
   // Entries state
   const [entries, setEntries] = useState<TaskTimeEntryItem[]>([]);
+
+  // Load entries from API
+  const loadEntries = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.getTimeEntries();
+      if (res && Array.isArray(res.entries)) {
+        setEntries(res.entries);
+      }
+    } catch (err: any) {
+      console.error('[TimeTrackingView] Failed to load entries:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Check active timer on mount
+  const checkActiveTimer = useCallback(async () => {
+    try {
+      const res = await api.getActiveTimer();
+      if (res?.activeTimer) {
+        setIsTimerRunning(true);
+        const start = new Date(res.activeTimer.startTime).getTime();
+        const diffSecs = Math.max(0, Math.floor((Date.now() - start) / 1000));
+        setElapsedSeconds(diffSecs);
+        if (res.activeTimer.notes) setActiveTaskTitle(res.activeTimer.notes);
+        if (res.activeTimer.hourlyRate) setHourlyRate(res.activeTimer.hourlyRate);
+      }
+    } catch (err) {
+      console.error('[TimeTrackingView] Failed to check active timer:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEntries();
+    checkActiveTimer();
+  }, [currentWorkspace?.id]);
 
   // Stopwatch interval
   useEffect(() => {
@@ -41,32 +81,90 @@ export const TimeTrackingView: React.FC = () => {
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStopTimer = () => {
-    if (!isTimerRunning && elapsedSeconds === 0) return;
-    const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
-    const newEntry: TaskTimeEntryItem = {
-      id: `entry-${Date.now()}`,
-      workspaceId: currentWorkspace?.id || 'ws-default',
-      taskId: tasks[0]?.id || 'task-active',
-      userId: currentUser.id,
-      startTime: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
-      endTime: new Date().toISOString(),
-      durationMinutes,
-      billable: isBillable,
-      hourlyRate: isBillable ? hourlyRate : 0,
-      notes: activeTaskTitle || 'Initiative work',
-      createdAt: new Date().toISOString()
-    };
+  const handleStartTimer = async () => {
+    try {
+      await api.startTimeTimer({
+        taskId: tasks[0]?.id,
+        billable: isBillable,
+        hourlyRate,
+        notes: activeTaskTitle || 'Initiative work',
+      });
+      setIsTimerRunning(true);
+      addToast({
+        type: 'info',
+        title: 'Stopwatch Started',
+        message: 'Live time tracking initiated on cloud.',
+      });
+    } catch (err: any) {
+      console.error('[TimeTrackingView] Failed to start timer:', err);
+      // Fallback local running if offline
+      setIsTimerRunning(true);
+    }
+  };
 
-    setEntries((prev) => [newEntry, ...prev]);
-    setIsTimerRunning(false);
-    setElapsedSeconds(0);
+  const handleStopTimer = async () => {
+    if (!isTimerRunning && elapsedSeconds === 0) return;
+    try {
+      const res = await api.stopTimeTimer();
+      setIsTimerRunning(false);
+      setElapsedSeconds(0);
+      if (res?.entry) {
+        setEntries((prev) => [res.entry, ...prev]);
+        addToast({
+          type: 'success',
+          title: 'Time Logged',
+          message: `${res.entry.durationMinutes} minutes recorded to timesheet.`,
+        });
+      } else {
+        loadEntries();
+      }
+    } catch (err: any) {
+      console.error('[TimeTrackingView] Failed to stop timer:', err);
+      // Fallback manual entry
+      const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+      try {
+        const res = await api.logManualTime({
+          taskId: tasks[0]?.id,
+          durationMinutes,
+          billable: isBillable,
+          hourlyRate,
+          notes: activeTaskTitle || 'Initiative work',
+        });
+        if (res?.entry) {
+          setEntries((prev) => [res.entry, ...prev]);
+        }
+      } catch (logErr) {
+        console.error('[TimeTrackingView] Manual fallback failed:', logErr);
+      }
+      setIsTimerRunning(false);
+      setElapsedSeconds(0);
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    if (!window.confirm('Delete this timesheet entry?')) return;
+    try {
+      await api.deleteTimeEntry(id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      addToast({
+        type: 'success',
+        title: 'Entry Deleted',
+        message: 'Timesheet log removed.',
+      });
+    } catch (err: any) {
+      console.error('[TimeTrackingView] Delete failed:', err);
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: err.message || 'Could not delete entry.',
+      });
+    }
   };
 
   // Metrics calculations
-  const totalMinutes = entries.reduce((acc, curr) => acc + curr.durationMinutes, 0);
-  const billableMinutes = entries.filter((e) => e.billable).reduce((acc, curr) => acc + curr.durationMinutes, 0);
-  const totalRevenue = entries.filter((e) => e.billable).reduce((acc, curr) => acc + (curr.durationMinutes / 60) * curr.hourlyRate, 0);
+  const totalMinutes = entries.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
+  const billableMinutes = entries.filter((e) => e.billable).reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
+  const totalRevenue = entries.filter((e) => e.billable).reduce((acc, curr) => acc + ((curr.durationMinutes || 0) / 60) * (curr.hourlyRate || 0), 0);
   const utilizationRate = totalMinutes > 0 ? Math.round((billableMinutes / totalMinutes) * 100) : 0;
 
   return (
@@ -117,7 +215,7 @@ export const TimeTrackingView: React.FC = () => {
             </button>
           ) : (
             <button
-              onClick={() => setIsTimerRunning(true)}
+              onClick={handleStartTimer}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
             >
               <Play className="w-4 h-4" />
@@ -196,6 +294,7 @@ export const TimeTrackingView: React.FC = () => {
                   <th className="pb-3 font-semibold">Duration</th>
                   <th className="pb-3 font-semibold">Billable</th>
                   <th className="pb-3 font-semibold">Revenue</th>
+                  <th className="pb-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
@@ -224,6 +323,17 @@ export const TimeTrackingView: React.FC = () => {
                     </td>
                     <td className="py-3 font-mono font-bold text-emerald-400">
                       {entry.billable ? `₹${Math.round((entry.durationMinutes / 60) * entry.hourlyRate).toLocaleString()}` : '—'}
+                    </td>
+                    <td className="py-3 text-right">
+                      {(currentRole === 'admin' || entry.userId === currentUser.id) && (
+                        <button
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          className="p-1 rounded bg-slate-900 hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 transition-colors"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

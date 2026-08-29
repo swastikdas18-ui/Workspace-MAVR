@@ -32,7 +32,9 @@ export class ProjectService {
       throw error;
     }
 
+    console.log(`[ProjectService.getProjects] fetching projects for workspace: ${workspaceId}, role: ${role}, user: ${userId}`);
     const projects = await ProjectRepository.listProjects(workspaceId, userId, role);
+    console.log(`[ProjectService.getProjects] received ${projects.length} projects from repository`);
 
     return projects.map((p) => ({
       id: p.id,
@@ -90,6 +92,7 @@ export class ProjectService {
 
     const memberIds = input.memberIds || input.member_ids;
     const teamIds = input.teamIds || input.team_ids || [];
+    console.log('[ProjectService.createProject]', { teamIds, memberIds });
 
     // Validate cross-workspace boundaries for memberIds
     if (memberIds && memberIds.length > 0) {

@@ -81,6 +81,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[PROJECT CREATE MODAL]', selectedTeams);
     const success = createProject({
       title,
       description,

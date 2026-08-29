@@ -71,6 +71,11 @@ The database uses PostgreSQL with Drizzle ORM.
    - `user_id`: references `users.id`, cascade delete
    - `role`: enum ('owner', 'contributor', 'viewer')
 
+8b. **project_teams**
+   - `id`: UUID / text primary key
+   - `project_id`: references `projects.id`, cascade delete
+   - `team_id`: references `teams.id`, cascade delete
+
 9. **tasks**
    - `id`: UUID / text primary key
    - `title`: string, not null

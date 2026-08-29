@@ -588,6 +588,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       logAction('Attempted unauthorized project creation', 'PROJECTS', 'denied');
       return false;
     }
+    console.log('[WorkspaceContext.createProject]', data.team_ids);
     try {
       const res = await api.createProject({
         title: data.title,

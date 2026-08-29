@@ -21,7 +21,9 @@ projectRouter.get('/', requirePermission('projects:read'), async (c) => {
     }
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    console.log(`[ROUTER] GET /api/projects -> workspace: ${workspace.id}, user: ${user.id}, role: ${role}`);
     const projects = await ProjectService.getProjects(workspace.id, user.id, role);
+    console.log(`[ROUTER] GET /api/projects -> returning ${projects.length} projects`);
 
     return c.json({ projects }, 200);
   } catch (err: any) {
@@ -73,6 +75,14 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
+    console.log('[POST /api/projects body]', body);
+    console.log('[ROUTER] POST /api/projects -> incoming payload:', {
+      workspaceId: workspace.id,
+      userId: user.id,
+      title: body.title || body.name,
+      teamIds: body.teamIds || body.team_ids,
+      memberIds: body.memberIds || body.member_ids,
+    });
     const title = (body.title || body.name || '').trim();
     if (!title) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Project title is required.' } }, 400);
@@ -82,6 +92,11 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
       ...body,
       title,
       dueDate: body.dueDate || body.due_date || new Date(Date.now() + 30 * 86400000).toISOString(),
+    });
+    console.log('[ROUTER] POST /api/projects -> project created successfully:', {
+      id: project.id,
+      title: project.title,
+      team_ids: project.team_ids,
     });
     return c.json({ project }, 201);
   } catch (err: any) {

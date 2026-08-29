@@ -88,6 +88,13 @@ export class ProjectRepository {
             .from(schema.projectTeams)
             .where(inArray(schema.projectTeams.projectId, projectIds));
 
+          console.log('[ProjectRepository.listProjects] loaded teamRows for projects:', {
+            workspaceId,
+            projectCount: projectRows.length,
+            teamRowCount: teamRows.length,
+            teamRows: teamRows.map((tr) => ({ projectId: tr.projectId, teamId: tr.teamId })),
+          });
+
           const teamsByProject = new Map<string, string[]>();
           teamRows.forEach((t) => {
             const list = teamsByProject.get(t.projectId) || [];
@@ -375,6 +382,9 @@ export class ProjectRepository {
     const validMemberIds = memberIds.filter((mId) => typeof mId === 'string' && mId.trim().length > 0);
     const validTeamIds = teamIds.filter((tId) => typeof tId === 'string' && tId.trim().length > 0);
 
+    console.log('[Repository.createProject incoming]', { teamIds });
+    console.log('[Repository.createProject validTeamIds]', validTeamIds);
+
     for (const mId of validMemberIds) {
       const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       inMemoryDb.projectMembers.set(pmId, {
@@ -430,31 +440,32 @@ export class ProjectRepository {
         }
 
         if (validTeamIds.length > 0) {
-          // Verify teams exist in workspace to prevent foreign key errors
+          // Verify teams exist in database to satisfy foreign key constraint
           const existingTeams = await db
             .select({ id: schema.teams.id })
             .from(schema.teams)
-            .where(
-              and(
-                eq(schema.teams.workspaceId, data.workspaceId),
-                inArray(schema.teams.id, validTeamIds)
-              )
-            );
+            .where(inArray(schema.teams.id, validTeamIds));
           const existingTeamIds = new Set(existingTeams.map((t) => t.id));
 
           for (const tId of validTeamIds) {
             if (existingTeamIds.has(tId)) {
               const ptId = 'pt-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + tId.slice(-4);
-              console.log('[ProjectRepository] INSERT project_teams:', { ptId, projectId, teamId: tId });
+              console.log('[INSERT project_teams]', { projectId, teamId: tId });
               await db.insert(schema.projectTeams).values({
                 id: ptId,
                 projectId,
                 teamId: tId,
               });
             } else {
-              console.warn(`[ProjectRepository] Skipped project_teams insertion: Team ${tId} not found in workspace.`);
+              console.warn(`[ProjectRepository] Skipped project_teams insertion: Team ${tId} not found in database.`);
             }
           }
+
+          const insertedRows = await db
+            .select()
+            .from(schema.projectTeams)
+            .where(eq(schema.projectTeams.projectId, projectId));
+          console.log('[VERIFY INSERTED ROWS]', insertedRows);
         }
         console.log('[ProjectRepository] INSERT RESULT: Successfully created project in PostgreSQL');
       }

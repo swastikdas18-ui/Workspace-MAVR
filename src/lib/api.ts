@@ -256,6 +256,7 @@ export const api = {
   },
 
   async createProject(data: any) {
+    console.log('[API createProject payload]', data);
     return await fetchApi<{ project: any }>('/api/projects', {
       method: 'POST',
       body: JSON.stringify(data),

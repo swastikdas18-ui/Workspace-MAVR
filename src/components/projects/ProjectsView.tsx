@@ -57,15 +57,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [tagsInput, setTagsInput] = useState('');
 
-  // Filter projects
+  // Project visibility is resolved by the server from verified workspace, team,
+  // and project memberships. Apply only presentation filters here.
   const visibleProjects = projects.filter((p) => {
-    if (currentRole === 'employee') {
-      const isDirectMember = p.member_ids?.includes(currentUser.id);
-      const isTeamMember = p.team_ids?.some((tId) => currentUser.team_id === tId);
-      if (!isDirectMember && !isTeamMember && p.created_by !== currentUser.id) {
-        return false;
-      }
-    }
     if (selectedStatus !== 'all' && p.status !== selectedStatus) {
       return false;
     }
@@ -81,7 +75,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[PROJECT CREATE MODAL]', selectedTeams);
     const success = createProject({
       title,
       description,

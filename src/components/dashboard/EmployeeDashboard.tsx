@@ -105,8 +105,9 @@ export const EmployeeDashboard: React.FC = () => {
     }
   };
 
-  // Filter only assigned projects
-  const assignedProjects = projects.filter((p) => p.member_ids.includes(currentUser.id));
+  // The projects endpoint already scopes this collection to projects assigned
+  // to the employee directly, through a team, or through an assigned task.
+  const assignedProjects = projects;
   
   // Filter assigned tasks
   const myTasks = tasks.filter(

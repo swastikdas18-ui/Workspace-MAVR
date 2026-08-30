@@ -10,6 +10,7 @@ import { TasksView } from './components/tasks/TasksView';
 import { DocumentsView } from './components/documents/DocumentsView';
 import { CrmView } from './components/crm/CrmView';
 import { TeamsView } from './components/teams/TeamsView';
+import { PeopleView } from './components/people/PeopleView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { BillingView } from './components/billing/BillingView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -406,9 +407,10 @@ const MainAppContent: React.FC = () => {
         );
 
       case 'teams':
+      case 'people':
         return (
-          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Department directories and team lead management are restricted to organization staff." />}>
-            <TeamsView />
+          <RoleGuard allowedRoles={['admin', 'employee', 'intern']} fallback={<ForbiddenPage requiredRole="ADMIN, EMPLOYEE, or INTERN" message="Department directories and people operations are restricted." />}>
+            <PeopleView />
           </RoleGuard>
         );
 

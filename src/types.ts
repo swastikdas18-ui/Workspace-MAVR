@@ -94,7 +94,7 @@ export interface ProjectTeam {
   team_id: string;
 }
 
-export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'completed';
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'completed';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent' | 'critical';
 
 export interface TaskComment {
@@ -127,17 +127,41 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  story_points?: number;
+  storyPoints?: number;
+  estimated_hours?: number | null;
+  estimatedHours?: number | null;
+  actual_hours?: number;
+  actualHours?: number;
   assigned_to: string; // user id
   assignedTo?: string;
   assignee?: User | { id: string; name: string; email?: string; role?: string; avatar?: string | null } | null;
   assignee_name?: string | null;
   assignee_avatar?: string | null;
   project_id: string;
+  projectId?: string;
+  team_id?: string | null;
+  teamId?: string | null;
   due_date: string;
+  dueDate?: string;
+  started_at?: string | null;
+  startedAt?: string | null;
+  completed_at?: string | null;
+  completedAt?: string | null;
+  reviewed_by?: string | null;
+  reviewedBy?: string | null;
+  reviewed_at?: string | null;
+  reviewedAt?: string | null;
+  is_blocked?: boolean;
+  isBlocked?: boolean;
+  blocked_reason?: string | null;
+  blockedReason?: string | null;
   created_at: string;
+  createdAt?: string;
   tags?: string[];
   is_learning_task?: boolean; // For interns
   comments_count?: number;
+  activity_count?: number;
 }
 
 export type DocumentVisibility = 'public' | 'team' | 'private' | 'learning';

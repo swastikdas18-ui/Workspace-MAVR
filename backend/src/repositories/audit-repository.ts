@@ -51,6 +51,13 @@ export interface GetAuditLogsOptions {
 
 export class AuditRepository {
   /**
+   * Log an audit event (alias)
+   */
+  static async log(data: CreateAuditParams | any, tx?: any): Promise<AuditLogEntity> {
+    return this.logAudit(data, tx);
+  }
+
+  /**
    * Log an audit event
    */
   static async logAudit(

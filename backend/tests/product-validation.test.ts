@@ -292,7 +292,7 @@ export async function runProductValidation() {
   // 2.3 Assign Task to Employee & Verify Task Update
   const assignRes = await requestApi('PATCH', `/api/tasks/${taskId}`, {
     assignedTo: employeeUserId,
-    status: 'in_progress',
+    status: 'review',
   }, adminToken);
   assert(assignRes.status === 200, '2.5 Task assigned to Employee');
 

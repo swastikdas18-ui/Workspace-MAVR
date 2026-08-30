@@ -1,0 +1,1162 @@
+import React, { useState, useEffect } from 'react';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { api } from '../../lib/api';
+import { 
+  Users, Building2, GitBranch, Calendar, Clock, Target, Award,
+  Search, Plus, CheckCircle2, XCircle, AlertCircle, MapPin, 
+  Mail, Phone, Shield, ArrowRight, UserCheck, UserX, Star,
+  TrendingUp, RefreshCw, ChevronDown, Check, X, Sparkles, Filter
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { MetricCard } from '../common/MetricCard';
+import { UserAvatar } from '../common/UserAvatar';
+import { PageHeader } from '../common/PageHeader';
+
+export const PeopleView: React.FC = () => {
+  const { currentUser, currentRole, currentWorkspace, addToast } = useWorkspace();
+
+  const [activeSubTab, setActiveSubTab] = useState<'directory' | 'orgchart' | 'leaves' | 'attendance' | 'goals' | 'performance'>('directory');
+  const [loading, setLoading] = useState(true);
+
+  // Directory State
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('');
+  const [selectedEmploymentTypeFilter, setSelectedEmploymentTypeFilter] = useState('');
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+
+  // Departments & Org Chart State
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [orgChart, setOrgChart] = useState<any | null>(null);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [targetReassignUser, setTargetReassignUser] = useState<any | null>(null);
+  const [selectedNewManagerId, setSelectedNewManagerId] = useState('');
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [selectedNewDeptId, setSelectedNewDeptId] = useState('');
+
+  // Leave State
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<any | null>(null);
+  const [isRequestLeaveModalOpen, setIsRequestLeaveModalOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: 'annual',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    reason: '',
+  });
+
+  // Attendance State
+  const [todayAttendance, setTodayAttendance] = useState<any | null>(null);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [attendanceMetrics, setAttendanceMetrics] = useState<any | null>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+
+  // Goals State
+  const [goals, setGoals] = useState<any[]>([]);
+  const [isCreateGoalModalOpen, setIsCreateGoalModalOpen] = useState(false);
+  const [goalForm, setGoalForm] = useState({
+    title: '',
+    description: '',
+    category: 'individual',
+    targetValue: 100,
+    unit: '%',
+    dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+  });
+  const [selectedGoalForCheckin, setSelectedGoalForCheckin] = useState<any | null>(null);
+  const [checkinValue, setCheckinValue] = useState(50);
+  const [checkinNotes, setCheckinNotes] = useState('');
+
+  // Performance Reviews State
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [selectedReviewForSelf, setSelectedReviewForSelf] = useState<any | null>(null);
+  const [selfRatings, setSelfRatings] = useState({ communication: 4, ownership: 4, execution: 4, leadership: 3, comments: '' });
+  const [selectedReviewForManager, setSelectedReviewForManager] = useState<any | null>(null);
+  const [managerRatings, setManagerRatings] = useState({ communication: 4, ownership: 4, execution: 4, leadership: 4, comments: '', strengths: '', growthAreas: '' });
+
+  // Executive Analytics
+  const [analytics, setAnalytics] = useState<any | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [
+        dirRes,
+        deptRes,
+        orgRes,
+        leaveRes,
+        balRes,
+        attTodayRes,
+        attMetRes,
+        attHistRes,
+        goalsRes,
+        reviewsRes,
+        analyticsRes,
+      ] = await Promise.all([
+        api.getEmployeeDirectory(),
+        api.getDepartments(),
+        api.getOrgChart(),
+        api.getLeaveRequests(),
+        api.getLeaveBalances(),
+        api.getTodayAttendance(),
+        api.getAttendanceMetrics(),
+        api.getAttendanceHistory(),
+        api.getGoals(),
+        api.getPerformanceReviews(),
+        currentRole === 'admin' ? api.getPeopleAnalytics() : Promise.resolve(null),
+      ]);
+
+      if (dirRes?.profiles) setProfiles(dirRes.profiles);
+      if (deptRes?.departments) setDepartments(deptRes.departments);
+      if (orgRes) setOrgChart(orgRes);
+      if (leaveRes?.leaves) setLeaves(leaveRes.leaves);
+      if (balRes?.balances) setLeaveBalances(balRes.balances);
+      if (attTodayRes) {
+        setTodayAttendance(attTodayRes.record);
+        setIsCheckedIn(attTodayRes.isCheckedIn);
+      }
+      if (attMetRes) setAttendanceMetrics(attMetRes);
+      if (attHistRes?.history) setAttendanceHistory(attHistRes.history);
+      if (goalsRes?.goals) setGoals(goalsRes.goals);
+      if (reviewsRes?.reviews) setReviews(reviewsRes.reviews);
+      if (analyticsRes) setAnalytics(analyticsRes);
+    } catch (err: any) {
+      console.error('Failed to load People OS data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [currentWorkspace?.id]);
+
+  // Attendance Handlers
+  const handleCheckIn = async () => {
+    try {
+      const res = await api.checkInAttendance();
+      setIsCheckedIn(true);
+      setTodayAttendance(res.record);
+      addToast({ type: 'success', title: 'Checked In', message: 'You are now marked present for today.' });
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Check In Failed', message: err.message });
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      const res = await api.checkOutAttendance();
+      setIsCheckedIn(false);
+      setTodayAttendance(res.record);
+      addToast({ type: 'success', title: 'Checked Out', message: 'Your attendance hours have been recorded.' });
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Check Out Failed', message: err.message });
+    }
+  };
+
+  // Leave Handlers
+  const handleRequestLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.requestLeave(leaveForm);
+      addToast({ type: 'success', title: 'Leave Requested', message: 'Your leave request has been submitted to your manager.' });
+      setIsRequestLeaveModalOpen(false);
+      setLeaveForm({
+        leaveType: 'annual',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        reason: '',
+      });
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Submission Failed', message: err.message });
+    }
+  };
+
+  const handleReviewLeave = async (leaveId: string, decision: 'approved' | 'rejected') => {
+    try {
+      if (decision === 'approved') {
+        await api.approveLeaveRequest(leaveId);
+        addToast({ type: 'success', title: 'Leave Approved', message: 'The leave request was approved and schedule updated.' });
+      } else {
+        await api.rejectLeaveRequest(leaveId);
+        addToast({ type: 'info', title: 'Leave Rejected', message: 'The leave request was declined.' });
+      }
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Action Failed', message: err.message });
+    }
+  };
+
+  // Goal Handlers
+  const handleCreateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createGoal(goalForm);
+      addToast({ type: 'success', title: 'Goal Created', message: 'New strategic OKR has been registered.' });
+      setIsCreateGoalModalOpen(false);
+      setGoalForm({
+        title: '',
+        description: '',
+        category: 'individual',
+        targetValue: 100,
+        unit: '%',
+        dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      });
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to create goal', message: err.message });
+    }
+  };
+
+  const handleGoalCheckin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGoalForCheckin) return;
+    try {
+      await api.updateGoalProgress(selectedGoalForCheckin.id, checkinValue, checkinValue, checkinNotes);
+      addToast({ type: 'success', title: 'Progress Updated', message: 'Goal progress updated successfully.' });
+      setSelectedGoalForCheckin(null);
+      loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to update progress', message: err.message });
+    }
+  };
+
+  // Filtered Profiles
+  const filteredProfiles = profiles.filter((p) => {
+    const matchesSearch =
+      !searchQuery ||
+      p.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.designation?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.skills?.some((s: string) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesDept = !selectedDepartmentFilter || p.departmentId === selectedDepartmentFilter;
+    const matchesType = !selectedEmploymentTypeFilter || p.employmentType === selectedEmploymentTypeFilter;
+
+    return matchesSearch && matchesDept && matchesType;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Top Page Header */}
+      <PageHeader
+        title="People Operating System"
+        description="Manage employee directory, organizational hierarchy, leave approvals, live attendance, OKRs, and talent performance."
+      >
+        <div className="flex items-center gap-3">
+          {isCheckedIn ? (
+            <button
+              onClick={handleCheckOut}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Check Out
+            </button>
+          ) : (
+            <button
+              onClick={handleCheckIn}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              Check In
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsRequestLeaveModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition shadow-lg shadow-purple-500/20"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Request Leave
+          </button>
+        </div>
+      </PageHeader>
+
+      {/* Live Presence & Telemetry Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <MetricCard
+          label="Present Today"
+          value={attendanceMetrics?.presentToday ?? 0}
+          icon={UserCheck}
+          color="emerald"
+          trend={{ value: `${attendanceMetrics?.attendanceRate ?? 100}%`, direction: 'up', label: 'presence' }}
+        />
+        <MetricCard
+          label="On Leave"
+          value={attendanceMetrics?.onLeaveToday ?? 0}
+          icon={Calendar}
+          color="amber"
+          trend={{ value: 'Approved', direction: 'neutral', label: 'leaves' }}
+        />
+        <MetricCard
+          label="Total Workforce"
+          value={profiles.length}
+          icon={Users}
+          color="purple"
+          trend={{ value: `${departments.length} depts`, direction: 'neutral' }}
+        />
+        <MetricCard
+          label="Active Goals / OKRs"
+          value={goals.length}
+          icon={Target}
+          color="blue"
+          trend={{ value: `${goals.filter((g) => g.status === 'on_track' || g.status === 'completed').length} on track`, direction: 'up' }}
+        />
+      </div>
+
+      {/* Navigation Sub-Tabs */}
+      <div className="flex border-b border-white/10 gap-2 overflow-x-auto pb-1">
+        {[
+          { id: 'directory', label: 'Employee Directory', icon: Users },
+          { id: 'orgchart', label: 'Org Chart', icon: GitBranch },
+          { id: 'leaves', label: 'Leave Management', icon: Calendar },
+          { id: 'attendance', label: 'Attendance & Clock', icon: Clock },
+          { id: 'goals', label: 'Goals & OKRs', icon: Target },
+          { id: 'performance', label: 'Performance Reviews', icon: Award },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-medium transition whitespace-nowrap border-b-2 ${
+                isActive
+                  ? 'border-purple-500 text-purple-300 bg-purple-500/10'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* SUB-TAB 1: EMPLOYEE DIRECTORY */}
+      {activeSubTab === 'directory' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search name, designation, skills..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900/60 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <select
+                value={selectedDepartmentFilter}
+                onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              >
+                <option value="">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedEmploymentTypeFilter}
+                onChange={(e) => setSelectedEmploymentTypeFilter(e.target.value)}
+                className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              >
+                <option value="">All Types</option>
+                <option value="full_time">Full Time</option>
+                <option value="part_time">Part Time</option>
+                <option value="contractor">Contractor</option>
+                <option value="intern">Intern</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Employee Directory Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredProfiles.map((prof) => (
+              <motion.div
+                key={prof.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/40 transition flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar name={prof.user?.name || 'Staff'} avatar={prof.user?.avatar} size="lg" />
+                      <div>
+                        <h4 className="font-semibold text-slate-100 text-sm">{prof.user?.name}</h4>
+                        <p className="text-xs text-purple-400 font-medium">{prof.designation}</p>
+                        <p className="text-xs text-slate-400">{prof.user?.email}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
+                        prof.status === 'active'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}
+                    >
+                      {prof.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-1.5 text-xs text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{prof.department?.name || 'General Operations'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{prof.location || 'Remote'}</span>
+                    </div>
+                    {prof.manager && (
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Reports to: <strong className="text-slate-200">{prof.manager.name}</strong></span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Skills tags */}
+                  {prof.skills && prof.skills.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {prof.skills.slice(0, 4).map((s: string, idx: number) => (
+                        <span key={idx} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-white/5">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">
+                    Joined {new Date(prof.joiningDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={() => setSelectedProfile(prof)}
+                    className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition"
+                  >
+                    View Profile <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 2: ORG CHART */}
+      {activeSubTab === 'orgchart' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-slate-900/40 p-4 rounded-xl border border-white/10">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">Interactive Hierarchy Tree</h3>
+              <p className="text-xs text-slate-400">Visual corporate structure mapped from CEO & Executive Leaders to direct reports.</p>
+            </div>
+            {currentRole === 'admin' && (
+              <button
+                onClick={() => setIsReassignModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition"
+              >
+                Reassign Reporting Line
+              </button>
+            )}
+          </div>
+
+          {orgChart?.root ? (
+            <div className="p-6 bg-slate-950/60 rounded-xl border border-white/10 overflow-x-auto">
+              <div className="min-w-[600px] flex flex-col items-center">
+                {/* Root Leader Card */}
+                <div className="p-4 rounded-xl bg-purple-900/30 border-2 border-purple-500/50 text-center w-72 shadow-lg shadow-purple-500/10">
+                  <div className="flex justify-center mb-2">
+                    <UserAvatar name={orgChart.root.name} avatar={orgChart.root.avatar} size="lg" />
+                  </div>
+                  <h4 className="font-bold text-slate-100 text-sm">{orgChart.root.name}</h4>
+                  <p className="text-xs text-purple-300 font-medium">{orgChart.root.designation}</p>
+                  <p className="text-[11px] text-slate-400">{orgChart.root.department?.name || 'Executive Leadership'}</p>
+                  <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    {orgChart.root.directReportsCount} Direct Reports
+                  </span>
+                </div>
+
+                {/* Direct Reports Connector */}
+                {orgChart.root.children && orgChart.root.children.length > 0 && (
+                  <>
+                    <div className="w-0.5 h-8 bg-purple-500/40"></div>
+                    <div className="flex flex-wrap justify-center gap-6 pt-2">
+                      {orgChart.root.children.map((child: any) => (
+                        <div key={child.id} className="flex flex-col items-center">
+                          <div className="p-4 rounded-xl bg-slate-900/70 border border-white/15 text-center w-64 shadow-md hover:border-purple-500/50 transition">
+                            <div className="flex justify-center mb-2">
+                              <UserAvatar name={child.name} avatar={child.avatar} size="md" />
+                            </div>
+                            <h5 className="font-semibold text-slate-100 text-xs">{child.name}</h5>
+                            <p className="text-[11px] text-purple-400">{child.designation}</p>
+                            <p className="text-[10px] text-slate-400">{child.department?.name || 'Engineering'}</p>
+                            {child.directReportsCount > 0 && (
+                              <span className="inline-block mt-1.5 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                                {child.directReportsCount} Reports
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Level 3 Children */}
+                          {child.children && child.children.length > 0 && (
+                            <>
+                              <div className="w-0.5 h-6 bg-white/20"></div>
+                              <div className="flex flex-wrap justify-center gap-3">
+                                {child.children.map((grandChild: any) => (
+                                  <div key={grandChild.id} className="p-3 rounded-lg bg-slate-900/50 border border-white/10 text-center w-48">
+                                    <div className="flex justify-center mb-1">
+                                      <UserAvatar name={grandChild.name} avatar={grandChild.avatar} size="sm" />
+                                    </div>
+                                    <p className="font-medium text-slate-200 text-xs">{grandChild.name}</p>
+                                    <p className="text-[10px] text-slate-400">{grandChild.designation}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-slate-400 bg-slate-900/20 rounded-xl border border-white/5">
+              No organization hierarchy defined yet.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUB-TAB 3: LEAVE MANAGEMENT */}
+      {activeSubTab === 'leaves' && (
+        <div className="space-y-6">
+          {/* Leave Balances Grid */}
+          {leaveBalances && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-xl bg-slate-900/50 border border-white/10">
+                <p className="text-xs text-slate-400 font-medium">Annual Leave</p>
+                <h3 className="text-2xl font-bold text-slate-100 mt-1">{leaveBalances.annual.remaining} <span className="text-sm font-normal text-slate-400">/ {leaveBalances.annual.total} days</span></h3>
+                <p className="text-[11px] text-slate-500 mt-1">{leaveBalances.annual.used} days used</p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/50 border border-white/10">
+                <p className="text-xs text-slate-400 font-medium">Sick Leave</p>
+                <h3 className="text-2xl font-bold text-slate-100 mt-1">{leaveBalances.sick.remaining} <span className="text-sm font-normal text-slate-400">/ {leaveBalances.sick.total} days</span></h3>
+                <p className="text-[11px] text-slate-500 mt-1">{leaveBalances.sick.used} days used</p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/50 border border-white/10">
+                <p className="text-xs text-slate-400 font-medium">Casual Leave</p>
+                <h3 className="text-2xl font-bold text-slate-100 mt-1">{leaveBalances.casual.remaining} <span className="text-sm font-normal text-slate-400">/ {leaveBalances.casual.total} days</span></h3>
+                <p className="text-[11px] text-slate-500 mt-1">{leaveBalances.casual.used} days used</p>
+              </div>
+            </div>
+          )}
+
+          {/* Leave Requests Table */}
+          <div className="bg-slate-900/40 rounded-xl border border-white/10 overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-200">Leave Requests & Approvals</h3>
+              <button
+                onClick={() => setIsRequestLeaveModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition"
+              >
+                + Request Leave
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950/60 text-slate-400 border-b border-white/10 uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="p-3.5">Employee</th>
+                    <th className="p-3.5">Type</th>
+                    <th className="p-3.5">Duration</th>
+                    <th className="p-3.5">Reason</th>
+                    <th className="p-3.5">Status</th>
+                    {(currentRole === 'admin' || (currentUser as any)?.role === 'lead') && <th className="p-3.5 text-right">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {leaves.map((l) => (
+                    <tr key={l.id} className="hover:bg-white/[0.02] transition">
+                      <td className="p-3.5 font-medium text-slate-100">
+                        {l.user?.name || 'Team Member'}
+                      </td>
+                      <td className="p-3.5 capitalize">{l.leaveType}</td>
+                      <td className="p-3.5">
+                        {new Date(l.startDate).toLocaleDateString()} - {new Date(l.endDate).toLocaleDateString()}
+                        <span className="ml-2 text-slate-500">({l.daysCount}d)</span>
+                      </td>
+                      <td className="p-3.5 text-slate-400 max-w-xs truncate">{l.reason}</td>
+                      <td className="p-3.5">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            l.status === 'approved'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : l.status === 'rejected'
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}
+                        >
+                          {l.status}
+                        </span>
+                      </td>
+                      {(currentRole === 'admin' || (currentUser as any)?.role === 'lead') && (
+                        <td className="p-3.5 text-right">
+                          {l.status === 'pending' ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleReviewLeave(l.id, 'approved')}
+                                className="p-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition"
+                                title="Approve"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleReviewLeave(l.id, 'rejected')}
+                                className="p-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
+                                title="Reject"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 text-[11px]">—</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {leaves.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                        No leave requests submitted yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 4: ATTENDANCE */}
+      {activeSubTab === 'attendance' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400 font-medium">My Clock Status</p>
+                <h4 className="text-lg font-bold text-slate-100 mt-1">
+                  {isCheckedIn ? 'Checked In' : 'Checked Out'}
+                </h4>
+                {todayAttendance?.checkInAt && (
+                  <p className="text-xs text-purple-400 mt-0.5">
+                    Since {new Date(todayAttendance.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition shadow-lg ${
+                  isCheckedIn
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/20'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
+                }`}
+              >
+                {isCheckedIn ? 'Check Out' : 'Check In'}
+              </button>
+            </div>
+
+            <div className="p-5 rounded-xl bg-slate-900/50 border border-white/10">
+              <p className="text-xs text-slate-400 font-medium">Today's Late Arrivals</p>
+              <h4 className="text-lg font-bold text-amber-400 mt-1">
+                {attendanceMetrics?.lateToday ?? 0} Employees
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">Clock-in past 10:00 AM policy</p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-slate-900/50 border border-white/10">
+              <p className="text-xs text-slate-400 font-medium">Total Attendance Rate</p>
+              <h4 className="text-lg font-bold text-cyan-400 mt-1">
+                {attendanceMetrics?.attendanceRate ?? 100}%
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">{attendanceMetrics?.presentToday} of {attendanceMetrics?.totalStaff} staff present</p>
+            </div>
+          </div>
+
+          {/* Attendance History */}
+          <div className="bg-slate-900/40 rounded-xl border border-white/10 overflow-hidden">
+            <div className="p-4 border-b border-white/10">
+              <h3 className="text-sm font-semibold text-slate-200">Attendance Log History</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950/60 text-slate-400 border-b border-white/10 uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="p-3.5">Date</th>
+                    <th className="p-3.5">Staff Member</th>
+                    <th className="p-3.5">Check In</th>
+                    <th className="p-3.5">Check Out</th>
+                    <th className="p-3.5">Worked Duration</th>
+                    <th className="p-3.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {attendanceHistory.map((a) => (
+                    <tr key={a.id} className="hover:bg-white/[0.02] transition">
+                      <td className="p-3.5 font-medium text-slate-100">{a.date}</td>
+                      <td className="p-3.5">{a.user?.name || 'Staff Member'}</td>
+                      <td className="p-3.5 text-slate-300">
+                        {a.checkInAt ? new Date(a.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="p-3.5 text-slate-300">
+                        {a.checkOutAt ? new Date(a.checkOutAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="p-3.5 text-slate-400">
+                        {a.workedHours > 0 ? `${Math.floor(a.workedHours / 60)}h ${a.workedHours % 60}m` : 'In Progress'}
+                      </td>
+                      <td className="p-3.5">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            a.status === 'present'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : a.status === 'late'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                          }`}
+                        >
+                          {a.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 5: GOALS & OKRs */}
+      {activeSubTab === 'goals' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-slate-900/40 p-4 rounded-xl border border-white/10">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">Objectives & Key Results (OKRs)</h3>
+              <p className="text-xs text-slate-400">Align team milestones with company-wide strategic initiatives.</p>
+            </div>
+            <button
+              onClick={() => setIsCreateGoalModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition"
+            >
+              + Create OKR
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {goals.map((g) => (
+              <motion.div
+                key={g.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/30 transition flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">
+                        {g.category} OKR
+                      </span>
+                      <h4 className="font-semibold text-slate-100 text-sm mt-0.5">{g.title}</h4>
+                      {g.description && <p className="text-xs text-slate-400 mt-1">{g.description}</p>}
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        g.status === 'completed'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : g.status === 'behind'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                      }`}
+                    >
+                      {g.status.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mt-4 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-medium">Progress</span>
+                      <span className="font-bold text-slate-200">{g.progress}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full transition-all duration-500"
+                        style={{ width: `${g.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Due {new Date(g.dueDate).toLocaleDateString()}</span>
+                  <button
+                    onClick={() => {
+                      setSelectedGoalForCheckin(g);
+                      setCheckinValue(g.progress);
+                    }}
+                    className="text-purple-400 hover:text-purple-300 font-medium transition"
+                  >
+                    Check In Update &rarr;
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 6: PERFORMANCE REVIEWS */}
+      {activeSubTab === 'performance' && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/40 rounded-xl border border-white/10 overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-200">Quarterly 360° Performance Reviews</h3>
+                <p className="text-xs text-slate-400">Structured evaluation covering Communication, Ownership, Execution, and Leadership.</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950/60 text-slate-400 border-b border-white/10 uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="p-3.5">Cycle</th>
+                    <th className="p-3.5">Employee</th>
+                    <th className="p-3.5">Reviewer</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5">Final Rating</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {reviews.map((r) => (
+                    <tr key={r.id} className="hover:bg-white/[0.02] transition">
+                      <td className="p-3.5 font-medium text-slate-100">{r.cycle}</td>
+                      <td className="p-3.5">{r.user?.name || 'Staff Member'}</td>
+                      <td className="p-3.5 text-slate-400">{r.reviewer?.name || 'Manager'}</td>
+                      <td className="p-3.5">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            r.status === 'completed'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                          }`}
+                        >
+                          {r.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-3.5">
+                        {r.status === 'completed' ? (
+                          <div className="flex items-center gap-1 text-amber-400 font-bold">
+                            <Star className="w-3.5 h-3.5 fill-amber-400" />
+                            {r.finalRating} / 5.0
+                          </div>
+                        ) : (
+                          <span className="text-slate-500">Pending final rating</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        {r.status === 'self_review' && r.userId === currentUser?.id ? (
+                          <button
+                            onClick={() => setSelectedReviewForSelf(r)}
+                            className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-semibold transition"
+                          >
+                            Submit Self Review
+                          </button>
+                        ) : r.status === 'manager_review' && (currentRole === 'admin' || (currentUser as any)?.role === 'lead') ? (
+                          <button
+                            onClick={() => setSelectedReviewForManager(r)}
+                            className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-semibold transition"
+                          >
+                            Complete Manager Review
+                          </button>
+                        ) : (
+                          <span className="text-slate-500 text-[11px]">View Details</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {reviews.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                        No active review cycles found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REQUEST LEAVE */}
+      <AnimatePresence>
+        {isRequestLeaveModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="text-base font-semibold text-slate-100">Submit Leave Request</h3>
+                <button onClick={() => setIsRequestLeaveModalOpen(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRequestLeave} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Leave Type</label>
+                  <select
+                    value={leaveForm.leaveType}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="annual">Annual Leave</option>
+                    <option value="sick">Sick Leave</option>
+                    <option value="casual">Casual Leave</option>
+                    <option value="unpaid">Unpaid Leave</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={leaveForm.startDate}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={leaveForm.endDate}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Reason for Leave</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Provide context for manager review..."
+                    value={leaveForm.reason}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestLeaveModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition shadow-lg shadow-purple-500/20"
+                  >
+                    Submit Request
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: CREATE GOAL (OKR) */}
+      <AnimatePresence>
+        {isCreateGoalModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="text-base font-semibold text-slate-100">Create Objective / Key Result</h3>
+                <button onClick={() => setIsCreateGoalModalOpen(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateGoal} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Goal Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Increase Activation Rate by 20%"
+                    value={goalForm.title}
+                    onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Key strategic milestones and outcomes..."
+                    value={goalForm.description}
+                    onChange={(e) => setGoalForm({ ...goalForm, description: e.target.value })}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Category</label>
+                    <select
+                      value={goalForm.category}
+                      onChange={(e) => setGoalForm({ ...goalForm, category: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="individual">Individual</option>
+                      <option value="team">Team</option>
+                      <option value="company">Company Wide</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Target Due Date</label>
+                    <input
+                      type="date"
+                      value={goalForm.dueDate}
+                      onChange={(e) => setGoalForm({ ...goalForm, dueDate: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateGoalModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition shadow-lg shadow-purple-500/20"
+                  >
+                    Create Goal
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: CHECK-IN GOAL PROGRESS */}
+      <AnimatePresence>
+        {selectedGoalForCheckin && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-100">Update OKR Progress</h3>
+                  <p className="text-xs text-purple-400">{selectedGoalForCheckin.title}</p>
+                </div>
+                <button onClick={() => setSelectedGoalForCheckin(null)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleGoalCheckin} className="space-y-4 text-xs">
+                <div>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Progress Percentage</span>
+                    <span className="font-bold text-slate-200">{checkinValue}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={checkinValue}
+                    onChange={(e) => setCheckinValue(Number(e.target.value))}
+                    className="w-full accent-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Check-in Notes / Accomplishments</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Summary of latest progress..."
+                    value={checkinNotes}
+                    onChange={(e) => setCheckinNotes(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGoalForCheckin(null)}
+                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition"
+                  >
+                    Save Progress
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};

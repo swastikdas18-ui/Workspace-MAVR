@@ -92,7 +92,7 @@ export class WorkspaceHealthService {
       }
     }
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+    const completedTasks = tasks.filter((t) => t.status === 'completed' || t.status === 'done').length;
 
     // 4. Automations
     let activeAutomations = 0;

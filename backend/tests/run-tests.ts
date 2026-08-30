@@ -23,6 +23,9 @@ import { runProjectCreationRbacTests } from './project-creation-rbac.test';
 import { runProjectSystemFullTests } from './project-system-full.test';
 import { runProjectWorkflowTests } from './project-workflow.test';
 import { runExecutiveDashboardV2Tests } from './executive-dashboard-v2.test';
+import { runTaskEngineTests } from './task-engine.test';
+import { runAutomationEngineV2Tests } from './automation-engine-v2.test';
+import { runPeopleOsTests } from './people-os.test';
 
 async function main() {
   try {
@@ -72,7 +75,13 @@ async function main() {
     await runProjectWorkflowTests();
     console.log('\n>>> Starting Suite 23: Executive Dashboard V2 & Live Aggregations');
     await runExecutiveDashboardV2Tests();
-    console.log('\n🌟 ALL 23 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 24: Phase 2 Task Execution Engine & State Machine');
+    await runTaskEngineTests();
+    console.log('\n>>> Starting Suite 25: Phase 3 No-Code Automation Platform & Rule Engine');
+    await runAutomationEngineV2Tests();
+    console.log('\n>>> Starting Suite 26: Phase 4 People Operating System (HR + Team Mgmt)');
+    await runPeopleOsTests();
+    console.log('\n🌟 ALL 26 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

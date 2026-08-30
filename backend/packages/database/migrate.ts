@@ -138,6 +138,7 @@ export async function runMigrations() {
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS approved_by TEXT REFERENCES users(id);`;
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS review_feedback TEXT;`;
 
+    // 7b. Project Updates
     await sql`
       CREATE TABLE IF NOT EXISTS project_updates (
         id TEXT PRIMARY KEY,
@@ -174,7 +175,7 @@ export async function runMigrations() {
     await sql`CREATE INDEX IF NOT EXISTS idx_project_teams_team_id ON project_teams(team_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_project_teams_proj_team ON project_teams(project_id, team_id);`;
 
-    // 9. Tasks table
+    // 9. Tasks table (Phase 2 Task Execution Engine)
     await sql`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
@@ -182,15 +183,55 @@ export async function runMigrations() {
         description TEXT,
         status TEXT NOT NULL DEFAULT 'todo',
         priority TEXT NOT NULL DEFAULT 'medium',
+        story_points INTEGER DEFAULT 1,
+        estimated_hours INTEGER,
+        actual_hours INTEGER DEFAULT 0,
         assigned_to TEXT NOT NULL REFERENCES users(id),
         project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
+        team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
         due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+        started_at TIMESTAMP WITH TIME ZONE,
+        completed_at TIMESTAMP WITH TIME ZONE,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        blocked_reason TEXT,
+        is_blocked BOOLEAN DEFAULT FALSE,
         is_learning_task BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS story_points INTEGER DEFAULT 1;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS estimated_hours INTEGER;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS actual_hours INTEGER DEFAULT 0;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS team_id TEXT REFERENCES teams(id) ON DELETE SET NULL;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_reason TEXT;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_learning_task BOOLEAN DEFAULT FALSE;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_team_id ON tasks(team_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);`;
+
+    // 9b. Task Updates (Activity Log & Audit Trail)
+    await sql`
+      CREATE TABLE IF NOT EXISTS task_updates (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        from_status TEXT,
+        to_status TEXT,
+        comment TEXT,
+        metadata TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_updates_task_id ON task_updates(task_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_updates_user_id ON task_updates(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_updates_created_at ON task_updates(created_at);`;
 
     // 10. Documents table
     await sql`
@@ -272,7 +313,7 @@ export async function runMigrations() {
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
         workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-        userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         title TEXT NOT NULL,
         message TEXT NOT NULL,
         type TEXT NOT NULL,
@@ -874,7 +915,7 @@ export async function runMigrations() {
     await sql`CREATE INDEX IF NOT EXISTS idx_nps_ws ON nps_surveys(workspace_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_events_ws ON events(workspace_id);`;
 
-    console.log('[Workspace OS Migration] ✅ All 50+ relational tables, indexes, and missing column migrations verified and applied successfully.');
+    console.log('[Workspace OS Migration] ✅ All 52 relational tables, indexes, and missing column migrations verified and applied successfully.');
   } catch (err: any) {
     console.error('[Workspace OS Migration] ❌ Migration failed:', err.message);
     throw err;

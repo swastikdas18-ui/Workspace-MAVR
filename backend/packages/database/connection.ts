@@ -16,6 +16,7 @@ export class InMemoryDatabase {
   public projectTeams: Map<string, any> = new Map();
   public projectUpdates: Map<string, any> = new Map();
   public tasks: Map<string, any> = new Map();
+  public taskUpdates: Map<string, any> = new Map();
   public taskComments: Map<string, any> = new Map();
   public documents: Map<string, any> = new Map();
   public crmRecords: Map<string, any> = new Map();
@@ -71,6 +72,15 @@ export class InMemoryDatabase {
   // Phase 23 Maps
   public npsSurveys: Map<string, any> = new Map();
 
+  // Phase 4 (People OS) Maps
+  public departments: Map<string, any> = new Map();
+  public employeeProfiles: Map<string, any> = new Map();
+  public leaveRequests: Map<string, any> = new Map();
+  public attendanceRecords: Map<string, any> = new Map();
+  public goals: Map<string, any> = new Map();
+  public goalUpdates: Map<string, any> = new Map();
+  public performanceReviews: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -83,6 +93,7 @@ export class InMemoryDatabase {
     this.projectTeams.clear();
     this.projectUpdates.clear();
     this.tasks.clear();
+    this.taskUpdates.clear();
     this.taskComments.clear();
     this.documents.clear();
     this.crmRecords.clear();
@@ -137,6 +148,15 @@ export class InMemoryDatabase {
 
     // Phase 23 resets
     this.npsSurveys.clear();
+
+    // Phase 4 resets
+    this.departments.clear();
+    this.employeeProfiles.clear();
+    this.leaveRequests.clear();
+    this.attendanceRecords.clear();
+    this.goals.clear();
+    this.goalUpdates.clear();
+    this.performanceReviews.clear();
   }
 }
 
@@ -189,4 +209,3 @@ export function getDb(): NeonHttpDatabase<typeof schema> | null {
 
 export { schema };
 export * from './types';
-

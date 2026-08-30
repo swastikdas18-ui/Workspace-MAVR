@@ -1,7 +1,8 @@
 import { UserRole } from '../types';
 import { can, normalizeRole } from '../lib/permissions';
-import { TaskRepository, TaskEntity, TaskCommentEntity } from '../repositories/task-repository';
+import { TaskRepository, TaskEntity, TaskCommentEntity, TaskUpdateEntity } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
+import { NotificationRepository } from '../repositories/notification-repository';
 import { EventService } from './event-service';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { inArray } from 'drizzle-orm';
@@ -9,28 +10,113 @@ import { inArray } from 'drizzle-orm';
 export interface CreateTaskInput {
   title: string;
   description?: string;
-  status?: 'todo' | 'in_progress' | 'review' | 'completed';
+  status?: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'completed';
   priority?: 'low' | 'medium' | 'high' | 'urgent' | 'critical';
-  assignedTo: string;
-  projectId: string;
+  storyPoints?: number;
+  story_points?: number;
+  estimatedHours?: number;
+  estimated_hours?: number;
+  assignedTo?: string;
+  assigned_to?: string;
+  projectId?: string;
+  project_id?: string;
+  teamId?: string;
+  team_id?: string;
   dueDate?: string;
+  due_date?: string;
   isLearningTask?: boolean;
+  is_learning_task?: boolean;
 }
 
 export interface UpdateTaskInput {
   title?: string;
   description?: string;
-  status?: 'todo' | 'in_progress' | 'review' | 'completed';
+  status?: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'completed';
   priority?: 'low' | 'medium' | 'high' | 'urgent' | 'critical';
+  storyPoints?: number;
+  story_points?: number;
+  estimatedHours?: number;
+  estimated_hours?: number;
+  actualHours?: number;
+  actual_hours?: number;
   assignedTo?: string;
+  assigned_to?: string;
   projectId?: string;
+  project_id?: string;
+  teamId?: string;
+  team_id?: string;
   dueDate?: string;
+  due_date?: string;
+  isBlocked?: boolean;
+  is_blocked?: boolean;
+  blockedReason?: string;
+  blocked_reason?: string;
   isLearningTask?: boolean;
+  is_learning_task?: boolean;
 }
 
 export class TaskService {
   /**
-   * Helper to batch resolve assignee user records from database/in-memory
+   * Allowed state machine transitions:
+   * Backlog -> Todo
+   * Todo -> In Progress
+   * In Progress -> Review
+   * Review -> Done
+   * Review -> In Progress
+   */
+  private static readonly ALLOWED_TRANSITIONS: Record<string, string[]> = {
+    backlog: ['todo'],
+    todo: ['in_progress'],
+    in_progress: ['review'],
+    review: ['done', 'in_progress'],
+    done: [],
+  };
+
+  /**
+   * Validates state transition according to Phase 2 State Machine rules
+   */
+  public static validateStatusTransition(currentStatus: string, nextStatus: string): void {
+    const from = currentStatus.toLowerCase() === 'completed' ? 'done' : currentStatus.toLowerCase();
+    const to = nextStatus.toLowerCase() === 'completed' ? 'done' : nextStatus.toLowerCase();
+
+    if (from === to) return;
+
+    const allowedNext = this.ALLOWED_TRANSITIONS[from] || [];
+    if (!allowedNext.includes(to)) {
+      const error: any = new Error(
+        `Invalid task status transition from '${from}' to '${to}'. Allowed transitions from '${from}' are: [${allowedNext.join(', ') || 'none'}].`
+      );
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+  }
+
+  /**
+   * Helper to recalculate project progress from its tasks automatically
+   */
+  public static async recalculateProjectProgress(workspaceId: string, projectId: string): Promise<number> {
+    if (!projectId) return 0;
+    try {
+      const projectTasks = await TaskRepository.getTasksByProject(workspaceId, projectId);
+      const totalCount = projectTasks.length;
+      if (totalCount === 0) {
+        await ProjectRepository.updateProject(workspaceId, projectId, { progress: 0 });
+        return 0;
+      }
+      const doneCount = projectTasks.filter(
+        (t) => t.status === 'done' || t.status === 'completed'
+      ).length;
+      const progress = Math.round((doneCount / totalCount) * 100);
+      await ProjectRepository.updateProject(workspaceId, projectId, { progress });
+      return progress;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Helper to batch resolve assignee user records
    */
   private static async resolveAssigneeMap(
     userIds: string[]
@@ -55,7 +141,7 @@ export class TaskService {
 
         rows.forEach((r) => userMap.set(r.id, r));
       } catch {
-        // Fallback to inMemoryDb
+        // Fallback
       }
     }
 
@@ -78,17 +164,26 @@ export class TaskService {
   }
 
   /**
-   * List tasks for the active workspace, filtered by user role
+   * List tasks for the active workspace, filtered by user role and query parameters
    */
   static async getTasks(
     workspaceId: string,
     userId: string,
-    rawRole: UserRole | string
+    rawRole: UserRole | string,
+    filters?: {
+      projectId?: string;
+      teamId?: string;
+      status?: string;
+      priority?: string;
+      assignedTo?: string;
+      isBlocked?: boolean;
+    }
   ): Promise<any[]> {
     const role = normalizeRole(rawRole);
     const tasks = await TaskRepository.listTasks(workspaceId, {
       userId,
       role,
+      ...filters,
     });
 
     const userMap = await this.resolveAssigneeMap(tasks.map((t) => t.assignedTo));
@@ -99,19 +194,37 @@ export class TaskService {
         id: t.id,
         title: t.title,
         description: t.description || '',
-        status: t.status || 'todo',
+        status: t.status === 'completed' ? 'done' : t.status,
         priority: t.priority || 'medium',
+        story_points: t.storyPoints || 1,
+        storyPoints: t.storyPoints || 1,
+        estimated_hours: t.estimatedHours || null,
+        estimatedHours: t.estimatedHours || null,
+        actual_hours: t.actualHours || 0,
+        actualHours: t.actualHours || 0,
         assigned_to: t.assignedTo,
         assignedTo: t.assignedTo,
         assignee: assigneeObj,
         assignee_name: assigneeObj?.name || null,
         assignee_avatar: assigneeObj?.avatar || null,
         project_id: t.projectId || '',
+        projectId: t.projectId || '',
+        team_id: t.teamId || null,
+        teamId: t.teamId || null,
         workspace_id: t.workspaceId,
         due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        started_at: t.startedAt ? new Date(t.startedAt).toISOString() : null,
+        completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
+        reviewed_by: t.reviewedBy || null,
+        reviewed_at: t.reviewedAt ? new Date(t.reviewedAt).toISOString() : null,
+        is_blocked: t.isBlocked || false,
+        isBlocked: t.isBlocked || false,
+        blocked_reason: t.blockedReason || null,
+        blockedReason: t.blockedReason || null,
         created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
         is_learning_task: t.isLearningTask || false,
         comments_count: t.commentsCount || 0,
+        activity_count: t.activityCount || 0,
       };
     });
   }
@@ -135,7 +248,6 @@ export class TaskService {
       throw error;
     }
 
-    // Validation: title required
     if (!input.title || !input.title.trim()) {
       const error: any = new Error('Task title is required.');
       error.code = 'VALIDATION_ERROR';
@@ -143,8 +255,8 @@ export class TaskService {
       throw error;
     }
 
-    // Validation: projectId required
-    if (!input.projectId || !input.projectId.trim()) {
+    const projectId = input.projectId || input.project_id;
+    if (!projectId || !projectId.trim()) {
       const error: any = new Error('Project ID is required.');
       error.code = 'VALIDATION_ERROR';
       error.status = 400;
@@ -152,7 +264,7 @@ export class TaskService {
     }
 
     // Cross-Workspace Project Validation
-    const project = await ProjectRepository.getProjectById(workspaceId, input.projectId);
+    const project = await ProjectRepository.getProjectById(workspaceId, projectId.trim());
     if (!project) {
       const error: any = new Error('Referenced project does not belong to the active workspace.');
       error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
@@ -160,22 +272,45 @@ export class TaskService {
       throw error;
     }
 
-    const dueDate = input.dueDate ? new Date(input.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const dueDateStr = input.dueDate || input.due_date;
+    const dueDate = dueDateStr ? new Date(dueDateStr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const assignedTo = input.assignedTo && input.assignedTo.trim() ? input.assignedTo.trim() : userId;
+    const assignedToRaw = input.assignedTo || input.assigned_to;
+    const assignedTo = assignedToRaw && assignedToRaw.trim() ? assignedToRaw.trim() : userId;
+
+    const rawStatus = input.status || 'todo';
+    const status = rawStatus === 'completed' ? 'done' : rawStatus;
 
     const task = await TaskRepository.createTask(workspaceId, userId, {
       title: input.title.trim(),
       description: input.description?.trim() || '',
-      status: input.status || 'todo',
+      status,
       priority: input.priority || 'medium',
+      storyPoints: input.storyPoints || input.story_points || 1,
+      estimatedHours: input.estimatedHours || input.estimated_hours,
       assignedTo,
-      projectId: input.projectId,
+      projectId: projectId.trim(),
+      teamId: input.teamId || input.team_id,
       dueDate,
-      isLearningTask: input.isLearningTask || false,
+      isLearningTask: input.isLearningTask || input.is_learning_task || false,
     });
 
-    // Emit event: Task Created & Assigned
+    // Auto-calculate project progress
+    await this.recalculateProjectProgress(workspaceId, task.projectId);
+
+    // Dispatch Notification to Assignee if different from creator
+    if (assignedTo !== userId) {
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: assignedTo,
+        title: 'New Task Assigned',
+        message: `You have been assigned task "${task.title}" on project "${project.title}".`,
+        type: 'task_assigned',
+        metadata: { taskId: task.id, projectId: task.projectId },
+      });
+    }
+
+    // Emit event: Task Created
     await EventService.emitTaskCreated(
       { workspaceId, actorId: userId },
       {
@@ -196,17 +331,29 @@ export class TaskService {
       description: task.description || '',
       status: task.status,
       priority: task.priority,
+      story_points: task.storyPoints || 1,
+      storyPoints: task.storyPoints || 1,
+      estimated_hours: task.estimatedHours || null,
+      estimatedHours: task.estimatedHours || null,
+      actual_hours: task.actualHours || 0,
+      actualHours: task.actualHours || 0,
       assigned_to: task.assignedTo,
       assignedTo: task.assignedTo,
       assignee: assigneeObj,
       assignee_name: assigneeObj?.name || null,
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: task.projectId,
+      projectId: task.projectId,
+      team_id: task.teamId || null,
+      teamId: task.teamId || null,
       workspace_id: task.workspaceId,
       due_date: task.dueDate.toISOString().substring(0, 10),
       created_at: task.createdAt.toISOString().substring(0, 10),
       is_learning_task: task.isLearningTask || false,
+      is_blocked: false,
+      isBlocked: false,
       comments_count: 0,
+      activity_count: 1,
     };
   }
 
@@ -268,24 +415,42 @@ export class TaskService {
       id: existing.id,
       title: existing.title,
       description: existing.description || '',
-      status: existing.status || 'todo',
+      status: existing.status === 'completed' ? 'done' : existing.status,
       priority: existing.priority || 'medium',
+      story_points: existing.storyPoints || 1,
+      storyPoints: existing.storyPoints || 1,
+      estimated_hours: existing.estimatedHours || null,
+      estimatedHours: existing.estimatedHours || null,
+      actual_hours: existing.actualHours || 0,
+      actualHours: existing.actualHours || 0,
       assigned_to: existing.assignedTo,
       assignedTo: existing.assignedTo,
       assignee: assigneeObj,
       assignee_name: assigneeObj?.name || null,
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: existing.projectId || '',
+      projectId: existing.projectId || '',
+      team_id: existing.teamId || null,
+      teamId: existing.teamId || null,
       workspace_id: existing.workspaceId,
       due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      started_at: existing.startedAt ? new Date(existing.startedAt).toISOString() : null,
+      completed_at: existing.completedAt ? new Date(existing.completedAt).toISOString() : null,
+      reviewed_by: existing.reviewedBy || null,
+      reviewed_at: existing.reviewedAt ? new Date(existing.reviewedAt).toISOString() : null,
+      is_blocked: existing.isBlocked || false,
+      isBlocked: existing.isBlocked || false,
+      blocked_reason: existing.blockedReason || null,
+      blockedReason: existing.blockedReason || null,
       created_at: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       is_learning_task: existing.isLearningTask || false,
       comments_count: existing.commentsCount || 0,
+      activity_count: existing.activityCount || 0,
     };
   }
 
   /**
-   * Update task details or status with strict role checks
+   * Update task details or status with state machine checks
    */
   static async updateTask(
     workspaceId: string,
@@ -311,7 +476,6 @@ export class TaskService {
       throw error;
     }
 
-    // Validation: if title is supplied, must not be empty/whitespace
     if (updates.title !== undefined && !updates.title.trim()) {
       const error: any = new Error('Task title cannot be empty.');
       error.code = 'VALIDATION_ERROR';
@@ -319,15 +483,14 @@ export class TaskService {
       throw error;
     }
 
-    // RBAC: Interns forbidden from modifying tasks
+    // RBAC: Interns forbidden from generic updating (only status actions permitted via dedicated endpoints)
     if (role === 'intern') {
-      const error: any = new Error('Interns are forbidden from updating tasks.');
+      const error: any = new Error('Interns are forbidden from updating task properties.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
     }
 
-    // RBAC: Employee checks
     if (role === 'employee') {
       const project = existing.projectId
         ? await ProjectRepository.getProjectById(workspaceId, existing.projectId)
@@ -339,29 +502,38 @@ export class TaskService {
       const isProjectOwner = project ? project.createdBy === userId : false;
 
       if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner) {
-        const error: any = new Error('Employees are only permitted to mutate tasks assigned to them, created by them, or within their project scope.');
+        const error: any = new Error('Unauthorized to mutate unassigned task.');
         error.code = 'FORBIDDEN';
         error.status = 403;
         throw error;
       }
     }
 
-    // Cross-Workspace Project Validation if updating projectId
-    if (updates.projectId) {
-      const proj = await ProjectRepository.getProjectById(workspaceId, updates.projectId);
-      if (!proj) {
-        const error: any = new Error('Referenced project does not belong to the active workspace.');
-        error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
-        error.status = 403;
-        throw error;
+    // State machine check if status changed
+    let targetStatus = existing.status;
+    if (updates.status !== undefined) {
+      const mappedStatus = updates.status === 'completed' ? 'done' : updates.status;
+      if (mappedStatus !== existing.status) {
+        this.validateStatusTransition(existing.status, mappedStatus);
+        targetStatus = mappedStatus;
       }
     }
 
     const updatedTask = await TaskRepository.updateTask(workspaceId, taskId, {
-      ...updates,
       title: updates.title !== undefined ? updates.title.trim() : undefined,
       description: updates.description !== undefined ? updates.description.trim() : undefined,
-      dueDate: updates.dueDate ? new Date(updates.dueDate) : undefined,
+      status: targetStatus,
+      priority: updates.priority,
+      storyPoints: updates.storyPoints || updates.story_points,
+      estimatedHours: updates.estimatedHours || updates.estimated_hours,
+      actualHours: updates.actualHours || updates.actual_hours,
+      assignedTo: updates.assignedTo || updates.assigned_to,
+      projectId: updates.projectId || updates.project_id,
+      teamId: updates.teamId || updates.team_id,
+      dueDate: (updates.dueDate || updates.due_date) ? new Date(updates.dueDate || updates.due_date!) : undefined,
+      isBlocked: updates.isBlocked !== undefined ? updates.isBlocked : updates.is_blocked,
+      blockedReason: updates.blockedReason !== undefined ? updates.blockedReason : updates.blocked_reason,
+      isLearningTask: updates.isLearningTask !== undefined ? updates.isLearningTask : updates.is_learning_task,
     });
 
     if (!updatedTask) {
@@ -371,32 +543,48 @@ export class TaskService {
       throw error;
     }
 
-    // Emit event: Task Reassigned
-    if (updates.assignedTo && updates.assignedTo !== existing.assignedTo) {
-      await EventService.emitTaskAssigned(
-        { workspaceId, actorId: userId },
-        {
-          id: updatedTask.id,
-          title: updatedTask.title,
-          projectId: updatedTask.projectId,
-          previousAssignee: existing.assignedTo,
-          newAssignee: updates.assignedTo,
-        }
-      );
+    // Log status change activity if changed
+    if (targetStatus !== existing.status) {
+      await TaskRepository.addTaskUpdate(taskId, userId, {
+        type: 'status_change',
+        fromStatus: existing.status,
+        toStatus: targetStatus,
+        comment: `Status updated from ${existing.status} to ${targetStatus}`,
+      }, workspaceId);
+
+      // Recalculate project progress
+      await this.recalculateProjectProgress(workspaceId, updatedTask.projectId);
+
+      // Emit event: Task Completed
+      if (targetStatus === 'done' || targetStatus === 'completed') {
+        await EventService.emitTaskCompleted(
+          { workspaceId, actorId: userId },
+          {
+            id: updatedTask.id,
+            title: updatedTask.title,
+            projectId: updatedTask.projectId,
+            assignedTo: updatedTask.assignedTo,
+          }
+        );
+      }
     }
 
-    // Emit event: Task Completed
-    if (updates.status === 'completed' && existing.status !== 'completed') {
-      await EventService.emitTaskCompleted(
-        { workspaceId, actorId: userId },
-        {
-          id: updatedTask.id,
-          title: updatedTask.title,
-          projectId: updatedTask.projectId,
-          creatorId: existing.createdBy,
-          assignedTo: updatedTask.assignedTo,
-        }
-      );
+    // Reassignment log & notification
+    const newAssignee = updates.assignedTo || updates.assigned_to;
+    if (newAssignee && newAssignee !== existing.assignedTo) {
+      await TaskRepository.addTaskUpdate(taskId, userId, {
+        type: 'assignment',
+        comment: `Task reassigned from ${existing.assignedTo} to ${newAssignee}`,
+      }, workspaceId);
+
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: newAssignee,
+        title: 'Task Assigned to You',
+        message: `You have been assigned task "${updatedTask.title}".`,
+        type: 'task_assigned',
+        metadata: { taskId: updatedTask.id, projectId: updatedTask.projectId },
+      });
     }
 
     const userMap = await this.resolveAssigneeMap([updatedTask.assignedTo]);
@@ -408,22 +596,357 @@ export class TaskService {
       description: updatedTask.description || '',
       status: updatedTask.status,
       priority: updatedTask.priority,
+      story_points: updatedTask.storyPoints || 1,
+      storyPoints: updatedTask.storyPoints || 1,
+      estimated_hours: updatedTask.estimatedHours || null,
+      estimatedHours: updatedTask.estimatedHours || null,
+      actual_hours: updatedTask.actualHours || 0,
+      actualHours: updatedTask.actualHours || 0,
       assigned_to: updatedTask.assignedTo,
       assignedTo: updatedTask.assignedTo,
       assignee: assigneeObj,
       assignee_name: assigneeObj?.name || null,
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: updatedTask.projectId,
+      projectId: updatedTask.projectId,
+      team_id: updatedTask.teamId || null,
+      teamId: updatedTask.teamId || null,
       workspace_id: updatedTask.workspaceId,
       due_date: updatedTask.dueDate ? new Date(updatedTask.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      started_at: updatedTask.startedAt ? new Date(updatedTask.startedAt).toISOString() : null,
+      completed_at: updatedTask.completedAt ? new Date(updatedTask.completedAt).toISOString() : null,
+      reviewed_by: updatedTask.reviewedBy || null,
+      reviewed_at: updatedTask.reviewedAt ? new Date(updatedTask.reviewedAt).toISOString() : null,
+      is_blocked: updatedTask.isBlocked || false,
+      isBlocked: updatedTask.isBlocked || false,
+      blocked_reason: updatedTask.blockedReason || null,
+      blockedReason: updatedTask.blockedReason || null,
       created_at: updatedTask.createdAt ? new Date(updatedTask.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       is_learning_task: updatedTask.isLearningTask || false,
       comments_count: updatedTask.commentsCount || 0,
+      activity_count: updatedTask.activityCount || 0,
     };
   }
 
   /**
-   * Delete task
+   * Action: Start Task (Transitions Todo -> In Progress)
+   */
+  static async startTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string
+  ): Promise<any> {
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    this.validateStatusTransition(existing.status, 'in_progress');
+
+    const startedAt = new Date();
+    const updatedTask = await TaskRepository.updateTask(workspaceId, taskId, {
+      status: 'in_progress',
+      startedAt,
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'status_change',
+      fromStatus: existing.status,
+      toStatus: 'in_progress',
+      comment: 'Task execution started',
+    }, workspaceId);
+
+    await this.recalculateProjectProgress(workspaceId, existing.projectId);
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Submit Task for Review (Transitions In Progress -> Review)
+   */
+  static async submitReview(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    notes?: string
+  ): Promise<any> {
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    this.validateStatusTransition(existing.status, 'review');
+
+    const updatedTask = await TaskRepository.updateTask(workspaceId, taskId, {
+      status: 'review',
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'status_change',
+      fromStatus: existing.status,
+      toStatus: 'review',
+      comment: notes ? `Submitted for review: ${notes}` : 'Submitted for review',
+    }, workspaceId);
+
+    // Notify project creator / owner
+    const project = await ProjectRepository.getProjectById(workspaceId, existing.projectId);
+    if (project && project.createdBy !== userId) {
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: project.createdBy,
+        title: 'Task Review Requested',
+        message: `Task "${existing.title}" is ready for review.`,
+        type: 'review_requested',
+        metadata: { taskId, projectId: existing.projectId },
+      });
+    }
+
+    await this.recalculateProjectProgress(workspaceId, existing.projectId);
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Approve Task (Transitions Review -> Done)
+   */
+  static async approveTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    feedback?: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns are not authorized to approve tasks.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    this.validateStatusTransition(existing.status, 'done');
+
+    const completedAt = new Date();
+    const reviewedAt = new Date();
+
+    const updatedTask = await TaskRepository.updateTask(workspaceId, taskId, {
+      status: 'done',
+      completedAt,
+      reviewedBy: userId,
+      reviewedAt,
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'approved',
+      fromStatus: 'review',
+      toStatus: 'done',
+      comment: feedback ? `Task approved: ${feedback}` : 'Task approved and completed',
+    }, workspaceId);
+
+    // Notify assignee
+    if (existing.assignedTo !== userId) {
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: existing.assignedTo,
+        title: 'Task Approved',
+        message: `Your task "${existing.title}" has been approved.`,
+        type: 'task_approved',
+        metadata: { taskId, projectId: existing.projectId },
+      });
+    }
+
+    await this.recalculateProjectProgress(workspaceId, existing.projectId);
+
+    // Emit events: Task Approved & Task Completed
+    if (updatedTask) {
+      await EventService.emitTaskApproved(
+        { workspaceId, actorId: userId },
+        {
+          id: updatedTask.id,
+          title: updatedTask.title,
+          projectId: updatedTask.projectId,
+          assignedTo: updatedTask.assignedTo,
+          priority: updatedTask.priority,
+        }
+      );
+
+      await EventService.emitTaskCompleted(
+        { workspaceId, actorId: userId },
+        {
+          id: updatedTask.id,
+          title: updatedTask.title,
+          projectId: updatedTask.projectId,
+          assignedTo: updatedTask.assignedTo,
+          priority: updatedTask.priority,
+        }
+      );
+    }
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Request Changes on Task (Transitions Review -> In Progress)
+   */
+  static async requestChanges(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    feedback: string
+  ): Promise<any> {
+    const role = normalizeRole(rawRole);
+    if (role === 'intern') {
+      const error: any = new Error('Interns are not authorized to review tasks.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (!feedback || !feedback.trim()) {
+      const error: any = new Error('Feedback is required when requesting changes.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    this.validateStatusTransition(existing.status, 'in_progress');
+
+    await TaskRepository.updateTask(workspaceId, taskId, {
+      status: 'in_progress',
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'changes_requested',
+      fromStatus: 'review',
+      toStatus: 'in_progress',
+      comment: `Changes requested: ${feedback.trim()}`,
+    }, workspaceId);
+
+    // Notify assignee
+    if (existing.assignedTo !== userId) {
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: existing.assignedTo,
+        title: 'Changes Requested on Task',
+        message: `Feedback on "${existing.title}": ${feedback.trim()}`,
+        type: 'task_assigned',
+        metadata: { taskId, projectId: existing.projectId },
+      });
+    }
+
+    await this.recalculateProjectProgress(workspaceId, existing.projectId);
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Block Task with Reason
+   */
+  static async blockTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    reason: string
+  ): Promise<any> {
+    if (!reason || !reason.trim()) {
+      const error: any = new Error('Blocked reason is required.');
+      error.code = 'VALIDATION_ERROR';
+      error.status = 400;
+      throw error;
+    }
+
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    await TaskRepository.updateTask(workspaceId, taskId, {
+      isBlocked: true,
+      blockedReason: reason.trim(),
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'blocked',
+      comment: `Task blocked: ${reason.trim()}`,
+    }, workspaceId);
+
+    // Notify project creator
+    const project = await ProjectRepository.getProjectById(workspaceId, existing.projectId);
+    if (project && project.createdBy !== userId) {
+      await NotificationRepository.createNotification({
+        workspaceId,
+        userId: project.createdBy,
+        title: 'Task Blocked',
+        message: `Task "${existing.title}" is blocked: ${reason.trim()}`,
+        type: 'task_blocked',
+        metadata: { taskId, projectId: existing.projectId },
+      });
+    }
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Unblock Task
+   */
+  static async unblockTask(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string
+  ): Promise<any> {
+    const existing = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!existing) {
+      const error: any = new Error('Task not found.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    await TaskRepository.updateTask(workspaceId, taskId, {
+      isBlocked: false,
+      blockedReason: null,
+    });
+
+    await TaskRepository.addTaskUpdate(taskId, userId, {
+      type: 'unblocked',
+      comment: 'Task unblocked',
+    }, workspaceId);
+
+    return this.getTaskById(workspaceId, userId, rawRole, taskId);
+  }
+
+  /**
+   * Action: Delete Task
    */
   static async deleteTask(
     workspaceId: string,
@@ -462,40 +985,46 @@ export class TaskService {
       throw error;
     }
 
-    return await TaskRepository.deleteTask(workspaceId, taskId);
+    const deleted = await TaskRepository.deleteTask(workspaceId, taskId);
+    await this.recalculateProjectProgress(workspaceId, existing.projectId);
+    return deleted;
   }
 
   /**
-   * Get task comments
+   * Action: Get Task Activity Timeline
    */
-  static async getComments(
+  static async getTaskActivity(
     workspaceId: string,
     taskId: string
   ): Promise<any[]> {
     const task = await TaskRepository.getTaskById(workspaceId, taskId);
-    if (!task || task.workspaceId !== workspaceId) {
-      const error: any = new Error('Task not found in active workspace.');
+    if (!task) {
+      const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
       throw error;
     }
 
-    const comments = await TaskRepository.getComments(taskId, workspaceId);
+    const updates = await TaskRepository.getTaskActivity(taskId, workspaceId);
 
-    return comments.map((c: TaskCommentEntity) => ({
-      id: c.id,
-      task_id: c.taskId,
-      user_id: c.userId,
-      user_name: c.userName,
-      user_avatar: c.userAvatar,
-      user_role: c.userRole,
-      content: c.content,
-      created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
+    return updates.map((u) => ({
+      id: u.id,
+      task_id: u.taskId,
+      user_id: u.userId,
+      user_name: u.userName,
+      user_avatar: u.userAvatar,
+      user_role: u.userRole,
+      type: u.type,
+      from_status: u.fromStatus,
+      to_status: u.toStatus,
+      comment: u.comment,
+      metadata: u.metadata,
+      created_at: u.createdAt.toISOString(),
     }));
   }
 
   /**
-   * Add comment to task
+   * Action: Add Comment to Task
    */
   static async addComment(
     workspaceId: string,
@@ -506,7 +1035,6 @@ export class TaskService {
   ): Promise<any> {
     const role = rawRole ? normalizeRole(rawRole) : 'employee';
 
-    // Interns are forbidden from commenting
     if (role === 'intern') {
       const error: any = new Error('Interns are forbidden from posting comments.');
       error.code = 'FORBIDDEN';
@@ -541,5 +1069,34 @@ export class TaskService {
       content: comment.content,
       created_at: comment.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Action: Get Task Comments
+   */
+  static async getComments(
+    workspaceId: string,
+    taskId: string
+  ): Promise<any[]> {
+    const task = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!task || task.workspaceId !== workspaceId) {
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const comments = await TaskRepository.getComments(taskId, workspaceId);
+
+    return comments.map((c) => ({
+      id: c.id,
+      task_id: c.taskId,
+      user_id: c.userId,
+      user_name: c.userName,
+      user_avatar: c.userAvatar,
+      user_role: c.userRole,
+      content: c.content,
+      created_at: c.createdAt.toISOString(),
+    }));
   }
 }

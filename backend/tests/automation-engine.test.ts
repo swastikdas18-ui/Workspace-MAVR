@@ -419,7 +419,7 @@ export async function runAutomationTests() {
         projectId,
         assignedTo: employeeUserId,
         priority: 'high',
-        status: 'in_progress',
+        status: 'review',
       },
       { Authorization: `Bearer ${adminToken}` }
     );

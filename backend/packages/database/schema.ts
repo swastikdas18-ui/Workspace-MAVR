@@ -7,7 +7,7 @@ export const workspacePlanEnum = pgEnum('workspace_plan', ['free', 'pro', 'enter
 export const teamMemberRoleEnum = pgEnum('team_member_role', ['lead', 'member']);
 export const projectStatusEnum = pgEnum('project_status', ['planning', 'in_progress', 'review', 'completed', 'on_hold']);
 export const projectMemberRoleEnum = pgEnum('project_member_role', ['owner', 'contributor', 'viewer']);
-export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'review', 'completed']);
+export const taskStatusEnum = pgEnum('task_status', ['backlog', 'todo', 'in_progress', 'review', 'done', 'completed']);
 export const taskPriorityEnum = pgEnum('task_priority', ['low', 'medium', 'high', 'urgent', 'critical']);
 export const documentVisibilityEnum = pgEnum('document_visibility', ['public', 'team', 'private', 'learning']);
 export const crmStatusEnum = pgEnum('crm_status', ['new_lead', 'contacted', 'proposal_sent', 'negotiation', 'won', 'lost']);
@@ -163,6 +163,7 @@ export const projects = pgTable(
   })
 );
 
+// Project Updates table
 export const projectUpdates = pgTable(
   'project_updates',
   {
@@ -211,19 +212,29 @@ export const projectTeams = pgTable(
   })
 );
 
-// Tasks table
+// Tasks table (Phase 2 Task Execution Engine)
 export const tasks = pgTable(
   'tasks',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     title: text('title').notNull(),
     description: text('description'),
-    status: text('status').default('todo').notNull(),
-    priority: text('priority').default('medium').notNull(),
+    status: text('status').default('todo').notNull(), // 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'completed'
+    priority: text('priority').default('medium').notNull(), // 'low' | 'medium' | 'high' | 'urgent' | 'critical'
+    storyPoints: integer('story_points').default(1),
+    estimatedHours: integer('estimated_hours'),
+    actualHours: integer('actual_hours').default(0),
     assignedTo: text('assigned_to').notNull().references(() => users.id),
     projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+    teamId: text('team_id').references(() => teams.id),
     dueDate: timestamp('due_date').notNull(),
+    startedAt: timestamp('started_at'),
+    completedAt: timestamp('completed_at'),
+    reviewedBy: text('reviewed_by').references(() => users.id),
+    reviewedAt: timestamp('reviewed_at'),
+    blockedReason: text('blocked_reason'),
+    isBlocked: boolean('is_blocked').default(false),
     isLearningTask: boolean('is_learning_task').default(false),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -231,9 +242,31 @@ export const tasks = pgTable(
     workspaceIdx: index('idx_tasks_workspace_id').on(table.workspaceId),
     projectIdx: index('idx_tasks_project_id').on(table.projectId),
     assignedToIdx: index('idx_tasks_assigned_to').on(table.assignedTo),
+    teamIdx: index('idx_tasks_team_id').on(table.teamId),
     statusIdx: index('idx_tasks_status').on(table.status),
     priorityIdx: index('idx_tasks_priority').on(table.priority),
     titleIdx: index('idx_tasks_title').on(table.title),
+  })
+);
+
+// Task Updates / Activity Log Table
+export const taskUpdates = pgTable(
+  'task_updates',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // 'status_change' | 'comment' | 'progress_update' | 'assignment' | 'blocked' | 'unblocked' | 'created' | 'approved' | 'changes_requested'
+    fromStatus: text('from_status'),
+    toStatus: text('to_status'),
+    comment: text('comment'),
+    metadata: text('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    taskIdx: index('idx_task_updates_task_id').on(table.taskId),
+    userIdx: index('idx_task_updates_user_id').on(table.userId),
+    createdAtIdx: index('idx_task_updates_created_at').on(table.createdAt),
   })
 );
 
@@ -347,7 +380,8 @@ export const notifications = pgTable(
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     message: text('message').notNull(),
-    type: text('type').notNull(), // 'task_created' | 'task_assigned' | 'task_completed' | 'project_created' | 'project_updated' | 'document_uploaded' | 'invite_accepted' | 'team_created' | 'crm_stage_changed' | 'system'
+    type: text('type').notNull(), // 'task_created' | 'task_assigned' | 'task_completed' | 'review_requested' | 'task_approved' | 'task_overdue' | 'task_blocked' | 'project_created' | 'project_updated' | 'document_uploaded' | 'invite_accepted' | 'team_created' | 'crm_stage_changed' | 'system'
+    link: text('link'),
     isRead: boolean('is_read').default(false).notNull(),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -413,8 +447,13 @@ export const automationRules = pgTable(
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
-    entityType: text('entity_type').notNull(), // 'project' | 'task' | 'team' | 'crm' | 'document'
-    triggerType: text('trigger_type').notNull(), // 'project_created' | 'project_updated' | 'project_completed' | 'task_created' | 'task_assigned' | 'task_completed' | 'task_overdue' | 'team_created' | 'member_added' | 'crm_created' | 'crm_stage_changed' | 'crm_won' | 'crm_lost' | 'document_uploaded'
+    entityType: text('entity_type').notNull().default('system'), // 'project' | 'task' | 'team' | 'crm' | 'document' | 'system'
+    triggerType: text('trigger_type').notNull(), // 'task_created' | 'task_assigned' | 'task_started' | 'task_completed' | 'task_overdue' | 'task_blocked' | 'project_created' | 'project_completed' | 'member_joined' | 'document_uploaded' | 'lead_created' | 'deal_won'
+    triggerConfig: jsonb('trigger_config'),
+    conditionConfig: jsonb('condition_config'),
+    actionType: text('action_type'),
+    actionConfig: jsonb('action_config'),
+    enabled: boolean('enabled').default(true).notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -425,6 +464,7 @@ export const automationRules = pgTable(
     triggerTypeIdx: index('idx_automation_rules_trigger_type').on(table.triggerType),
     entityTypeIdx: index('idx_automation_rules_entity_type').on(table.entityType),
     isActiveIdx: index('idx_automation_rules_is_active').on(table.isActive),
+    enabledIdx: index('idx_automation_rules_enabled').on(table.enabled),
     createdByIdx: index('idx_automation_rules_created_by').on(table.createdBy),
   })
 );
@@ -435,7 +475,7 @@ export const automationActions = pgTable(
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     ruleId: text('rule_id').notNull().references(() => automationRules.id, { onDelete: 'cascade' }),
-    actionType: text('action_type').notNull(), // 'send_notification' | 'create_activity' | 'create_audit' | 'create_task' | 'assign_task' | 'update_task_status' | 'update_project_status'
+    actionType: text('action_type').notNull(), // 'send_notification' | 'send_email' | 'create_activity' | 'create_audit' | 'create_task' | 'assign_task' | 'update_status' | 'update_task_status' | 'update_project_status' | 'create_document' | 'create_project' | 'create_crm_activity' | 'add_comment' | 'webhook'
     actionConfig: jsonb('action_config').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -450,14 +490,20 @@ export const automationExecutions = pgTable(
   'automation_executions',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id'),
     ruleId: text('rule_id').notNull().references(() => automationRules.id, { onDelete: 'cascade' }),
-    status: text('status').notNull(), // 'success' | 'failed'
-    entityType: text('entity_type').notNull(),
-    entityId: text('entity_id').notNull(),
+    triggeredBy: text('triggered_by'),
+    status: text('status').notNull(), // 'success' | 'failed' | 'skipped' | 'partial'
+    executionTime: integer('execution_time').default(0).notNull(),
+    errorMessage: text('error_message'),
+    entityType: text('entity_type'),
+    entityId: text('entity_id'),
     executionResult: jsonb('execution_result'),
     executedAt: timestamp('executed_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
+    workspaceIdx: index('idx_automation_executions_workspace_id').on(table.workspaceId),
     ruleIdx: index('idx_automation_executions_rule_id').on(table.ruleId),
     statusIdx: index('idx_automation_executions_status').on(table.status),
     executedAtIdx: index('idx_automation_executions_executed_at').on(table.executedAt),
@@ -490,14 +536,14 @@ export const subscriptions = pgTable(
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-    plan: text('plan').notNull().default('free'), // 'free' | 'starter' | 'business' | 'enterprise'
-    status: text('status').notNull().default('active'), // 'active' | 'trialing' | 'past_due' | 'canceled'
-    billingCycle: text('billing_cycle').notNull().default('monthly'), // 'monthly' | 'yearly'
-    seats: integer('seats').notNull().default(5),
-    pricePerMonth: integer('price_per_month').notNull().default(0), // in USD dollars or cents
+    plan: text('plan').default('free').notNull(), // 'free' | 'starter' | 'business' | 'enterprise'
+    status: text('status').default('active').notNull(), // 'active' | 'trialing' | 'past_due' | 'canceled'
+    billingCycle: text('billing_cycle').default('monthly').notNull(), // 'monthly' | 'yearly'
+    seats: integer('seats').default(5).notNull(),
+    pricePerMonth: integer('price_per_month').default(0).notNull(),
     currentPeriodStart: timestamp('current_period_start').defaultNow().notNull(),
     currentPeriodEnd: timestamp('current_period_end').notNull(),
-    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -515,12 +561,12 @@ export const usageMetrics = pgTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     period: text('period').notNull(), // 'YYYY-MM'
-    membersCount: integer('members_count').notNull().default(1),
-    projectsCount: integer('projects_count').notNull().default(0),
-    storageBytes: bigint('storage_bytes', { mode: 'number' }).notNull().default(0),
-    apiRequestsCount: integer('api_requests_count').notNull().default(0),
-    automationsCount: integer('automations_count').notNull().default(0),
-    activeUsersCount: integer('active_users_count').notNull().default(1),
+    membersCount: integer('members_count').default(1).notNull(),
+    projectsCount: integer('projects_count').default(0).notNull(),
+    storageBytes: bigint('storage_bytes', { mode: 'number' }).default(0).notNull(),
+    apiRequestsCount: integer('api_requests_count').default(0).notNull(),
+    automationsCount: integer('automations_count').default(0).notNull(),
+    activeUsersCount: integer('active_users_count').default(1).notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -536,8 +582,8 @@ export const invoices = pgTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     amount: integer('amount').notNull(), // e.g. 4900 for $49.00
-    currency: text('currency').notNull().default('usd'),
-    status: text('status').notNull().default('paid'), // 'paid' | 'open' | 'void' | 'uncollectible'
+    currency: text('currency').default('usd').notNull(),
+    status: text('status').default('paid').notNull(), // 'paid' | 'open' | 'void' | 'uncollectible'
     invoiceNumber: text('invoice_number').notNull(),
     pdfUrl: text('pdf_url'),
     periodStart: timestamp('period_start').notNull(),
@@ -552,10 +598,6 @@ export const invoices = pgTable(
   })
 );
 
-// ============================================================================
-// PHASE 12: ENTERPRISE MSME EXTENSIONS SCHEMAS
-// ============================================================================
-
 // 1. Wiki Pages (Notion-Lite Knowledge Base)
 export const wikiPages = pgTable(
   'wiki_pages',
@@ -563,12 +605,12 @@ export const wikiPages = pgTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     parentId: text('parent_id'),
-    title: text('title').notNull().default('Untitled Page'),
+    title: text('title').default('Untitled Page').notNull(),
     icon: text('icon').default('📄'),
     coverImage: text('cover_image'),
     slug: text('slug').notNull(),
-    contentJson: jsonb('content_json').notNull().default({}),
-    visibility: text('visibility').notNull().default('team'), // 'public' | 'team' | 'private' | 'learning'
+    contentJson: jsonb('content_json').default({}).notNull(),
+    visibility: text('visibility').default('team').notNull(), // 'public' | 'team' | 'private' | 'learning'
     createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -605,7 +647,7 @@ export const wikiComments = pgTable(
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     blockId: text('block_id'),
     comment: text('comment').notNull(),
-    resolved: boolean('resolved').notNull().default(false),
+    resolved: boolean('resolved').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -623,9 +665,9 @@ export const taskTimeEntries = pgTable(
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     startTime: timestamp('start_time').notNull(),
     endTime: timestamp('end_time'),
-    durationMinutes: integer('duration_minutes').notNull().default(0),
-    billable: boolean('billable').notNull().default(true),
-    hourlyRate: integer('hourly_rate').notNull().default(1500), // in INR (₹1,500/hr)
+    durationMinutes: integer('duration_minutes').default(0).notNull(),
+    billable: boolean('billable').default(true).notNull(),
+    hourlyRate: integer('hourly_rate').default(1500).notNull(), // in INR (₹1,500/hr)
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -644,9 +686,9 @@ export const employeeBillingProfiles = pgTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    costRate: integer('cost_rate').notNull().default(1000), // in INR (₹1,000/hr)
-    billableRate: integer('billable_rate').notNull().default(2000), // in INR (₹2,000/hr)
-    utilizationTarget: integer('utilization_target').notNull().default(75), // percentage (e.g. 75%)
+    costRate: integer('cost_rate').default(1000).notNull(),
+    billableRate: integer('billable_rate').default(2000).notNull(),
+    utilizationTarget: integer('utilization_target').default(75).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -684,9 +726,9 @@ export const guestPermissions = pgTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     guestId: text('guest_id').notNull().references(() => guestUsers.id, { onDelete: 'cascade' }),
     projectId: text('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-    canApprove: boolean('can_approve').notNull().default(true),
-    canComment: boolean('can_comment').notNull().default(true),
-    canDownload: boolean('can_download').notNull().default(true),
+    canApprove: boolean('can_approve').default(true).notNull(),
+    canComment: boolean('can_comment').default(true).notNull(),
+    canDownload: boolean('can_download').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -704,7 +746,7 @@ export const deliverableApprovals = pgTable(
     taskId: text('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
     documentId: text('document_id').references(() => documents.id, { onDelete: 'cascade' }),
     guestId: text('guest_id').notNull().references(() => guestUsers.id, { onDelete: 'cascade' }),
-    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'changes_requested'
+    status: text('status').default('pending').notNull(),
     feedback: text('feedback'),
     signatureHash: text('signature_hash'),
     signedAt: timestamp('signed_at'),
@@ -716,19 +758,19 @@ export const deliverableApprovals = pgTable(
   })
 );
 
-// 8. Email Connections (Google / IMAP Integration)
+// 8. Email Connections
 export const emailConnections = pgTable(
   'email_connections',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    provider: text('provider').notNull().default('google'),
+    provider: text('provider').default('google').notNull(),
     emailAddress: text('email_address').notNull(),
     accessToken: text('access_token').notNull(),
     refreshToken: text('refresh_token'),
     tokenExpiresAt: timestamp('token_expires_at'),
-    syncEnabled: boolean('sync_enabled').notNull().default(true),
+    syncEnabled: boolean('sync_enabled').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -737,7 +779,7 @@ export const emailConnections = pgTable(
   })
 );
 
-// 9. Calendar Events (Google Calendar Sync linked to Leads & Projects)
+// 9. Calendar Events
 export const calendarEvents = pgTable(
   'calendar_events',
   {
@@ -750,8 +792,8 @@ export const calendarEvents = pgTable(
     meetingUrl: text('meeting_url'),
     startTime: timestamp('start_time').notNull(),
     endTime: timestamp('end_time').notNull(),
-    attendees: jsonb('attendees').notNull().default([]),
-    status: text('status').notNull().default('confirmed'),
+    attendees: jsonb('attendees').default([]).notNull(),
+    status: text('status').default('confirmed').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -761,11 +803,7 @@ export const calendarEvents = pgTable(
   })
 );
 
-// ============================================================================
-// PHASE 14: ENTERPRISE REVENUE & BETA READINESS SCHEMAS
-// ============================================================================
-
-// 1. Razorpay Billing Customers
+// Razorpay & Extended Revenue Tables
 export const billingCustomers = pgTable(
   'billing_customers',
   {
@@ -784,7 +822,6 @@ export const billingCustomers = pgTable(
   })
 );
 
-// 2. Razorpay Billing Subscriptions
 export const billingSubscriptions = pgTable(
   'billing_subscriptions',
   {
@@ -792,12 +829,12 @@ export const billingSubscriptions = pgTable(
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     razorpaySubscriptionId: text('razorpay_subscription_id').notNull().unique(),
     razorpayPlanId: text('razorpay_plan_id').notNull(),
-    planTier: text('plan_tier').notNull(), // 'starter' | 'business' | 'growth' | 'enterprise'
-    status: text('status').notNull().default('active'), // 'created' | 'authenticated' | 'active' | 'pending' | 'halted' | 'cancelled' | 'completed' | 'expired'
+    planTier: text('plan_tier').notNull(),
+    status: text('status').default('active').notNull(),
     currentPeriodStart: timestamp('current_period_start').notNull(),
     currentPeriodEnd: timestamp('current_period_end').notNull(),
     chargeAt: timestamp('charge_at'),
-    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -808,7 +845,6 @@ export const billingSubscriptions = pgTable(
   })
 );
 
-// 3. Razorpay Payments
 export const billingPayments = pgTable(
   'billing_payments',
   {
@@ -817,10 +853,10 @@ export const billingPayments = pgTable(
     razorpayPaymentId: text('razorpay_payment_id').notNull().unique(),
     razorpayOrderId: text('razorpay_order_id'),
     razorpaySubscriptionId: text('razorpay_subscription_id'),
-    amount: integer('amount').notNull(), // in paise (e.g. 149900 = ₹1,499.00)
-    currency: text('currency').notNull().default('INR'),
-    status: text('status').notNull(), // 'captured' | 'failed' | 'refunded'
-    method: text('method'), // 'card' | 'upi' | 'netbanking'
+    amount: integer('amount').notNull(),
+    currency: text('currency').default('INR').notNull(),
+    status: text('status').notNull(),
+    method: text('method'),
     errorDescription: text('error_description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -830,15 +866,14 @@ export const billingPayments = pgTable(
   })
 );
 
-// 4. Razorpay Webhooks History (Prevents duplicate webhook processing & replays)
 export const billingWebhooks = pgTable(
   'billing_webhooks',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     eventId: text('event_id').notNull().unique(),
-    event: text('event').notNull(), // e.g. 'subscription.charged'
+    event: text('event').notNull(),
     payload: jsonb('payload').notNull(),
-    status: text('status').notNull().default('processed'), // 'processed' | 'failed' | 'ignored'
+    status: text('status').default('processed').notNull(),
     processedAt: timestamp('processed_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -846,17 +881,16 @@ export const billingWebhooks = pgTable(
   })
 );
 
-// 5. Recurring Task Engine (task_recurrence_rules)
 export const taskRecurrenceRules = pgTable(
   'task_recurrence_rules',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-    frequency: text('frequency').notNull(), // 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-    interval: integer('interval').notNull().default(1),
+    frequency: text('frequency').notNull(),
+    interval: integer('interval').default(1).notNull(),
     nextRunAt: timestamp('next_run_at').notNull(),
-    paused: boolean('paused').notNull().default(false),
+    paused: boolean('paused').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -867,7 +901,6 @@ export const taskRecurrenceRules = pgTable(
   })
 );
 
-// 6. Multi-Assignee Tasks (task_assignees)
 export const taskAssignees = pgTable(
   'task_assignees',
   {
@@ -883,14 +916,13 @@ export const taskAssignees = pgTable(
   })
 );
 
-// 7. Task Dependencies (task_dependencies)
 export const taskDependencies = pgTable(
   'task_dependencies',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
     dependsOnTaskId: text('depends_on_task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-    type: text('type').notNull().default('finish_to_start'), // 'finish_to_start' | 'start_to_start' | 'finish_to_finish'
+    type: text('type').default('finish_to_start').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -899,14 +931,13 @@ export const taskDependencies = pgTable(
   })
 );
 
-// 8. Custom CRM Pipelines (crm_pipelines)
 export const crmPipelines = pgTable(
   'crm_pipelines',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    isDefault: boolean('is_default').notNull().default(false),
+    isDefault: boolean('is_default').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -915,15 +946,14 @@ export const crmPipelines = pgTable(
   })
 );
 
-// 9. Custom CRM Pipeline Stages (crm_pipeline_stages)
 export const crmPipelineStages = pgTable(
   'crm_pipeline_stages',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     pipelineId: text('pipeline_id').notNull().references(() => crmPipelines.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    color: text('color').notNull().default('#3B82F6'),
-    orderIndex: integer('order_index').notNull().default(0),
+    color: text('color').default('#3B82F6').notNull(),
+    orderIndex: integer('order_index').default(0).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -932,7 +962,6 @@ export const crmPipelineStages = pgTable(
   })
 );
 
-// 10. Developer API Keys (api_keys)
 export const apiKeys = pgTable(
   'api_keys',
   {
@@ -940,8 +969,8 @@ export const apiKeys = pgTable(
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     keyHash: text('key_hash').notNull().unique(),
-    prefix: text('prefix').notNull(), // 'ws_live_...'
-    scopes: jsonb('scopes').notNull().default([]), // ['read', 'write', 'crm', 'tasks', 'documents']
+    prefix: text('prefix').notNull(),
+    scopes: jsonb('scopes').default([]).notNull(),
     lastUsedAt: timestamp('last_used_at'),
     expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -952,7 +981,6 @@ export const apiKeys = pgTable(
   })
 );
 
-// 11. Outbound Webhooks (webhooks)
 export const webhooks = pgTable(
   'webhooks',
   {
@@ -960,8 +988,8 @@ export const webhooks = pgTable(
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     url: text('url').notNull(),
     secret: text('secret').notNull(),
-    events: jsonb('events').notNull().default([]), // ['task.created', 'lead.won', 'invoice.paid']
-    isActive: boolean('is_active').notNull().default(true),
+    events: jsonb('events').default([]).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -970,7 +998,6 @@ export const webhooks = pgTable(
   })
 );
 
-// 12. Outbound Webhook Deliveries (webhook_deliveries)
 export const webhookDeliveries = pgTable(
   'webhook_deliveries',
   {
@@ -980,8 +1007,8 @@ export const webhookDeliveries = pgTable(
     payload: jsonb('payload').notNull(),
     responseCode: integer('response_code'),
     responseBody: text('response_body'),
-    status: text('status').notNull(), // 'delivered' | 'failed' | 'retrying'
-    attempts: integer('attempts').notNull().default(1),
+    status: text('status').notNull(),
+    attempts: integer('attempts').default(1).notNull(),
     deliveredAt: timestamp('delivered_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -991,7 +1018,6 @@ export const webhookDeliveries = pgTable(
   })
 );
 
-// 13. Backup Reports (backup_reports) — Phase 19B
 export const backupReports = pgTable(
   'backup_reports',
   {
@@ -999,8 +1025,8 @@ export const backupReports = pgTable(
     filename: text('filename').notNull(),
     sizeBytes: integer('size_bytes').notNull(),
     checksum: text('checksum').notNull(),
-    status: text('status').notNull().default('pending'), // 'completed' | 'failed' | 'pending'
-    verificationStatus: text('verification_status').notNull().default('unverified'), // 'verified' | 'failed' | 'unverified'
+    status: text('status').default('pending').notNull(),
+    verificationStatus: text('verification_status').default('unverified').notNull(),
     verificationDetails: jsonb('verification_details').default({}),
     durationMs: integer('duration_ms').default(0),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -1011,7 +1037,6 @@ export const backupReports = pgTable(
   })
 );
 
-// 14. Email Health Metrics (email_health_metrics) — Phase 19B
 export const emailHealthMetrics = pgTable(
   'email_health_metrics',
   {
@@ -1019,8 +1044,8 @@ export const emailHealthMetrics = pgTable(
     workspaceId: text('workspace_id'),
     emailId: text('email_id').notNull(),
     recipient: text('recipient').notNull(),
-    eventType: text('event_type').notNull(), // 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained'
-    bounceType: text('bounce_type'), // 'hard' | 'soft'
+    eventType: text('event_type').notNull(),
+    bounceType: text('bounce_type'),
     metadata: jsonb('metadata').default({}),
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
@@ -1031,7 +1056,6 @@ export const emailHealthMetrics = pgTable(
   })
 );
 
-// 15. Product Analytics Events (events) — Phase 21A
 export const events = pgTable(
   'events',
   {
@@ -1052,14 +1076,13 @@ export const events = pgTable(
   })
 );
 
-// 16. Workspace Onboarding State (onboarding_state) — Phase 21B
 export const onboardingState = pgTable(
   'onboarding_state',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     completedSteps: jsonb('completed_steps').$type<string[]>().default([]),
-    dismissed: boolean('dismissed').notNull().default(false),
+    dismissed: boolean('dismissed').default(false).notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -1067,23 +1090,22 @@ export const onboardingState = pgTable(
   })
 );
 
-// 17. Notification Preferences (notification_preferences) — Phase 21C
 export const notificationPreferences = pgTable(
   'notification_preferences',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-    emailDigest: boolean('email_digest').notNull().default(true),
-    taskAssigned: boolean('task_assigned').notNull().default(true),
-    taskDue: boolean('task_due').notNull().default(true),
-    taskCompleted: boolean('task_completed').notNull().default(true),
-    projectUpdated: boolean('project_updated').notNull().default(true),
-    documentMention: boolean('document_mention').notNull().default(true),
-    crmStageChanged: boolean('crm_stage_changed').notNull().default(true),
-    automationExecuted: boolean('automation_executed').notNull().default(true),
-    invoicePaid: boolean('invoice_paid').notNull().default(true),
-    workspaceInvite: boolean('workspace_invite').notNull().default(true),
+    emailDigest: boolean('email_digest').default(true).notNull(),
+    taskAssigned: boolean('task_assigned').default(true).notNull(),
+    taskDue: boolean('task_due').default(true).notNull(),
+    taskCompleted: boolean('task_completed').default(true).notNull(),
+    projectUpdated: boolean('project_updated').default(true).notNull(),
+    documentMention: boolean('document_mention').default(true).notNull(),
+    crmStageChanged: boolean('crm_stage_changed').default(true).notNull(),
+    automationExecuted: boolean('automation_executed').default(true).notNull(),
+    invoicePaid: boolean('invoice_paid').default(true).notNull(),
+    workspaceInvite: boolean('workspace_invite').default(true).notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -1091,19 +1113,18 @@ export const notificationPreferences = pgTable(
   })
 );
 
-// 18. Beta User Feedback (beta_feedback) — Phase 22
 export const betaFeedback = pgTable(
   'beta_feedback',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
-    category: text('category').notNull().default('bug'), // bug, feature_request, ux_friction, performance, praise, other
-    severity: text('severity').notNull().default('p2_major'), // p0_blocker, p1_critical, p2_major, p3_minor
+    category: text('category').default('bug').notNull(),
+    severity: text('severity').default('p2_major').notNull(),
     title: text('title').notNull(),
     description: text('description').notNull(),
     screenshotUrl: text('screenshot_url'),
-    status: text('status').notNull().default('open'), // open, in_review, resolved, wont_fix
+    status: text('status').default('open').notNull(),
     founderNotes: text('founder_notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1116,20 +1137,19 @@ export const betaFeedback = pgTable(
   })
 );
 
-// 19. Customer Success Profiles (customer_success_profiles) — Phase 22
 export const customerSuccessProfiles = pgTable(
   'customer_success_profiles',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     companyName: text('company_name').notNull(),
-    tier: text('tier').notNull().default('closed_beta'),
-    healthScore: integer('health_score').notNull().default(100),
-    onboardingStatus: text('onboarding_status').notNull().default('in_progress'), // not_started, in_progress, completed
-    totalUsers: integer('total_users').notNull().default(1),
-    activeUsers7d: integer('active_users_7d').notNull().default(1),
-    tasksCompleted7d: integer('tasks_completed_7d').notNull().default(0),
-    openTicketsCount: integer('open_tickets_count').notNull().default(0),
+    tier: text('tier').default('closed_beta').notNull(),
+    healthScore: integer('health_score').default(100).notNull(),
+    onboardingStatus: text('onboarding_status').default('in_progress').notNull(),
+    totalUsers: integer('total_users').default(1).notNull(),
+    activeUsers7d: integer('active_users_7d').default(1).notNull(),
+    tasksCompleted7d: integer('tasks_completed_7d').default(0).notNull(),
+    openTicketsCount: integer('open_tickets_count').default(0).notNull(),
     lastActiveAt: timestamp('last_active_at').defaultNow().notNull(),
     notes: text('notes'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1140,14 +1160,13 @@ export const customerSuccessProfiles = pgTable(
   })
 );
 
-// 20. NPS Surveys (nps_surveys) — Phase 23
 export const npsSurveys = pgTable(
   'nps_surveys',
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
-    score: integer('score').notNull(), // 0 to 10
+    score: integer('score').notNull(),
     comment: text('comment'),
     submittedAt: timestamp('submitted_at').defaultNow().notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -1233,5 +1252,290 @@ export const automationExecutionsRelations = relations(automationExecutions, ({ 
   rule: one(automationRules, {
     fields: [automationExecutions.ruleId],
     references: [automationRules.id],
+  }),
+}));
+
+// ==========================================
+// PHASE 4: PEOPLE OPERATING SYSTEM TABLES
+// ==========================================
+
+// Departments table
+export const departments = pgTable(
+  'departments',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    headId: text('head_id').references(() => users.id, { onDelete: 'set null' }),
+    parentId: text('parent_id'),
+    color: text('color').default('#7C3AED'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_departments_workspace_id').on(table.workspaceId),
+    nameIdx: index('idx_departments_name').on(table.name),
+    headIdx: index('idx_departments_head_id').on(table.headId),
+  })
+);
+
+// Employee Profiles table
+export const employeeProfiles = pgTable(
+  'employee_profiles',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    designation: text('designation').notNull().default('Team Member'),
+    managerId: text('manager_id').references(() => users.id, { onDelete: 'set null' }),
+    joiningDate: timestamp('joining_date').defaultNow().notNull(),
+    employmentType: text('employment_type').notNull().default('full_time'), // 'full_time' | 'part_time' | 'contractor' | 'intern'
+    skills: jsonb('skills').$type<string[]>().default([]),
+    bio: text('bio'),
+    location: text('location').default('Remote'),
+    phone: text('phone'),
+    emergencyContact: text('emergency_contact'),
+    status: text('status').notNull().default('active'), // 'active' | 'on_leave' | 'probation' | 'terminated'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_employee_profiles_workspace_id').on(table.workspaceId),
+    userIdx: uniqueIndex('idx_employee_profiles_user_id').on(table.userId),
+    departmentIdx: index('idx_employee_profiles_department_id').on(table.departmentId),
+    managerIdx: index('idx_employee_profiles_manager_id').on(table.managerId),
+    statusIdx: index('idx_employee_profiles_status').on(table.status),
+  })
+);
+
+// Leave Requests table
+export const leaveRequests = pgTable(
+  'leave_requests',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    leaveType: text('leave_type').notNull().default('annual'), // 'annual' | 'sick' | 'casual' | 'unpaid' | 'maternity_paternity'
+    startDate: timestamp('start_date').notNull(),
+    endDate: timestamp('end_date').notNull(),
+    daysCount: integer('days_count').notNull().default(1),
+    reason: text('reason').notNull(),
+    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected' | 'cancelled'
+    reviewerId: text('reviewer_id').references(() => users.id, { onDelete: 'set null' }),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewNotes: text('review_notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_leave_requests_workspace_id').on(table.workspaceId),
+    userIdx: index('idx_leave_requests_user_id').on(table.userId),
+    statusIdx: index('idx_leave_requests_status').on(table.status),
+    datesIdx: index('idx_leave_requests_dates').on(table.startDate, table.endDate),
+  })
+);
+
+// Attendance Records table
+export const attendanceRecords = pgTable(
+  'attendance_records',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(), // 'YYYY-MM-DD'
+    checkInAt: timestamp('check_in_at'),
+    checkOutAt: timestamp('check_out_at'),
+    workedHours: integer('worked_hours').default(0), // in minutes
+    status: text('status').notNull().default('present'), // 'present' | 'absent' | 'late' | 'half_day' | 'on_leave'
+    notes: text('notes'),
+    ipAddress: text('ip_address'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_attendance_records_workspace_id').on(table.workspaceId),
+    userDateIdx: uniqueIndex('idx_attendance_user_date').on(table.userId, table.date),
+    statusIdx: index('idx_attendance_records_status').on(table.status),
+  })
+);
+
+// Goals (OKRs) table
+export const goals = pgTable(
+  'goals',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    category: text('category').notNull().default('individual'), // 'individual' | 'team' | 'company'
+    targetValue: integer('target_value').default(100),
+    currentValue: integer('current_value').default(0),
+    unit: text('unit').default('%'),
+    progress: integer('progress').default(0), // 0 - 100
+    status: text('status').notNull().default('on_track'), // 'on_track' | 'behind' | 'at_risk' | 'completed'
+    linkedProjectIds: jsonb('linked_project_ids').$type<string[]>().default([]),
+    linkedTaskIds: jsonb('linked_task_ids').$type<string[]>().default([]),
+    startDate: timestamp('start_date').defaultNow().notNull(),
+    dueDate: timestamp('due_date').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_goals_workspace_id').on(table.workspaceId),
+    userIdx: index('idx_goals_user_id').on(table.userId),
+    departmentIdx: index('idx_goals_department_id').on(table.departmentId),
+    statusIdx: index('idx_goals_status').on(table.status),
+  })
+);
+
+// Goal Updates table
+export const goalUpdates = pgTable(
+  'goal_updates',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    goalId: text('goal_id').notNull().references(() => goals.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    progressValue: integer('progress_value').notNull(),
+    progressPercent: integer('progress_percent').notNull(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    goalIdx: index('idx_goal_updates_goal_id').on(table.goalId),
+    userIdx: index('idx_goal_updates_user_id').on(table.userId),
+  })
+);
+
+// Performance Reviews table
+export const performanceReviews = pgTable(
+  'performance_reviews',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    reviewerId: text('reviewer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    cycle: text('cycle').notNull(), // 'Q1 2026', 'Q2 2026', 'Annual 2026'
+    status: text('status').notNull().default('draft'), // 'draft' | 'self_review' | 'manager_review' | 'completed'
+    selfRatings: jsonb('self_ratings').$type<Record<string, any>>().default({}),
+    managerRatings: jsonb('manager_ratings').$type<Record<string, any>>().default({}),
+    finalRating: text('final_rating').default('4.0'), // '1.0' - '5.0'
+    strengths: text('strengths'),
+    growthAreas: text('growth_areas'),
+    finalComments: text('final_comments'),
+    submittedAt: timestamp('submitted_at'),
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_performance_reviews_workspace_id').on(table.workspaceId),
+    userIdx: index('idx_performance_reviews_user_id').on(table.userId),
+    reviewerIdx: index('idx_performance_reviews_reviewer_id').on(table.reviewerId),
+    cycleIdx: index('idx_performance_reviews_cycle').on(table.cycle),
+    statusIdx: index('idx_performance_reviews_status').on(table.status),
+  })
+);
+
+// Relations for Phase 4
+export const departmentsRelations = relations(departments, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [departments.workspaceId],
+    references: [workspaces.id],
+  }),
+  head: one(users, {
+    fields: [departments.headId],
+    references: [users.id],
+  }),
+  members: many(employeeProfiles),
+}));
+
+export const employeeProfilesRelations = relations(employeeProfiles, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [employeeProfiles.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [employeeProfiles.userId],
+    references: [users.id],
+  }),
+  department: one(departments, {
+    fields: [employeeProfiles.departmentId],
+    references: [departments.id],
+  }),
+  manager: one(users, {
+    fields: [employeeProfiles.managerId],
+    references: [users.id],
+  }),
+}));
+
+export const leaveRequestsRelations = relations(leaveRequests, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [leaveRequests.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [leaveRequests.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [leaveRequests.reviewerId],
+    references: [users.id],
+  }),
+}));
+
+export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [attendanceRecords.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [attendanceRecords.userId],
+    references: [users.id],
+  }),
+}));
+
+export const goalsRelations = relations(goals, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [goals.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [goals.userId],
+    references: [users.id],
+  }),
+  department: one(departments, {
+    fields: [goals.departmentId],
+    references: [departments.id],
+  }),
+  updates: many(goalUpdates),
+}));
+
+export const goalUpdatesRelations = relations(goalUpdates, ({ one }) => ({
+  goal: one(goals, {
+    fields: [goalUpdates.goalId],
+    references: [goals.id],
+  }),
+  user: one(users, {
+    fields: [goalUpdates.userId],
+    references: [users.id],
+  }),
+}));
+
+export const performanceReviewsRelations = relations(performanceReviews, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [performanceReviews.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [performanceReviews.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [performanceReviews.reviewerId],
+    references: [users.id],
   }),
 }));

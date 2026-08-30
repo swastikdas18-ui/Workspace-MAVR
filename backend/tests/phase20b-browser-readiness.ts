@@ -301,7 +301,7 @@ export async function runPhase20BBrowserReadinessSuite() {
       projectId,
       assignedTo: empId,
       priority: 'high',
-      status: 'in_progress',
+      status: 'review',
     }),
   });
   assert.strictEqual(taskRes.status, 201, 'Task created and assigned to employee');

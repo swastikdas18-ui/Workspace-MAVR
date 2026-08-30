@@ -365,6 +365,40 @@ export class EventService {
   }
 
   /**
+   * Emit when a task is approved
+   */
+  static async emitTaskApproved(
+    ctx: BaseEventContext,
+    task: { id: string; title: string; projectId: string; assignedTo?: string; [key: string]: any }
+  ) {
+    // 1. Process Automations with 'task_approved'
+    await AutomationService.processEvent(
+      ctx.workspaceId,
+      'task_approved',
+      'task',
+      task.id,
+      { ...task, status: 'done' },
+      {
+        actorId: ctx.actorId,
+        ipAddress: ctx.ipAddress || undefined,
+        userAgent: ctx.userAgent || undefined,
+      }
+    );
+
+    // 2. Real-Time EventBus Broadcast
+    EventBus.publishWorkspaceEvent(
+      ctx.workspaceId,
+      'task_approved',
+      { ...task, status: 'done' },
+      {
+        actorId: ctx.actorId,
+        entityType: 'task',
+        entityId: task.id,
+      }
+    );
+  }
+
+  /**
    * Emit when a task is updated
    */
   static async emitTaskUpdated(

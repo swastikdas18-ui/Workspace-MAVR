@@ -312,9 +312,28 @@ export const api = {
     return await fetchApi<{ updates: any[] }>(`/api/projects/${id}/updates`);
   },
 
-  // Tasks API
-  async getTasks() {
-    return await fetchApi<{ tasks: any[] }>('/api/tasks');
+  // Tasks API (Phase 2 Task Execution Engine)
+  async getTasks(filters?: {
+    projectId?: string;
+    teamId?: string;
+    status?: string;
+    priority?: string;
+    assignedTo?: string;
+    isBlocked?: boolean;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.projectId) params.set('projectId', filters.projectId);
+    if (filters?.teamId) params.set('teamId', filters.teamId);
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.priority) params.set('priority', filters.priority);
+    if (filters?.assignedTo) params.set('assignedTo', filters.assignedTo);
+    if (filters?.isBlocked !== undefined) params.set('isBlocked', String(filters.isBlocked));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return await fetchApi<{ tasks: any[] }>(`/api/tasks${query}`);
+  },
+
+  async getTask(id: string) {
+    return await fetchApi<{ task: any }>(`/api/tasks/${id}`);
   },
 
   async createTask(data: any) {
@@ -335,6 +354,50 @@ export const api = {
     return await fetchApi<{ success: boolean }>(`/api/tasks/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  async startTask(id: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/start`, {
+      method: 'POST',
+    });
+  },
+
+  async submitTaskReview(id: string, notes?: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/submit-review`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  async approveTask(id: string, feedback?: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    });
+  },
+
+  async requestTaskChanges(id: string, feedback: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/request-changes`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    });
+  },
+
+  async blockTask(id: string, reason: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/block`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async unblockTask(id: string) {
+    return await fetchApi<{ task: any; message: string }>(`/api/tasks/${id}/unblock`, {
+      method: 'POST',
+    });
+  },
+
+  async getTaskActivity(id: string) {
+    return await fetchApi<{ activity: any[] }>(`/api/tasks/${id}/activity`);
   },
 
   // Task Comments API
@@ -519,20 +582,35 @@ export const api = {
     return await fetchApi<any>('/api/admin/tools');
   },
 
-  // Automations API
+  // Automations API (Phase 3 No-Code Engine)
   async getAutomations() {
     return await fetchApi<{ rules: any[]; total: number }>('/api/automations');
+  },
+
+  async getAutomationTemplates() {
+    return await fetchApi<{ templates: any[] }>('/api/automations/templates');
+  },
+
+  async installAutomationTemplate(templateId: string) {
+    return await fetchApi<{ rule: any; message: string }>(`/api/automations/templates/${templateId}/install`, {
+      method: 'POST',
+    });
   },
 
   async createAutomation(data: {
     name: string;
     description?: string;
-    entityType: string;
+    entityType?: string;
     triggerType: string;
+    triggerConfig?: Record<string, any>;
+    conditionConfig?: any[];
+    actionType?: string;
+    actionConfig?: Record<string, any>;
+    enabled?: boolean;
     isActive?: boolean;
-    actions: Array<{ actionType: string; actionConfig: Record<string, any> }>;
+    actions?: Array<{ actionType: string; actionConfig: Record<string, any> }>;
   }) {
-    return await fetchApi<{ rule: any }>('/api/automations', {
+    return await fetchApi<{ rule: any }>('/api/automations/rules', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -541,32 +619,83 @@ export const api = {
   async updateAutomation(id: string, data: Partial<{
     name: string;
     description?: string;
-    entityType: string;
-    triggerType: string;
+    entityType?: string;
+    triggerType?: string;
+    triggerConfig?: Record<string, any>;
+    conditionConfig?: any[];
+    actionType?: string;
+    actionConfig?: Record<string, any>;
+    enabled?: boolean;
     isActive?: boolean;
-    actions: Array<{ actionType: string; actionConfig: Record<string, any> }>;
+    actions?: Array<{ actionType: string; actionConfig: Record<string, any> }>;
   }>) {
-    return await fetchApi<{ rule: any }>(`/api/automations/${id}`, {
+    return await fetchApi<{ rule: any }>(`/api/automations/rules/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
   async toggleAutomation(id: string) {
-    return await fetchApi<{ rule: any }>(`/api/automations/${id}/toggle`, {
+    return await fetchApi<{ rule: any; message: string }>(`/api/automations/rules/${id}/toggle`, {
       method: 'PATCH',
     });
   },
 
+  async duplicateAutomation(id: string) {
+    return await fetchApi<{ rule: any; message: string }>(`/api/automations/rules/${id}/duplicate`, {
+      method: 'POST',
+    });
+  },
+
   async deleteAutomation(id: string) {
-    return await fetchApi<{ success: boolean; message: string }>(`/api/automations/${id}`, {
+    return await fetchApi<{ success: boolean; message: string }>(`/api/automations/rules/${id}`, {
       method: 'DELETE',
     });
   },
 
-  async getAutomationExecutions(ruleId?: string) {
-    const query = ruleId ? `?ruleId=${encodeURIComponent(ruleId)}` : '';
+  async getAutomationExecutions(params?: { ruleId?: string; status?: string; limit?: number; offset?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.ruleId) searchParams.set('ruleId', params.ruleId);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
     return await fetchApi<{ executions: any[]; total: number }>(`/api/automations/executions${query}`);
+  },
+
+  async getAutomationAnalytics() {
+    return await fetchApi<{
+      totalRules: number;
+      activeRules: number;
+      totalExecutions: number;
+      successRate: number;
+      failedExecutions: number;
+      topRules: any[];
+    }>('/api/automations/analytics');
+  },
+
+  async triggerAutomation(triggerType: string, payload?: Record<string, any>) {
+    return await fetchApi<{ success: boolean; executions: any[] }>('/api/automations/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ triggerType, ...payload }),
+    });
+  },
+
+  // Notifications Center API
+  async getNotifications() {
+    return await fetchApi<{ notifications: any[] }>('/api/notifications');
+  },
+
+  async markNotificationRead(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  async markAllNotificationsRead() {
+    return await fetchApi<{ success: boolean; count: number }>('/api/notifications/read-all', {
+      method: 'PATCH',
+    });
   },
 
   // Phase 22: Closed Beta API Methods
@@ -787,6 +916,159 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+
+  // Phase 4: People Operating System (HR + Team Management) API
+  async getEmployeeDirectory(params?: { search?: string; departmentId?: string; managerId?: string; status?: string; employmentType?: string }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ profiles: any[]; total: number }>(`/api/people/profiles${query ? `?${query}` : ''}`);
+  },
+
+  async getEmployeeProfile(userId: string) {
+    return await fetchApi<{ profile: any }>(`/api/people/profiles/${userId}`);
+  },
+
+  async updateEmployeeProfile(userId: string, data: any) {
+    return await fetchApi<{ profile: any; message: string }>(`/api/people/profiles/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getDepartments() {
+    return await fetchApi<{ departments: any[] }>('/api/people/departments');
+  },
+
+  async createDepartment(data: { name: string; description?: string; headId?: string; color?: string }) {
+    return await fetchApi<{ department: any; message: string }>('/api/people/departments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getOrgChart() {
+    return await fetchApi<{ root: any; unassigned: any[]; totalEmployees: number; departments: any[] }>('/api/people/org-chart');
+  },
+
+  async reassignManager(userId: string, managerId: string | null) {
+    return await fetchApi<{ profile: any; message: string }>('/api/people/org-chart/reassign', {
+      method: 'POST',
+      body: JSON.stringify({ userId, managerId }),
+    });
+  },
+
+  async transferDepartment(userId: string, departmentId: string | null) {
+    return await fetchApi<{ profile: any; message: string }>('/api/people/org-chart/transfer', {
+      method: 'POST',
+      body: JSON.stringify({ userId, departmentId }),
+    });
+  },
+
+  async getLeaveRequests(params?: { userId?: string; status?: string }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ leaves: any[] }>(`/api/people/leaves${query ? `?${query}` : ''}`);
+  },
+
+  async requestLeave(data: { leaveType: string; startDate: string; endDate: string; reason: string; daysCount?: number }) {
+    return await fetchApi<{ leave: any; message: string }>('/api/people/leaves', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async approveLeaveRequest(id: string, reviewNotes?: string) {
+    return await fetchApi<{ leave: any; message: string }>(`/api/people/leaves/${id}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reviewNotes }),
+    });
+  },
+
+  async rejectLeaveRequest(id: string, reviewNotes?: string) {
+    return await fetchApi<{ leave: any; message: string }>(`/api/people/leaves/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reviewNotes }),
+    });
+  },
+
+  async getLeaveBalances(userId?: string) {
+    const query = userId ? `?userId=${userId}` : '';
+    return await fetchApi<{ balances: any }>(`/api/people/leaves/balances${query}`);
+  },
+
+  async checkInAttendance(notes?: string) {
+    return await fetchApi<{ record: any; message: string }>('/api/people/attendance/check-in', {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  async checkOutAttendance(notes?: string) {
+    return await fetchApi<{ record: any; message: string }>('/api/people/attendance/check-out', {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  async getTodayAttendance() {
+    return await fetchApi<{ record: any; isCheckedIn: boolean }>('/api/people/attendance/today');
+  },
+
+  async getAttendanceHistory(params?: { userId?: string; startDate?: string; endDate?: string; limit?: number }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ history: any[] }>(`/api/people/attendance/history${query ? `?${query}` : ''}`);
+  },
+
+  async getAttendanceMetrics() {
+    return await fetchApi<{ presentToday: number; absentToday: number; lateToday: number; onLeaveToday: number; attendanceRate: number; totalStaff: number }>('/api/people/attendance/metrics');
+  },
+
+  async getGoals(params?: { userId?: string; departmentId?: string; category?: string; status?: string }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ goals: any[] }>(`/api/people/goals${query ? `?${query}` : ''}`);
+  },
+
+  async createGoal(data: any) {
+    return await fetchApi<{ goal: any; message: string }>('/api/people/goals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateGoalProgress(id: string, progressValue: number, progressPercent: number, notes?: string) {
+    return await fetchApi<{ goal: any; message: string }>(`/api/people/goals/${id}/progress`, {
+      method: 'PATCH',
+      body: JSON.stringify({ progressValue, progressPercent, notes }),
+    });
+  },
+
+  async getPerformanceReviews(params?: { userId?: string; reviewerId?: string; cycle?: string; status?: string }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ reviews: any[] }>(`/api/people/performance/reviews${query ? `?${query}` : ''}`);
+  },
+
+  async createPerformanceReview(data: { userId: string; reviewerId: string; cycle: string }) {
+    return await fetchApi<{ review: any; message: string }>('/api/people/performance/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async submitSelfReview(id: string, selfRatings: Record<string, any>, comments?: string) {
+    return await fetchApi<{ review: any; message: string }>(`/api/people/performance/reviews/${id}/self`, {
+      method: 'POST',
+      body: JSON.stringify({ selfRatings, comments }),
+    });
+  },
+
+  async submitManagerReview(id: string, managerRatings: Record<string, any>, comments?: string, strengths?: string, growthAreas?: string) {
+    return await fetchApi<{ review: any; message: string }>(`/api/people/performance/reviews/${id}/manager`, {
+      method: 'POST',
+      body: JSON.stringify({ managerRatings, comments, strengths, growthAreas }),
+    });
+  },
+
+  async getPeopleAnalytics() {
+    return await fetchApi<any>('/api/people/analytics');
   },
 
   // Executive Dashboard V2

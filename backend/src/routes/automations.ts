@@ -4,7 +4,6 @@ import { requireWorkspaceRole } from '../middleware/rbac';
 import { AutomationRepository } from '../repositories/automation-repository';
 import { AutomationService } from '../services/automation-service';
 import { AuditRepository } from '../repositories/audit-repository';
-import { AnalyticsRepository } from '../repositories/analytics-repository';
 
 export const automationRouter = new Hono();
 
@@ -12,10 +11,10 @@ export const automationRouter = new Hono();
 automationRouter.use('*', authMiddleware);
 
 /**
- * GET / - List all automation rules for active workspace
+ * GET /api/automations & /api/automations/rules - List all automation rules for active workspace
  * Allowed: ADMIN & EMPLOYEE
  */
-automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+const listRulesHandler = async (c: any) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -34,59 +33,305 @@ automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), async (c)
       500
     );
   }
-});
+};
+
+automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), listRulesHandler);
+automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), listRulesHandler);
 
 /**
- * GET /rules - Alias for list rules
+ * GET /api/automations/templates - List pre-built automation templates
+ * Allowed: ADMIN & EMPLOYEE
  */
-automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/templates', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+  return c.json({ templates: AutomationService.TEMPLATES }, 200);
+});
+
+/**
+ * POST /api/automations/templates/:templateId/install - Install a pre-built template
+ * Allowed: ADMIN only
+ */
+automationRouter.post('/templates/:templateId/install', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const templateId = c.req.param('templateId');
+    const rule = await AutomationService.installTemplate(workspace.id, user.id, templateId);
+
+    return c.json({ rule, message: 'Automation template installed successfully.' }, 201);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to install template.' } },
+      status
+    );
+  }
+});
+
+/**
+ * GET /api/automations/rules/:id - Get single rule
+ * Allowed: ADMIN & EMPLOYEE
+ */
+automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const rules = await AutomationRepository.listRules(workspace.id);
-    return c.json({ rules, total: rules.length }, 200);
+    const ruleId = c.req.param('id');
+    const rule = await AutomationRepository.getRuleById(workspace.id, ruleId);
+
+    if (!rule) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } }, 404);
+    }
+
+    return c.json({ rule }, 200);
   } catch (err: any) {
-    console.error('[Automation List Rules API Error]:', err);
     return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list automation rules.' } },
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get rule.' } },
       500
     );
   }
 });
 
 /**
- * GET /executions - List execution history
+ * POST /api/automations/rules - Create new automation rule
+ * Allowed: ADMIN only
+ */
+automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const body = await c.req.json();
+
+    if (!body.name || !body.name.trim()) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Rule name is required.' } }, 400);
+    }
+    if (!body.triggerType && !body.trigger_type) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Trigger type is required.' } }, 400);
+    }
+
+    const triggerType = body.triggerType || body.trigger_type;
+    const triggerConfig = body.triggerConfig || body.trigger_config || {};
+    const conditionConfig = body.conditionConfig || body.condition_config || body.conditions || [];
+    const actionType = body.actionType || body.action_type || body.actions?.[0]?.actionType;
+    const actionConfig = body.actionConfig || body.action_config || body.actions?.[0]?.actionConfig || {};
+
+    const rule = await AutomationRepository.createRule(workspace.id, user.id, {
+      name: body.name.trim(),
+      description: body.description?.trim() || null,
+      entityType: body.entityType || body.entity_type || 'system',
+      triggerType,
+      triggerConfig,
+      conditionConfig,
+      actionType,
+      actionConfig,
+      enabled: body.enabled !== undefined ? body.enabled : (body.isActive !== false),
+      isActive: body.isActive !== undefined ? body.isActive : (body.enabled !== false),
+      createdBy: user.id,
+      actions: body.actions,
+    });
+
+    await AuditRepository.log({
+      workspaceId: workspace.id,
+      userId: user.id,
+      action: 'automation_rule_created',
+      resource: 'automation_rule',
+      resourceId: rule.id,
+      details: { name: rule.name, triggerType },
+    });
+
+    return c.json({ rule, message: 'Automation rule created successfully.' }, 201);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to create automation rule.' } },
+      400
+    );
+  }
+});
+
+/**
+ * PUT & PATCH /api/automations/rules/:id - Update automation rule
+ * Allowed: ADMIN only
+ */
+const updateRuleHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const ruleId = c.req.param('id');
+    const body = await c.req.json();
+
+    const triggerType = body.triggerType || body.trigger_type;
+    const triggerConfig = body.triggerConfig || body.trigger_config;
+    const conditionConfig = body.conditionConfig || body.condition_config || body.conditions;
+    const actionType = body.actionType || body.action_type;
+    const actionConfig = body.actionConfig || body.action_config;
+
+    const rule = await AutomationRepository.updateRule(workspace.id, ruleId, {
+      name: body.name !== undefined ? body.name.trim() : undefined,
+      description: body.description !== undefined ? body.description : undefined,
+      entityType: body.entityType || body.entity_type,
+      triggerType,
+      triggerConfig,
+      conditionConfig,
+      actionType,
+      actionConfig,
+      enabled: body.enabled !== undefined ? body.enabled : body.isActive,
+      isActive: body.isActive !== undefined ? body.isActive : body.enabled,
+      actions: body.actions,
+    });
+
+    if (!rule) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } }, 404);
+    }
+
+    await AuditRepository.log({
+      workspaceId: workspace.id,
+      userId: user.id,
+      action: 'automation_rule_updated',
+      resource: 'automation_rule',
+      resourceId: rule.id,
+      details: { name: rule.name },
+    });
+
+    return c.json({ rule, message: 'Automation rule updated successfully.' }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to update rule.' } },
+      400
+    );
+  }
+};
+
+automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
+automationRouter.patch('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
+
+/**
+ * PATCH /api/automations/rules/:id/toggle - Toggle rule enabled/active state
+ * Allowed: ADMIN only
+ */
+automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const ruleId = c.req.param('id');
+    const rule = await AutomationRepository.toggleRule(workspace.id, ruleId);
+
+    if (!rule) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } }, 404);
+    }
+
+    return c.json({ rule, message: `Rule ${rule.enabled ? 'activated' : 'deactivated'}.` }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to toggle rule.' } },
+      400
+    );
+  }
+});
+
+/**
+ * POST /api/automations/rules/:id/duplicate - Duplicate an existing rule
+ * Allowed: ADMIN only
+ */
+automationRouter.post('/rules/:id/duplicate', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const ruleId = c.req.param('id');
+    const rule = await AutomationRepository.duplicateRule(workspace.id, ruleId, user.id);
+
+    if (!rule) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } }, 404);
+    }
+
+    return c.json({ rule, message: 'Automation rule duplicated successfully.' }, 201);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to duplicate rule.' } },
+      400
+    );
+  }
+});
+
+/**
+ * DELETE /api/automations/rules/:id - Delete an automation rule
+ * Allowed: ADMIN only
+ */
+automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const ruleId = c.req.param('id');
+    await AutomationRepository.deleteRule(workspace.id, ruleId);
+
+    await AuditRepository.log({
+      workspaceId: workspace.id,
+      userId: user.id,
+      action: 'automation_rule_deleted',
+      resource: 'automation_rule',
+      resourceId: ruleId,
+      details: {},
+    });
+
+    return c.json({ success: true, message: 'Automation rule deleted successfully.' }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to delete rule.' } },
+      400
+    );
+  }
+});
+
+/**
+ * GET /api/automations/executions - List audit execution logs
  * Allowed: ADMIN only
  */
 automationRouter.get('/executions', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
     const ruleId = c.req.query('ruleId');
+    const status = c.req.query('status');
     const limit = Number(c.req.query('limit')) || 50;
     const offset = Number(c.req.query('offset')) || 0;
 
     const executions = await AutomationRepository.listExecutions(workspace.id, {
       ruleId,
+      status,
       limit,
       offset,
     });
 
     return c.json({ executions, total: executions.length }, 200);
   } catch (err: any) {
-    console.error('[Automation List Executions API Error]:', err);
     return c.json(
       { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list executions.' } },
       500
@@ -95,425 +340,80 @@ automationRouter.get('/executions', requireWorkspaceRole(['admin']), async (c) =
 });
 
 /**
- * GET /metrics - Get automation metrics
+ * GET /api/automations/analytics & /api/automations/metrics - Get executive analytics
  * Allowed: ADMIN only
  */
-automationRouter.get('/metrics', requireWorkspaceRole(['admin']), async (c) => {
+const analyticsHandler = async (c: any) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
+    const analytics = await AutomationRepository.getAnalytics(workspace.id);
     const rules = await AutomationRepository.listRules(workspace.id);
-    const executions = await AutomationRepository.listExecutions(workspace.id, { limit: 100 });
-
-    const activeRulesCount = rules.filter((r) => r.isActive).length;
-    const successfulExecutions = executions.filter((e) => e.status === 'success').length;
-    const failedExecutions = executions.filter((e) => e.status === 'failed').length;
-    const successRate = executions.length > 0 ? (successfulExecutions / executions.length) * 100 : 100;
-
-    const metricsPayload = {
-      totalRules: rules.length,
-      activeRules: activeRulesCount,
-      totalExecutions: executions.length,
-      automationRules: rules.length,
-      automationExecutions: executions.length,
-      successfulExecutions,
-      failedExecutions,
-      successRate: Math.round(successRate * 10) / 10,
-    };
 
     return c.json(
       {
-        ...metricsPayload,
-        metrics: metricsPayload,
+        totalRules: rules.length,
+        automationRules: rules.length,
+        activeRules: rules.filter((r) => r.enabled).length,
+        totalExecutions: analytics.totalExecutions,
+        automationExecutions: analytics.successCount + analytics.failedCount,
+        successfulExecutions: analytics.successCount,
+        successCount: analytics.successCount,
+        failedExecutions: analytics.failedCount,
+        failedCount: analytics.failedCount,
+        successRate: analytics.successRate,
+        topRules: analytics.topRules,
       },
       200
     );
   } catch (err: any) {
-    console.error('[Automation Metrics API Error]:', err);
     return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get automation metrics.' } },
-      500
-    );
-  }
-});
-
-/**
- * GET /:id & GET /rules/:id - Get rule by ID
- */
-const getRuleHandler = async (c: any) => {
-  try {
-    const workspace = c.get('workspace');
-    const id = c.req.param('id');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const rule = await AutomationRepository.findRuleById(id);
-    if (!rule || rule.workspaceId !== workspace.id) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } },
-        404
-      );
-    }
-
-    return c.json({ rule }, 200);
-  } catch (err: any) {
-    console.error('[Automation Get Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get automation rule.' } },
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get analytics.' } },
       500
     );
   }
 };
 
-automationRouter.get('/:id', requireWorkspaceRole(['admin']), getRuleHandler);
-automationRouter.get('/rules/:id', requireWorkspaceRole(['admin']), getRuleHandler);
+automationRouter.get('/analytics', requireWorkspaceRole(['admin']), analyticsHandler);
+automationRouter.get('/metrics', requireWorkspaceRole(['admin']), analyticsHandler);
 
 /**
- * POST / - Create a new automation rule
- * Allowed: ADMIN only.
+ * POST /api/automations/trigger - Test or manually execute an automation trigger
+ * Allowed: ADMIN & EMPLOYEE
  */
-automationRouter.post('/', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.post('/trigger', requireWorkspaceRole(['admin', 'employee']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
-
     if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
     const body = await c.req.json();
-    const { name, description, entityType, triggerType, isActive, actions } = body;
+    const triggerType = body.triggerType || body.trigger_type || body.event;
 
-    if (!name || !entityType || !triggerType) {
-      return c.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Name, entityType, and triggerType are required.',
-          },
-        },
-        400
-      );
+    if (!triggerType) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Trigger type is required.' } }, 400);
     }
 
-    const rule = await AutomationRepository.createRule({
+    const results = await AutomationService.processTrigger({
       workspaceId: workspace.id,
-      name,
-      description: description || null,
-      entityType,
       triggerType,
-      isActive: isActive !== undefined ? isActive : true,
-      createdBy: user.id,
-      actions: actions || [],
+      actorId: user.id,
+      entityType: body.entityType || body.entity_type,
+      entityId: body.entityId || body.entity_id,
+      entity: body.entity || body.payload || {},
+      metadata: body.metadata || {},
     });
-
-    // Audit Log
-    await AuditRepository.logAudit({
-      workspaceId: workspace.id,
-      userId: user.id,
-      action: 'CREATE_AUTOMATION_RULE',
-      resource: 'automation_rule',
-      resourceId: rule.id,
-      newValues: {
-        name: rule.name,
-        entityType: rule.entityType,
-        triggerType: rule.triggerType,
-        actionsCount: rule.actions?.length || 0,
-      },
-    });
-
-    return c.json({ rule }, 201);
-  } catch (err: any) {
-    console.error('[Automation Create Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to create automation rule.' } },
-      500
-    );
-  }
-});
-
-/**
- * POST /rules - Alias for create rule
- */
-automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const body = await c.req.json();
-    const { name, description, entityType, triggerType, isActive, actions } = body;
-
-    if (!name || !entityType || !triggerType) {
-      return c.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Name, entityType, and triggerType are required.',
-          },
-        },
-        400
-      );
-    }
-
-    const rule = await AutomationRepository.createRule({
-      workspaceId: workspace.id,
-      name,
-      description: description || null,
-      entityType,
-      triggerType,
-      isActive: isActive !== undefined ? isActive : true,
-      createdBy: user.id,
-      actions: actions || [],
-    });
-
-    // Audit Log
-    await AuditRepository.logAudit({
-      workspaceId: workspace.id,
-      userId: user.id,
-      action: 'CREATE_AUTOMATION_RULE',
-      resource: 'automation_rule',
-      resourceId: rule.id,
-      newValues: {
-        name: rule.name,
-        entityType: rule.entityType,
-        triggerType: rule.triggerType,
-        actionsCount: rule.actions?.length || 0,
-      },
-    });
-
-    return c.json({ rule }, 201);
-  } catch (err: any) {
-    console.error('[Automation Create Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to create automation rule.' } },
-      500
-    );
-  }
-});
-
-const updateRuleHandler = async (c: any) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-    const id = c.req.param('id');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const existingRule = await AutomationRepository.findRuleById(id);
-    if (!existingRule || existingRule.workspaceId !== workspace.id) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } },
-        404
-      );
-    }
-
-    const body = await c.req.json();
-    const updatedRule = await AutomationRepository.updateRule(id, body);
-
-    // Audit Log
-    await AuditRepository.logAudit({
-      workspaceId: workspace.id,
-      userId: user.id,
-      action: 'UPDATE_AUTOMATION_RULE',
-      resource: 'automation_rule',
-      resourceId: id,
-      oldValues: {
-        name: existingRule.name,
-        isActive: existingRule.isActive,
-        triggerType: existingRule.triggerType,
-      },
-      newValues: {
-        name: updatedRule?.name,
-        isActive: updatedRule?.isActive,
-        triggerType: updatedRule?.triggerType,
-      },
-    });
-
-    return c.json({ rule: updatedRule }, 200);
-  } catch (err: any) {
-    console.error('[Automation Update Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to update automation rule.' } },
-      500
-    );
-  }
-};
-
-automationRouter.put('/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
-automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
-
-const toggleRuleHandler = async (c: any) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-    const id = c.req.param('id');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const existingRule = await AutomationRepository.findRuleById(id);
-    if (!existingRule || existingRule.workspaceId !== workspace.id) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } },
-        404
-      );
-    }
-
-    const updatedRule = await AutomationRepository.updateRule(id, {
-      isActive: !existingRule.isActive,
-    });
-
-    // Audit Log
-    await AuditRepository.logAudit({
-      workspaceId: workspace.id,
-      userId: user.id,
-      action: 'TOGGLE_AUTOMATION_RULE',
-      resource: 'automation_rule',
-      resourceId: id,
-      oldValues: { isActive: existingRule.isActive },
-      newValues: { isActive: updatedRule?.isActive },
-    });
-
-    return c.json({ rule: updatedRule }, 200);
-  } catch (err: any) {
-    console.error('[Automation Toggle Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to toggle automation rule.' } },
-      500
-    );
-  }
-};
-
-automationRouter.patch('/:id/toggle', requireWorkspaceRole(['admin']), toggleRuleHandler);
-automationRouter.patch('/rules/:id/toggle', requireWorkspaceRole(['admin']), toggleRuleHandler);
-
-const deleteRuleHandler = async (c: any) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-    const id = c.req.param('id');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const existingRule = await AutomationRepository.findRuleById(id);
-    if (!existingRule || existingRule.workspaceId !== workspace.id) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'Automation rule not found.' } },
-        404
-      );
-    }
-
-    await AutomationRepository.deleteRule(id);
-
-    // Audit Log
-    await AuditRepository.logAudit({
-      workspaceId: workspace.id,
-      userId: user.id,
-      action: 'DELETE_AUTOMATION_RULE',
-      resource: 'automation_rule',
-      resourceId: id,
-      oldValues: {
-        name: existingRule.name,
-        triggerType: existingRule.triggerType,
-      },
-    });
-
-    return c.json({ success: true, message: 'Automation rule deleted successfully.' }, 200);
-  } catch (err: any) {
-    console.error('[Automation Delete Rule API Error]:', err);
-    return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to delete automation rule.' } },
-      500
-    );
-  }
-};
-
-automationRouter.delete('/:id', requireWorkspaceRole(['admin']), deleteRuleHandler);
-automationRouter.delete('/rules/:id', requireWorkspaceRole(['admin']), deleteRuleHandler);
-
-/**
- * POST /trigger - Test execution / manual trigger
- * Allowed: ADMIN only
- */
-automationRouter.post('/trigger', requireWorkspaceRole(['admin']), async (c) => {
-  try {
-    const user = c.get('user');
-    const workspace = c.get('workspace');
-
-    if (!workspace) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace associated with session.' } },
-        404
-      );
-    }
-
-    const body = await c.req.json();
-    const { triggerType, entityType, entityId, eventData } = body;
-
-    if (!triggerType || !entityType || !entityId) {
-      return c.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'triggerType, entityType, and entityId are required.',
-          },
-        },
-        400
-      );
-    }
-
-    const results = await AutomationService.processEvent(
-      workspace.id,
-      triggerType,
-      entityType,
-      entityId,
-      eventData || {},
-      {
-        actorId: user.id,
-      }
-    );
 
     return c.json({ success: true, executions: results }, 200);
   } catch (err: any) {
-    console.error('[Automation Manual Trigger API Error]:', err);
     return c.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to trigger automation.' } },
-      500
+      { error: { code: 'BAD_REQUEST', message: err.message || 'Trigger execution failed.' } },
+      400
     );
   }
 });

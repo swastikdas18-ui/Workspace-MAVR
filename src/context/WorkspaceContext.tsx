@@ -47,6 +47,7 @@ interface WorkspaceContextType {
   addToast: (toast: Omit<ToastMessage, 'id'>) => void;
   removeToast: (id: string) => void;
   refreshWorkspaceData: () => Promise<void>;
+  refreshData: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<boolean>;
   createNewWorkspace: (name: string, plan?: string) => Promise<Workspace | null>;
 
@@ -1308,6 +1309,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addToast,
         removeToast,
         refreshWorkspaceData,
+        refreshData: refreshWorkspaceData,
         switchWorkspace,
         createNewWorkspace,
         createProject,

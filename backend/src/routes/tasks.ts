@@ -10,7 +10,7 @@ export const taskRouter = new Hono();
 taskRouter.use('*', authMiddleware);
 
 /**
- * GET /api/tasks - List tasks for workspace (Interns only see assigned tasks)
+ * GET /api/tasks - List tasks for workspace with optional filtering
  */
 taskRouter.get('/', async (c) => {
   try {
@@ -21,8 +21,23 @@ taskRouter.get('/', async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
+    const projectId = c.req.query('projectId') || c.req.query('project_id');
+    const teamId = c.req.query('teamId') || c.req.query('team_id');
+    const status = c.req.query('status');
+    const priority = c.req.query('priority');
+    const assignedTo = c.req.query('assignedTo') || c.req.query('assigned_to');
+    const isBlockedQuery = c.req.query('isBlocked') || c.req.query('is_blocked');
+    const isBlocked = isBlockedQuery !== undefined ? isBlockedQuery === 'true' : undefined;
+
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
-    const tasks = await TaskService.getTasks(workspace.id, user.id, role);
+    const tasks = await TaskService.getTasks(workspace.id, user.id, role, {
+      projectId,
+      teamId,
+      status,
+      priority,
+      assignedTo,
+      isBlocked,
+    });
 
     return c.json({ tasks }, 200);
   } catch (err: any) {
@@ -35,7 +50,7 @@ taskRouter.get('/', async (c) => {
 });
 
 /**
- * POST /api/tasks - Create new task (Admin only; Employee & Intern blocked)
+ * POST /api/tasks - Create new task
  */
 taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
   try {
@@ -50,7 +65,7 @@ taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
     const body = await c.req.json();
 
     if (!body.title || !body.title.trim()) {
-      return c.json({ error: { code: 'BAD_REQUEST', message: 'Task title is required.' } }, 400);
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Task title is required.' } }, 400);
     }
 
     const task = await TaskService.createTask(workspace.id, user.id, role, body);
@@ -111,7 +126,7 @@ const updateTaskHandler = async (c: any) => {
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
     return c.json(
-      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update task.' } },
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to update task.' } },
       status
     );
   }
@@ -121,7 +136,196 @@ taskRouter.patch('/:id', updateTaskHandler);
 taskRouter.put('/:id', updateTaskHandler);
 
 /**
- * DELETE /api/tasks/:id - Delete task (Admin only)
+ * POST /api/tasks/:id/start - Transition Todo -> In Progress
+ */
+taskRouter.post('/:id/start', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const task = await TaskService.startTask(workspace.id, user.id, role, taskId);
+    return c.json({ task, message: 'Task started successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to start task.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/tasks/:id/submit-review - Transition In Progress -> Review
+ */
+taskRouter.post('/:id/submit-review', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    let notes: string | undefined;
+    try {
+      const body = await c.req.json();
+      notes = body.notes;
+    } catch {
+      // Optional notes
+    }
+
+    const task = await TaskService.submitReview(workspace.id, user.id, role, taskId, notes);
+    return c.json({ task, message: 'Task submitted for review successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to submit task for review.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/tasks/:id/approve - Transition Review -> Done
+ */
+taskRouter.post('/:id/approve', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    let feedback: string | undefined;
+    try {
+      const body = await c.req.json();
+      feedback = body.feedback;
+    } catch {
+      // Optional feedback
+    }
+
+    const task = await TaskService.approveTask(workspace.id, user.id, role, taskId, feedback);
+    return c.json({ task, message: 'Task approved and completed.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to approve task.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/tasks/:id/request-changes - Transition Review -> In Progress
+ */
+taskRouter.post('/:id/request-changes', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json();
+
+    if (!body.feedback || !body.feedback.trim()) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Feedback is required when requesting changes.' } }, 400);
+    }
+
+    const task = await TaskService.requestChanges(workspace.id, user.id, role, taskId, body.feedback);
+    return c.json({ task, message: 'Changes requested on task.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to request changes.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/tasks/:id/block - Block task with reason
+ */
+taskRouter.post('/:id/block', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json();
+
+    if (!body.reason || !body.reason.trim()) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Blocked reason is required.' } }, 400);
+    }
+
+    const task = await TaskService.blockTask(workspace.id, user.id, role, taskId, body.reason);
+    return c.json({ task, message: 'Task marked as blocked.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to block task.' } },
+      status
+    );
+  }
+});
+
+/**
+ * POST /api/tasks/:id/unblock - Unblock task
+ */
+taskRouter.post('/:id/unblock', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const task = await TaskService.unblockTask(workspace.id, user.id, role, taskId);
+    return c.json({ task, message: 'Task unblocked successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to unblock task.' } },
+      status
+    );
+  }
+});
+
+/**
+ * GET /api/tasks/:id/activity - Get task activity timeline
+ */
+taskRouter.get('/:id/activity', async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+    const taskId = c.req.param('id');
+    const activity = await TaskService.getTaskActivity(workspace.id, taskId);
+    return c.json({ activity }, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json(
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch task activity.' } },
+      status
+    );
+  }
+});
+
+/**
+ * DELETE /api/tasks/:id - Delete task
  */
 taskRouter.delete('/:id', requirePermission('tasks:delete'), async (c) => {
   try {
@@ -169,9 +373,9 @@ taskRouter.get('/:id/comments', async (c) => {
 });
 
 /**
- * POST /api/tasks/:id/comments - Add comment to task
+ * POST /api/tasks/:id/comment & /api/tasks/:id/comments - Add comment to task
  */
-taskRouter.post('/:id/comments', async (c) => {
+const postCommentHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -197,4 +401,7 @@ taskRouter.post('/:id/comments', async (c) => {
       status
     );
   }
-});
+};
+
+taskRouter.post('/:id/comments', postCommentHandler);
+taskRouter.post('/:id/comment', postCommentHandler);

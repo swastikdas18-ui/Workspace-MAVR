@@ -157,10 +157,12 @@ export class PeopleRepository {
               updatedAt: d.updatedAt,
             };
           });
+        } else {
+          return [];
         }
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      console.warn('[PeopleRepository] listDepartments DB error, falling back to memory:', err?.message);
     }
 
     // In-memory fallback
@@ -186,12 +188,51 @@ export class PeopleRepository {
   }
 
   static async getDepartmentById(workspaceId: string, departmentId: string): Promise<DepartmentEntity | null> {
+    try {
+      const db = getDb();
+      if (db) {
+        const [d] = await db
+          .select()
+          .from(schema.departments)
+          .where(and(eq(schema.departments.id, departmentId), eq(schema.departments.workspaceId, workspaceId)));
+
+        if (d) {
+          const profiles = await db
+            .select()
+            .from(schema.employeeProfiles)
+            .where(eq(schema.employeeProfiles.workspaceId, workspaceId));
+
+          const headUser = d.headId
+            ? (await db.select().from(schema.users).where(eq(schema.users.id, d.headId)).limit(1))[0] || null
+            : null;
+
+          const memberCount = profiles.filter((p) => p.departmentId === d.id || (d.headId && p.userId === d.headId)).length;
+
+          return {
+            id: d.id,
+            workspaceId: d.workspaceId,
+            name: d.name,
+            description: d.description || null,
+            headId: d.headId || null,
+            head: headUser ? { id: headUser.id, name: headUser.name, email: headUser.email } : null,
+            parentId: d.parentId || null,
+            color: d.color || '#7C3AED',
+            memberCount,
+            createdAt: d.createdAt,
+            updatedAt: d.updatedAt,
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[PeopleRepository] getDepartmentById DB error:', err?.message);
+    }
+
     const list = await this.listDepartments(workspaceId);
     return list.find((d) => d.id === departmentId) || null;
   }
 
   static async createDepartment(workspaceId: string, data: { name: string; description?: string; headId?: string; parentId?: string; color?: string }): Promise<DepartmentEntity> {
-    const id = 'dept-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const id = crypto.randomUUID();
     const now = new Date();
     const record = {
       id,
@@ -211,11 +252,28 @@ export class PeopleRepository {
       if (db) {
         await db.insert(schema.departments).values(record);
       }
-    } catch {
-      // Handled
+    } catch (err: any) {
+      console.error('[PeopleRepository] createDepartment DB insert error:', err);
+      throw new Error(`Failed to persist department to database: ${err.message}`);
     }
 
-    return (await this.getDepartmentById(workspaceId, id))!;
+    const created = await this.getDepartmentById(workspaceId, id);
+    if (!created) {
+      return {
+        id: record.id,
+        workspaceId: record.workspaceId,
+        name: record.name,
+        description: record.description,
+        headId: record.headId,
+        head: null,
+        parentId: record.parentId,
+        color: record.color,
+        memberCount: 0,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      };
+    }
+    return created;
   }
 
   static async updateDepartment(workspaceId: string, departmentId: string, data: Partial<{ name: string; description: string; headId: string | null; parentId: string | null; color: string }>): Promise<DepartmentEntity | null> {
@@ -232,10 +290,11 @@ export class PeopleRepository {
     try {
       const db = getDb();
       if (db) {
-        await db.update(schema.departments).set(data).where(and(eq(schema.departments.id, departmentId), eq(schema.departments.workspaceId, workspaceId)));
+        await db.update(schema.departments).set({ ...data, updatedAt: now }).where(and(eq(schema.departments.id, departmentId), eq(schema.departments.workspaceId, workspaceId)));
       }
-    } catch {
-      // Handled
+    } catch (err: any) {
+      console.error('[PeopleRepository] updateDepartment DB error:', err);
+      throw new Error(`Failed to update department in database: ${err.message}`);
     }
 
     return await this.getDepartmentById(workspaceId, departmentId);
@@ -248,8 +307,9 @@ export class PeopleRepository {
       if (db) {
         await db.delete(schema.departments).where(and(eq(schema.departments.id, departmentId), eq(schema.departments.workspaceId, workspaceId)));
       }
-    } catch {
-      // Handled
+    } catch (err: any) {
+      console.error('[PeopleRepository] deleteDepartment DB error:', err);
+      throw new Error(`Failed to delete department from database: ${err.message}`);
     }
     return true;
   }

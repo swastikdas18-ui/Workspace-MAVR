@@ -365,7 +365,7 @@ export const TeamsView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-white">{inv.email}</span>
-                    <RoleBadge role={inv.role} />
+                    <RoleBadge role={inv.role as UserRole} />
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
                     Token: {inv.token.substring(0, 16)}...

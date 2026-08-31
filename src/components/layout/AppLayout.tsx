@@ -155,7 +155,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       title: projectTitle,
       description: projectDescription,
       status: 'planning',
-      progress: 0,
       start_date: new Date().toISOString().split('T')[0],
       due_date: projectDueDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       budget: projectBudget ? (projectBudget.startsWith('$') ? projectBudget : `$${projectBudget}`) : '$15,000',
@@ -184,7 +183,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       status: 'todo',
       due_date: taskDueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       project_id: taskProjectId || projects[0]?.id || '',
-      assignee_id: taskAssigneeId || currentUser?.id || '',
+      assigned_to: taskAssigneeId || currentUser?.id || '',
       estimated_hours: taskEstimateHours ? parseFloat(taskEstimateHours) : 4,
       actual_hours: 0,
       tags: taskTagsInput.split(',').map((t) => t.trim()).filter(Boolean)

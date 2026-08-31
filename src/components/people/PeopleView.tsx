@@ -57,6 +57,12 @@ export const PeopleView: React.FC = () => {
   const [selectedNewManagerId, setSelectedNewManagerId] = useState('');
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [selectedNewDeptId, setSelectedNewDeptId] = useState('');
+  const [isEditDepartmentModalOpen, setIsEditDepartmentModalOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<any | null>(null);
+  const [editDeptName, setEditDeptName] = useState('');
+  const [editDeptDescription, setEditDeptDescription] = useState('');
+  const [editDeptColor, setEditDeptColor] = useState('#7C3AED');
+  const [editDeptHeadId, setEditDeptHeadId] = useState('');
 
   // Leave State
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -191,6 +197,57 @@ export const PeopleView: React.FC = () => {
         type: 'error',
         title: 'Failed to Create Department',
         message: err.message || 'An error occurred while creating the department.'
+      });
+    }
+  };
+
+  const handleUpdateDepartmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDepartment) return;
+    try {
+      await api.updateDepartment(editingDepartment.id, {
+        name: editDeptName,
+        description: editDeptDescription,
+        headId: editDeptHeadId || null,
+        color: editDeptColor,
+      });
+
+      setIsEditDepartmentModalOpen(false);
+      setEditingDepartment(null);
+      addToast({
+        type: 'success',
+        title: 'Department Updated',
+        message: `Department "${editDeptName}" updated successfully.`
+      });
+      loadData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Failed to Update Department',
+        message: err.message || 'An error occurred while updating the department.'
+      });
+    }
+  };
+
+  const handleDeleteDepartment = async (deptId: string, deptName: string) => {
+    if (!window.confirm(`Are you sure you want to delete department "${deptName}"? Members will be unassigned to General Operations.`)) {
+      return;
+    }
+    try {
+      await api.deleteDepartment(deptId);
+      setIsEditDepartmentModalOpen(false);
+      setEditingDepartment(null);
+      addToast({
+        type: 'info',
+        title: 'Department Removed',
+        message: `Department "${deptName}" was removed.`
+      });
+      loadData();
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Failed to Delete Department',
+        message: err.message || 'An error occurred while deleting the department.'
       });
     }
   };
@@ -759,20 +816,53 @@ export const PeopleView: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <div className="mt-4 pt-3 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                        <Users className="w-3.5 h-3.5 text-purple-400" />
+                        <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                         <span>{memberCount} workforce assigned</span>
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedDepartmentFilter(dept.id);
-                          setActiveSubTab('directory');
-                        }}
-                        className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer"
-                      >
-                        View Members <ArrowRight className="w-3 h-3" />
-                      </button>
+
+                      <div className="flex items-center gap-2 justify-end">
+                        {permissions?.teams?.manageTeams && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditingDepartment(dept);
+                                setEditDeptName(dept.name || '');
+                                setEditDeptDescription(dept.description || '');
+                                setEditDeptColor(dept.color || '#7C3AED');
+                                setEditDeptHeadId(dept.headId || dept.head?.id || '');
+                                setIsEditDepartmentModalOpen(true);
+                              }}
+                              className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition cursor-pointer flex items-center gap-1"
+                              title="Edit Department"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTargetReassignUser(profiles.find(p => p.departmentId !== dept.id) || profiles[0]);
+                                setSelectedNewDeptId(dept.id);
+                                setIsTransferModalOpen(true);
+                              }}
+                              className="text-xs px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-200 border border-purple-500/30 font-medium transition cursor-pointer flex items-center gap-1"
+                              title="Add / Assign Member to this Department"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add Member</span>
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => {
+                            setSelectedDepartmentFilter(dept.id);
+                            setActiveSubTab('directory');
+                          }}
+                          className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer px-1 py-1"
+                        >
+                          <span>View</span> <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 );
@@ -2246,8 +2336,139 @@ export const PeopleView: React.FC = () => {
                     disabled={!targetReassignUser || !selectedNewDeptId}
                     className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
                   >
-                    Confirm Transfer
+                    Confirm Assignment
                   </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* EDIT DEPARTMENT MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isEditDepartmentModalOpen && editingDepartment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsEditDepartmentModalOpen(false);
+                setEditingDepartment(null);
+              }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-base font-semibold text-white">Edit Department</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsEditDepartmentModalOpen(false);
+                    setEditingDepartment(null);
+                  }}
+                  className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateDepartmentSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Department Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDeptName}
+                    onChange={(e) => setEditDeptName(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                    placeholder="e.g. Frontend Engineering"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Mission / Description</label>
+                  <textarea
+                    rows={3}
+                    value={editDeptDescription}
+                    onChange={(e) => setEditDeptDescription(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 resize-none"
+                    placeholder="Core objectives and department roadmap..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Department Lead</label>
+                  <select
+                    value={editDeptHeadId}
+                    onChange={(e) => setEditDeptHeadId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">No Lead Assigned</option>
+                    {profiles.map((p) => (
+                      <option key={p.userId || p.id} value={p.userId || p.id}>
+                        {p.user?.name || p.name} ({p.designation || 'Staff'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1.5">Accent Color</label>
+                  <div className="flex items-center gap-2">
+                    {['#7C3AED', '#2563EB', '#059669', '#D97706', '#E11D48', '#0891B2', '#4F46E5'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setEditDeptColor(c)}
+                        className={`w-7 h-7 rounded-lg transition-transform ${
+                          editDeptColor === c ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900' : 'hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDepartment(editingDepartment.id, editingDepartment.name)}
+                    className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-medium flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditDepartmentModalOpen(false);
+                        setEditingDepartment(null);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!editDeptName.trim()}
+                      className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

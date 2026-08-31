@@ -952,6 +952,19 @@ export const api = {
     });
   },
 
+  async updateDepartment(id: string, data: { name?: string; description?: string; headId?: string | null; color?: string }) {
+    return await fetchApi<{ department: any; message: string }>(`/api/people/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteDepartment(id: string) {
+    return await fetchApi<{ success: boolean; message: string }>(`/api/people/departments/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getOrgChart() {
     return await fetchApi<{ root: any; unassigned: any[]; totalEmployees: number; departments: any[] }>('/api/people/org-chart');
   },

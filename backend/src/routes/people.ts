@@ -127,6 +127,42 @@ peopleRouter.post('/departments', requireAdmin, async (c) => {
 });
 
 /**
+ * PUT /api/people/departments/:id - Update department (Admin only)
+ */
+peopleRouter.put('/departments/:id', requireAdmin, async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    const department = await PeopleService.updateDepartment(workspace.id, user.id, id, body);
+    if (!department) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Department not found.' } }, 404);
+    }
+    return c.json({ department, message: 'Department updated successfully.' }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to update department.' } }, 400);
+  }
+});
+
+/**
+ * DELETE /api/people/departments/:id - Delete department (Admin only)
+ */
+peopleRouter.delete('/departments/:id', requireAdmin, async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const id = c.req.param('id');
+
+    await PeopleService.deleteDepartment(workspace.id, user.id, id);
+    return c.json({ success: true, message: 'Department deleted successfully.' }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to delete department.' } }, 500);
+  }
+});
+
+/**
  * GET /api/people/org-chart - Get visual hierarchy org chart
  */
 peopleRouter.get('/org-chart', async (c) => {

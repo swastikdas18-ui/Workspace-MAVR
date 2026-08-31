@@ -79,6 +79,39 @@ export class PeopleService {
     return dept;
   }
 
+  static async updateDepartment(workspaceId: string, actorId: string, departmentId: string, data: Partial<{ name: string; description: string; headId: string | null; color: string }>) {
+    const dept = await PeopleRepository.updateDepartment(workspaceId, departmentId, data);
+    if (data.headId) {
+      try {
+        await PeopleRepository.transferDepartment(workspaceId, data.headId, departmentId);
+      } catch {
+        // Handled
+      }
+    }
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'UPDATE_DEPARTMENT',
+      resource: 'department',
+      resourceId: departmentId,
+      newValues: data,
+    });
+    return dept;
+  }
+
+  static async deleteDepartment(workspaceId: string, actorId: string, departmentId: string) {
+    const res = await PeopleRepository.deleteDepartment(workspaceId, departmentId);
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'DELETE_DEPARTMENT',
+      resource: 'department',
+      resourceId: departmentId,
+      newValues: {},
+    });
+    return res;
+  }
+
   // 3. Org Chart
   static async getOrgChart(workspaceId: string) {
     return PeopleRepository.getOrgChart(workspaceId);

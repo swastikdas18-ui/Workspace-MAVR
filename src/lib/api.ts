@@ -840,14 +840,14 @@ export const api = {
     return await fetchApi<{ page: any }>(`/api/wiki/${id}`);
   },
 
-  async createWikiPage(data: { title?: string; icon?: string; contentJson?: any; parentId?: string | null; visibility?: string }) {
+  async createWikiPage(data: { title?: string; icon?: string; contentJson?: any; parentId?: string | null; visibility?: string; departmentId?: string | null; department_id?: string | null }) {
     return await fetchApi<{ page: any }>('/api/wiki', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateWikiPage(id: string, data: { title?: string; icon?: string; contentJson?: any; visibility?: string }) {
+  async updateWikiPage(id: string, data: { title?: string; icon?: string; contentJson?: any; visibility?: string; departmentId?: string | null; department_id?: string | null }) {
     return await fetchApi<{ page: any }>(`/api/wiki/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

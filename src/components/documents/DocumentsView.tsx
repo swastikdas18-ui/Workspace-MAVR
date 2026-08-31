@@ -18,6 +18,8 @@ interface DocumentsViewProps {
 }
 
 export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, onRouteChange }) => {
+  console.log("ACTIVE DOCUMENT VIEW");
+
   const { 
     documents, currentUser, currentRole, currentWorkspace, permissions, uploadDocument, 
     deleteDocument, incrementDocDownload, searchQuery 
@@ -98,6 +100,13 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
+
+    const payload = {
+      title: title || selectedFile?.name || 'Untitled Document',
+      visibility,
+      departmentId: visibility === 'department' ? selectedDepartmentId : undefined,
+    };
+    console.log("DOCUMENT CREATE PAYLOAD", payload);
 
     try {
       if (selectedFile) {

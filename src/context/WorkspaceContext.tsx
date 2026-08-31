@@ -876,6 +876,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           fileType: docOrForm.file_type,
           fileSize: docOrForm.file_size,
           visibility: docOrForm.visibility,
+          departmentId: (docOrForm as any).departmentId || docOrForm.department_id || null,
           category: docOrForm.category,
         });
       }

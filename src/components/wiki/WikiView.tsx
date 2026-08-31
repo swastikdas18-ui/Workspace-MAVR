@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   BookOpen, Plus, Search, ChevronRight, FileText, Lock, Globe, 
   Users, Trash2, Edit3, MessageSquare, Clock, ArrowLeft, Send,
-  Sparkles, Check, CheckCircle2, History, ChevronDown, Loader2
+  Sparkles, Check, CheckCircle2, History, ChevronDown, Loader2, X
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { WikiPageItem, WikiCommentItem } from '../../types';
@@ -17,8 +17,11 @@ interface WikiViewProps {
 }
 
 export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }) => {
+  console.log("ACTIVE WIKI VIEW");
+
   const { currentRole, currentUser, currentWorkspace, addToast } = useWorkspace();
   const [pages, setPages] = useState<WikiPageItem[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedPageId, setSelectedPageId] = useState<string>(routePageId || '');
@@ -28,9 +31,27 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
   const [editContentText, setEditContentText] = useState('');
   const [activeTab, setActiveTab] = useState<'content' | 'comments' | 'versions'>('content');
   
+  // Create Wiki Modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createVisibility, setCreateVisibility] = useState<string>('workspace');
+  const [createDepartmentId, setCreateDepartmentId] = useState<string>('');
+  const [createParentId, setCreateParentId] = useState<string | null>(null);
+
   // Comments state
   const [comments, setComments] = useState<WikiCommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
+
+  // Fetch departments for department-scoped wiki page creation
+  useEffect(() => {
+    async function loadDepts() {
+      try {
+        const res = await api.getDepartments();
+        if (res?.departments) setDepartments(res.departments);
+      } catch {}
+    }
+    loadDepts();
+  }, []);
 
   // Sync routePageId prop changes into state
   useEffect(() => {
@@ -99,31 +120,50 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
     }
   }, [selectedPage?.id, loadComments]);
 
-  const handleCreatePage = async (parentId: string | null = null) => {
+  const openCreateModal = (parentId: string | null = null) => {
+    setCreateParentId(parentId);
+    setCreateTitle('');
+    setCreateVisibility('workspace');
+    setCreateDepartmentId('');
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const payload = {
+      title: createTitle.trim() || 'Untitled Document',
+      visibility: createVisibility,
+      departmentId: createVisibility === 'department' ? createDepartmentId : undefined,
+    };
+    console.log("WIKI CREATE PAYLOAD", payload);
+
     try {
       const res = await api.createWikiPage({
-        parentId,
-        title: 'Untitled Document',
+        parentId: createParentId,
+        title: createTitle.trim() || 'Untitled Document',
         icon: '📄',
-        visibility: currentRole === 'intern' ? 'learning' : 'team',
+        visibility: createVisibility,
+        departmentId: createVisibility === 'department' ? createDepartmentId : undefined,
+        department_id: createVisibility === 'department' ? createDepartmentId : undefined,
         contentJson: {
           blocks: [
-            { type: 'header', text: 'Untitled Document' },
+            { type: 'header', text: createTitle.trim() || 'Untitled Document' },
             { type: 'paragraph', text: 'Type your documentation content here or insert bullet checklists.' }
           ]
         },
-      });
+      } as any);
 
       if (res?.page) {
         setPages((prev) => [res.page, ...prev]);
         selectPage(res.page.id);
         setEditTitle(res.page.title);
         setEditContentText('Type your documentation content here or insert bullet checklists.');
-        setIsEditing(true);
+        setIsCreateModalOpen(false);
         addToast({
           type: 'success',
-          title: 'Page Created',
-          message: 'New wiki page ready for editing.',
+          title: 'Wiki Created',
+          message: `"${res.page.title}" created successfully.`,
         });
       }
     } catch (err: any) {
@@ -133,6 +173,39 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
         title: 'Creation Failed',
         message: err.message || 'Could not create wiki page.',
       });
+    }
+  };
+
+  const getVisibilityBadge = (v: string, deptId?: string | null) => {
+    switch (v) {
+      case 'private':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+            <Lock className="w-2.5 h-2.5" /> Private
+          </span>
+        );
+      case 'department':
+        const deptName = departments.find((d) => d.id === deptId)?.name || 'Department';
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+            <Users className="w-2.5 h-2.5" /> {deptName}
+          </span>
+        );
+      case 'admin_only':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+            <Lock className="w-2.5 h-2.5" /> Admin Only
+          </span>
+        );
+      case 'workspace':
+      case 'public':
+      case 'team':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+            <Globe className="w-2.5 h-2.5" /> Workspace
+          </span>
+        );
     }
   };
 
@@ -245,7 +318,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
         actions={
           currentRole !== 'intern' ? (
             <button
-              onClick={() => handleCreatePage(null)}
+              onClick={() => openCreateModal(null)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -294,11 +367,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
                       <span className="text-sm">{page.icon}</span>
                       <span className="truncate">{page.title}</span>
                     </div>
-                    {page.visibility === 'learning' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                        Learn
-                      </span>
-                    )}
+                    {getVisibilityBadge(page.visibility, (page as any).department_id || (page as any).departmentId)}
                   </div>
                 );
               })
@@ -307,7 +376,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
 
           {currentRole !== 'intern' && selectedPage && (
             <button
-              onClick={() => handleCreatePage(selectedPage.id)}
+              onClick={() => openCreateModal(selectedPage.id)}
               className="mt-3 w-full py-2 rounded-xl bg-[#1E293B] hover:bg-slate-700 text-slate-300 text-xs font-medium border border-white/[0.06] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-blue-400" />
@@ -366,9 +435,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                       <span>Updated {new Date(selectedPage.updatedAt).toLocaleDateString()}</span>
                       <span>•</span>
-                      <span className="capitalize text-blue-400 font-medium">
-                        {selectedPage.visibility} Access
-                      </span>
+                      {getVisibilityBadge(selectedPage.visibility, (selectedPage as any).department_id || (selectedPage as any).departmentId)}
                     </div>
                   </div>
                 </div>
@@ -545,7 +612,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
                 )}
                 {currentRole !== 'intern' && (
                   <button
-                    onClick={() => handleCreatePage(null)}
+                    onClick={() => openCreateModal(null)}
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -557,6 +624,100 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
           )}
         </div>
       </div>
+
+      {/* Create Wiki Page Modal */}
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCreateModalOpen(false)}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-2xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-base font-semibold text-white">Create Wiki Document</h3>
+                </div>
+                <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Document Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Backend SOP / System Architecture Protocol"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Visibility Scope</label>
+                  <select
+                    value={createVisibility}
+                    onChange={(e) => setCreateVisibility(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    <option value="workspace">Workspace (All Organization)</option>
+                    <option value="department">Department</option>
+                    <option value="private">Private (Only Me)</option>
+                    {currentRole === 'admin' && <option value="admin_only">Admin Only</option>}
+                  </select>
+                </div>
+
+                {createVisibility === 'department' && (
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Target Department</label>
+                    <select
+                      value={createDepartmentId}
+                      onChange={(e) => setCreateDepartmentId(e.target.value)}
+                      required
+                      className="w-full bg-[#111827] border border-purple-500/30 rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    >
+                      <option value="">Select Department...</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-lg shadow-blue-500/25 cursor-pointer"
+                  >
+                    Create Wiki Page
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

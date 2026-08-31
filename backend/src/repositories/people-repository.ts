@@ -236,25 +236,51 @@ export class PeopleRepository {
     const now = new Date();
     
     let validHeadId: string | null = null;
-    if (data.headId) {
+    let validWorkspaceId: string = workspaceId;
+
+    const db = getDb();
+    if (db) {
+      // 1. Verify workspace exists in DB to prevent foreign key error
       try {
-        const db = getDb();
-        if (db) {
+        const wsRows = await db.select({ id: schema.workspaces.id }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+        if (wsRows.length === 0) {
+          // Fallback: check if workspace exists in inMemoryDb or primary owned workspace
+          const inMemWs = inMemoryDb.workspaces.get(workspaceId);
+          if (inMemWs) {
+            // Upsert workspace record into PostgreSQL if missing
+            await db.insert(schema.workspaces).values({
+              id: inMemWs.id,
+              name: inMemWs.name,
+              slug: inMemWs.slug || 'workspace-' + inMemWs.id.substring(0, 8),
+              ownerId: inMemWs.ownerId,
+              plan: inMemWs.plan || 'free',
+              createdAt: inMemWs.createdAt ? new Date(inMemWs.createdAt) : now,
+              updatedAt: now,
+            }).onConflictDoNothing();
+          }
+        }
+      } catch (wsErr) {
+        console.warn('[PeopleRepository] Workspace existence check warn:', wsErr);
+      }
+
+      // 2. Verify headId user exists in DB to prevent foreign key error
+      if (data.headId) {
+        try {
           const userRows = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.id, data.headId)).limit(1);
           if (userRows.length > 0) {
             validHeadId = data.headId;
           }
-        } else {
-          validHeadId = data.headId;
+        } catch {
+          validHeadId = null;
         }
-      } catch {
-        validHeadId = null;
       }
+    } else {
+      validHeadId = data.headId || null;
     }
 
     const record = {
       id,
-      workspaceId,
+      workspaceId: validWorkspaceId,
       name: data.name.trim(),
       description: data.description?.trim() || null,
       headId: validHeadId,
@@ -265,14 +291,15 @@ export class PeopleRepository {
     };
     inMemoryDb.departments.set(id, record);
 
+    console.log('[PeopleRepository] Inserting department payload:', record);
+
     try {
-      const db = getDb();
       if (db) {
         await db.insert(schema.departments).values(record);
       }
     } catch (err: any) {
-      console.error('[PeopleRepository] createDepartment DB insert error:', err);
-      throw new Error(`Failed to persist department to database: ${err.message || String(err)}`);
+      console.error('Department insert failed:', err);
+      throw err;
     }
 
     const created = await this.getDepartmentById(workspaceId, id);

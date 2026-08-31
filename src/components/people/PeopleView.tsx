@@ -331,6 +331,61 @@ export const PeopleView: React.FC = () => {
     }
   };
 
+  // Profile & Department Handlers
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProfile) return;
+    try {
+      await api.updateEmployeeProfile(selectedProfile.userId, {
+        designation: selectedProfile.designation,
+        departmentId: selectedProfile.departmentId || null,
+        managerId: selectedProfile.managerId || null,
+        employmentType: selectedProfile.employmentType,
+        status: selectedProfile.status,
+        bio: selectedProfile.bio,
+        skills: selectedProfile.skills,
+        location: selectedProfile.location,
+        phone: selectedProfile.phone,
+        emergencyContact: selectedProfile.emergencyContact,
+      });
+      addToast({ type: 'success', title: 'Profile Updated', message: 'Employee profile changes saved.' });
+      setSelectedProfile(null);
+      await loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Update Failed', message: err.message || 'Failed to update profile.' });
+    }
+  };
+
+  const handleTransferDepartmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetReassignUser || !selectedNewDeptId) return;
+    try {
+      await api.transferDepartment(targetReassignUser.id || targetReassignUser.userId, selectedNewDeptId);
+      addToast({ type: 'success', title: 'Department Transferred', message: 'Employee transferred successfully.' });
+      setIsTransferModalOpen(false);
+      setTargetReassignUser(null);
+      setSelectedNewDeptId('');
+      await loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Transfer Failed', message: err.message || 'Failed to transfer department.' });
+    }
+  };
+
+  const handleReassignManagerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetReassignUser) return;
+    try {
+      await api.reassignManager(targetReassignUser.id || targetReassignUser.userId, selectedNewManagerId || null);
+      addToast({ type: 'success', title: 'Reporting Line Updated', message: 'Direct manager reassigned successfully.' });
+      setIsReassignModalOpen(false);
+      setTargetReassignUser(null);
+      setSelectedNewManagerId('');
+      await loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Reassign Failed', message: err.message || 'Failed to reassign manager.' });
+    }
+  };
+
   // Filtered Profiles
   const filteredProfiles = profiles.filter((p) => {
     const matchesSearch =
@@ -339,7 +394,19 @@ export const PeopleView: React.FC = () => {
       p.designation?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.skills?.some((s: string) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesDept = !selectedDepartmentFilter || p.departmentId === selectedDepartmentFilter;
+    const selectedDept = departments.find((d) => d.id === selectedDepartmentFilter);
+    const matchesDept =
+      !selectedDepartmentFilter ||
+      p.departmentId === selectedDepartmentFilter ||
+      p.department?.id === selectedDepartmentFilter ||
+      (selectedDept && (
+        (p.department?.name && p.department.name.toLowerCase() === selectedDept.name?.toLowerCase()) ||
+        selectedDept.headId === p.userId ||
+        selectedDept.head?.id === p.userId ||
+        selectedDept.head?.id === p.user?.id ||
+        selectedDept.headId === p.user?.id
+      ));
+
     const matchesType = !selectedEmploymentTypeFilter || p.employmentType === selectedEmploymentTypeFilter;
 
     return matchesSearch && matchesDept && matchesType;
@@ -645,58 +712,71 @@ export const PeopleView: React.FC = () => {
                 d.name?.toLowerCase().includes(deptSearchQuery.toLowerCase()) || 
                 d.description?.toLowerCase().includes(deptSearchQuery.toLowerCase())
               )
-              .map((dept) => (
-                <motion.div
-                  key={dept.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/40 transition flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-md"
-                          style={{ backgroundColor: dept.color || '#7C3AED' }}
-                        >
-                          <Building2 className="w-5 h-5 text-white" />
+              .map((dept) => {
+                const assignedCount = profiles.filter((p) =>
+                  p.departmentId === dept.id ||
+                  p.department?.id === dept.id ||
+                  (p.department?.name && p.department.name.toLowerCase() === dept.name?.toLowerCase()) ||
+                  dept.headId === p.userId ||
+                  dept.head?.id === p.userId ||
+                  dept.head?.id === p.user?.id ||
+                  dept.headId === p.user?.id
+                ).length;
+                const memberCount = Math.max(assignedCount, dept.memberCount || 0);
+
+                return (
+                  <motion.div
+                    key={dept.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/40 transition flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-md"
+                            style={{ backgroundColor: dept.color || '#7C3AED' }}
+                          >
+                            <Building2 className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-slate-100 text-sm">{dept.name}</h4>
+                            <p className="text-xs text-slate-400">
+                              {dept.head?.name ? `Lead: ${dept.head.name}` : 'No Lead Assigned'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-100 text-sm">{dept.name}</h4>
-                          <p className="text-xs text-slate-400">
-                            {dept.head?.name ? `Lead: ${dept.head.name}` : 'No Lead Assigned'}
-                          </p>
-                        </div>
+                        <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-medium">
+                          {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                        </span>
                       </div>
-                      <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-medium">
-                        {dept.memberCount || 0} {dept.memberCount === 1 ? 'member' : 'members'}
-                      </span>
+
+                      {dept.description && (
+                        <p className="mt-3 text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                          {dept.description}
+                        </p>
+                      )}
                     </div>
 
-                    {dept.description && (
-                      <p className="mt-3 text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                        {dept.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <Users className="w-3.5 h-3.5 text-purple-400" />
-                      <span>{dept.memberCount || 0} workforce assigned</span>
+                    <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <Users className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{memberCount} workforce assigned</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedDepartmentFilter(dept.id);
+                          setActiveSubTab('directory');
+                        }}
+                        className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer"
+                      >
+                        View Members <ArrowRight className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSelectedDepartmentFilter(dept.id);
-                        setActiveSubTab('directory');
-                      }}
-                      className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer"
-                    >
-                      View Members <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
           </div>
 
           {departments.length === 0 && (
@@ -749,6 +829,27 @@ export const PeopleView: React.FC = () => {
               </select>
             </div>
           </div>
+
+          {/* Active Department Filter Banner */}
+          {selectedDepartmentFilter && (
+            <div className="flex items-center justify-between p-3 px-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-xs text-purple-200">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-purple-400" />
+                <span>
+                  Showing members in department:{' '}
+                  <strong className="text-white">
+                    {departments.find((d) => d.id === selectedDepartmentFilter)?.name || 'Selected Department'}
+                  </strong>
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedDepartmentFilter('')}
+                className="text-purple-400 hover:text-white font-medium flex items-center gap-1 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" /> Clear Filter (View All)
+              </button>
+            </div>
+          )}
 
           {/* Employee Directory Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -815,7 +916,7 @@ export const PeopleView: React.FC = () => {
                   </span>
                   <button
                     onClick={() => setSelectedProfile(prof)}
-                    className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition"
+                    className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer"
                   >
                     View Profile <ArrowRight className="w-3 h-3" />
                   </button>
@@ -823,6 +924,34 @@ export const PeopleView: React.FC = () => {
               </motion.div>
             ))}
           </div>
+
+          {filteredProfiles.length === 0 && (
+            <div className="p-8 text-center bg-slate-900/20 border border-white/5 rounded-2xl text-slate-400 text-xs space-y-3">
+              <p>No employees found matching the current department or search filter.</p>
+              <div className="flex items-center justify-center gap-3">
+                {selectedDepartmentFilter && (
+                  <button
+                    onClick={() => setSelectedDepartmentFilter('')}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium cursor-pointer"
+                  >
+                    View All Employees
+                  </button>
+                )}
+                {permissions?.teams?.manageTeams && profiles.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setTargetReassignUser(profiles[0]);
+                      setSelectedNewDeptId(selectedDepartmentFilter || departments[0]?.id || '');
+                      setIsTransferModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold cursor-pointer"
+                  >
+                    Assign Employee to Department
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1770,6 +1899,354 @@ export const PeopleView: React.FC = () => {
                     className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 cursor-pointer"
                   >
                     Create Department
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* EMPLOYEE PROFILE VIEW & EDIT MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {selectedProfile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProfile(null)}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-lg p-6 shadow-2xl z-10 space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <div className="flex items-center gap-3">
+                  <UserAvatar name={selectedProfile.user?.name || 'Staff'} avatar={selectedProfile.user?.avatar} size="md" />
+                  <div>
+                    <h3 className="text-base font-semibold text-white">{selectedProfile.user?.name}</h3>
+                    <p className="text-xs text-slate-400">{selectedProfile.user?.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedProfile(null)} className="text-slate-400 hover:text-white p-1 cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Designation / Title</label>
+                    <input
+                      type="text"
+                      disabled={currentRole !== 'admin'}
+                      value={selectedProfile.designation || ''}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, designation: e.target.value })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white disabled:opacity-60 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Department</label>
+                    <select
+                      disabled={currentRole !== 'admin'}
+                      value={selectedProfile.departmentId || ''}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, departmentId: e.target.value || null })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white disabled:opacity-60 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="">General Operations</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Reports To / Manager</label>
+                    <select
+                      disabled={currentRole !== 'admin'}
+                      value={selectedProfile.managerId || ''}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, managerId: e.target.value || null })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white disabled:opacity-60 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="">No Direct Manager (Top Level)</option>
+                      {profiles
+                        .filter((p) => p.userId !== selectedProfile.userId)
+                        .map((p) => (
+                          <option key={p.userId} value={p.userId}>{p.user?.name} ({p.designation})</option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Employment Type</label>
+                    <select
+                      disabled={currentRole !== 'admin'}
+                      value={selectedProfile.employmentType || 'full_time'}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, employmentType: e.target.value })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white disabled:opacity-60 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="full_time">Full Time</option>
+                      <option value="part_time">Part Time</option>
+                      <option value="contractor">Contractor</option>
+                      <option value="intern">Intern</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={selectedProfile.location || ''}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, location: e.target.value })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500"
+                      placeholder="e.g. San Francisco (Hybrid)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Status</label>
+                    <select
+                      disabled={currentRole !== 'admin'}
+                      value={selectedProfile.status || 'active'}
+                      onChange={(e) => setSelectedProfile({ ...selectedProfile, status: e.target.value })}
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white disabled:opacity-60 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="active">Active</option>
+                      <option value="on_leave">On Leave</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Bio / Profile Summary</label>
+                  <textarea
+                    rows={2}
+                    value={selectedProfile.bio || ''}
+                    onChange={(e) => setSelectedProfile({ ...selectedProfile, bio: e.target.value })}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500"
+                    placeholder="Short bio and responsibilities..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProfile(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  {currentRole === 'admin' && (
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 cursor-pointer"
+                    >
+                      Save Changes
+                    </button>
+                  )}
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* REASSIGN REPORTING LINE MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isReassignModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsReassignModalOpen(false);
+                setTargetReassignUser(null);
+              }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <h3 className="text-base font-semibold text-white">Reassign Reporting Line</h3>
+                <button
+                  onClick={() => {
+                    setIsReassignModalOpen(false);
+                    setTargetReassignUser(null);
+                  }}
+                  className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleReassignManagerSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Select Employee</label>
+                  <select
+                    required
+                    value={targetReassignUser?.userId || targetReassignUser?.id || ''}
+                    onChange={(e) => {
+                      const found = profiles.find((p) => (p.userId || p.id) === e.target.value);
+                      setTargetReassignUser(found || null);
+                    }}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">-- Choose Employee --</option>
+                    {profiles.map((p) => (
+                      <option key={p.userId || p.id} value={p.userId || p.id}>
+                        {p.user?.name || p.name} ({p.designation})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">New Manager / Direct Lead</label>
+                  <select
+                    value={selectedNewManagerId}
+                    onChange={(e) => setSelectedNewManagerId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">No Direct Manager (Top Executive)</option>
+                    {profiles
+                      .filter((p) => (p.userId || p.id) !== (targetReassignUser?.userId || targetReassignUser?.id))
+                      .map((p) => (
+                        <option key={p.userId || p.id} value={p.userId || p.id}>
+                          {p.user?.name || p.name} ({p.designation})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReassignModalOpen(false);
+                      setTargetReassignUser(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!targetReassignUser}
+                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                  >
+                    Update Manager
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* TRANSFER DEPARTMENT MODAL */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isTransferModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsTransferModalOpen(false);
+                setTargetReassignUser(null);
+              }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-[#0F172A] border border-white/[0.12] rounded-3xl w-full max-w-md p-6 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <h3 className="text-base font-semibold text-white">Assign / Transfer Department</h3>
+                <button
+                  onClick={() => {
+                    setIsTransferModalOpen(false);
+                    setTargetReassignUser(null);
+                  }}
+                  className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleTransferDepartmentSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Select Employee</label>
+                  <select
+                    required
+                    value={targetReassignUser?.userId || targetReassignUser?.id || ''}
+                    onChange={(e) => {
+                      const found = profiles.find((p) => (p.userId || p.id) === e.target.value);
+                      setTargetReassignUser(found || null);
+                    }}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">-- Choose Employee --</option>
+                    {profiles.map((p) => (
+                      <option key={p.userId || p.id} value={p.userId || p.id}>
+                        {p.user?.name || p.name} ({p.department?.name || 'General Operations'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Target Department</label>
+                  <select
+                    required
+                    value={selectedNewDeptId}
+                    onChange={(e) => setSelectedNewDeptId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">-- Choose Department --</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTransferModalOpen(false);
+                      setTargetReassignUser(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!targetReassignUser || !selectedNewDeptId}
+                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 disabled:opacity-50 cursor-pointer"
+                  >
+                    Confirm Transfer
                   </button>
                 </div>
               </form>

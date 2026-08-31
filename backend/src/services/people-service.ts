@@ -61,6 +61,13 @@ export class PeopleService {
 
   static async createDepartment(workspaceId: string, actorId: string, data: { name: string; description?: string; headId?: string; color?: string }) {
     const dept = await PeopleRepository.createDepartment(workspaceId, data);
+    if (data.headId) {
+      try {
+        await PeopleRepository.transferDepartment(workspaceId, data.headId, dept.id);
+      } catch {
+        // Handled
+      }
+    }
     await AuditRepository.log({
       workspaceId,
       userId: actorId,

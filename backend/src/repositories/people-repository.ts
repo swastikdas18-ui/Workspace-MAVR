@@ -141,7 +141,7 @@ export class PeopleRepository {
           const userMap = new Map(userRows.map((u) => [u.id, u]));
 
           return rows.map((d) => {
-            const memberCount = profiles.filter((p) => p.departmentId === d.id).length;
+            const memberCount = profiles.filter((p) => p.departmentId === d.id || (d.headId && p.userId === d.headId)).length;
             const headUser = d.headId ? userMap.get(d.headId) : null;
             return {
               id: d.id,
@@ -168,7 +168,7 @@ export class PeopleRepository {
     const profiles = Array.from(inMemoryDb.employeeProfiles.values()).filter((p) => p.workspaceId === workspaceId);
     return list.map((d) => {
       const headUser = d.headId ? inMemoryDb.users.get(d.headId) : null;
-      const memberCount = profiles.filter((p) => p.departmentId === d.id).length;
+      const memberCount = profiles.filter((p) => p.departmentId === d.id || (d.headId && p.userId === d.headId)).length;
       return {
         id: d.id,
         workspaceId: d.workspaceId,
@@ -300,14 +300,17 @@ export class PeopleRepository {
     let results: EmployeeProfileEntity[] = allProfiles.map((p) => {
       const u = inMemoryDb.users.get(p.userId);
       const managerUser = p.managerId ? inMemoryDb.users.get(p.managerId) : null;
-      const dept = p.departmentId ? deptMap.get(p.departmentId) : null;
+      const dept = p.departmentId 
+        ? deptMap.get(p.departmentId) 
+        : Array.from(deptMap.values()).find((d) => d.headId === p.userId) || null;
+      const effectiveDeptId = p.departmentId || (dept ? dept.id : null);
 
       return {
         id: p.id,
         workspaceId: p.workspaceId,
         userId: p.userId,
         user: u ? { id: u.id, name: u.name, email: u.email, avatar: u.avatar || null, role: u.role } : undefined,
-        departmentId: p.departmentId || null,
+        departmentId: effectiveDeptId,
         department: dept ? { id: dept.id, name: dept.name, color: dept.color } : null,
         designation: p.designation || 'Team Member',
         managerId: p.managerId || null,
@@ -326,7 +329,12 @@ export class PeopleRepository {
     });
 
     if (filters?.departmentId) {
-      results = results.filter((p) => p.departmentId === filters.departmentId);
+      const targetDept = deptMap.get(filters.departmentId);
+      results = results.filter((p) => 
+        p.departmentId === filters.departmentId || 
+        p.department?.id === filters.departmentId ||
+        (targetDept && targetDept.headId === p.userId)
+      );
     }
     if (filters?.managerId) {
       results = results.filter((p) => p.managerId === filters.managerId);

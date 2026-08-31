@@ -73,6 +73,49 @@ export async function runMigrations() {
       );
     `;
 
+    // 3b. Departments table (Phase 4 People OS)
+    await sql`
+      CREATE TABLE IF NOT EXISTS departments (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        head_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        parent_id TEXT,
+        color TEXT DEFAULT '#7C3AED',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_departments_workspace_id ON departments(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_departments_name ON departments(name);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_departments_head_id ON departments(head_id);`;
+
+    // 3c. Employee Profiles table (Phase 4 People OS)
+    await sql`
+      CREATE TABLE IF NOT EXISTS employee_profiles (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        designation TEXT NOT NULL DEFAULT 'Team Member',
+        manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        joining_date TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        employment_type TEXT NOT NULL DEFAULT 'full_time',
+        skills JSONB DEFAULT '[]'::jsonb,
+        bio TEXT,
+        location TEXT DEFAULT 'Remote',
+        phone TEXT,
+        emergency_contact TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_employee_profiles_workspace_id ON employee_profiles(workspace_id);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_profiles_user_id ON employee_profiles(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_employee_profiles_department_id ON employee_profiles(department_id);`;
+
     // 4. Sessions table
     await sql`
       CREATE TABLE IF NOT EXISTS sessions (

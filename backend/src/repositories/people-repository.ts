@@ -262,7 +262,108 @@ export class PeopleRepository {
     workspaceId: string,
     filters?: { departmentId?: string; search?: string; managerId?: string; status?: string; employmentType?: string }
   ): Promise<EmployeeProfileEntity[]> {
-    // 1. Get workspace members
+    try {
+      const db = getDb();
+      if (db) {
+        // 1. Fetch real workspace members from database
+        const memberRows = await db
+          .select({
+            member: schema.workspaceMembers,
+            user: schema.users,
+          })
+          .from(schema.workspaceMembers)
+          .innerJoin(schema.users, eq(schema.workspaceMembers.userId, schema.users.id))
+          .where(eq(schema.workspaceMembers.workspaceId, workspaceId));
+
+        if (memberRows.length > 0) {
+          const profileRows = await db
+            .select()
+            .from(schema.employeeProfiles)
+            .where(eq(schema.employeeProfiles.workspaceId, workspaceId));
+
+          const profileMap = new Map(profileRows.map((p) => [p.userId, p]));
+          const depts = await this.listDepartments(workspaceId);
+          const deptMap = new Map(depts.map((d) => [d.id, d]));
+          const now = new Date();
+
+          let results: EmployeeProfileEntity[] = [];
+
+          for (const row of memberRows) {
+            const u = row.user;
+            const existing = profileMap.get(u.id);
+
+            const dept = existing?.departmentId
+              ? deptMap.get(existing.departmentId)
+              : Array.from(deptMap.values()).find((d) => d.headId === u.id) || null;
+
+            const effectiveDeptId = existing?.departmentId || (dept ? dept.id : null);
+
+            results.push({
+              id: existing?.id || 'prof-' + u.id,
+              workspaceId,
+              userId: u.id,
+              user: {
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                avatar: u.avatar || null,
+                role: u.role,
+              },
+              departmentId: effectiveDeptId,
+              department: dept ? { id: dept.id, name: dept.name, color: dept.color } : null,
+              designation: existing?.designation || u.title || (u.role === 'admin' ? 'Organization Administrator' : u.role === 'intern' ? 'Engineering Intern' : 'Operations Specialist'),
+              managerId: existing?.managerId || null,
+              manager: null,
+              joiningDate: existing?.joiningDate || (u.createdAt ? new Date(u.createdAt) : now),
+              employmentType: existing?.employmentType || (u.role === 'intern' ? 'intern' : 'full_time'),
+              skills: Array.isArray(existing?.skills) ? existing.skills : [],
+              bio: existing?.bio || null,
+              location: existing?.location || 'Remote',
+              phone: existing?.phone || null,
+              emergencyContact: existing?.emergencyContact || null,
+              status: existing?.status || 'active',
+              createdAt: existing?.createdAt || u.createdAt || now,
+              updatedAt: existing?.updatedAt || now,
+            });
+          }
+
+          if (filters?.departmentId) {
+            const targetDept = deptMap.get(filters.departmentId);
+            results = results.filter((p) =>
+              p.departmentId === filters.departmentId ||
+              p.department?.id === filters.departmentId ||
+              (targetDept && targetDept.headId === p.userId)
+            );
+          }
+          if (filters?.managerId) {
+            results = results.filter((p) => p.managerId === filters.managerId);
+          }
+          if (filters?.status) {
+            results = results.filter((p) => p.status === filters.status);
+          }
+          if (filters?.employmentType) {
+            results = results.filter((p) => p.employmentType === filters.employmentType);
+          }
+          if (filters?.search) {
+            const q = filters.search.toLowerCase();
+            results = results.filter(
+              (p) =>
+                p.user?.name?.toLowerCase().includes(q) ||
+                p.user?.email?.toLowerCase().includes(q) ||
+                p.designation?.toLowerCase().includes(q) ||
+                p.location?.toLowerCase().includes(q) ||
+                p.skills?.some((s) => s.toLowerCase().includes(q))
+            );
+          }
+
+          return results;
+        }
+      }
+    } catch {
+      // Fallback to in-memory
+    }
+
+    // 1. In-memory fallback
     const memberRows = Array.from(inMemoryDb.workspaceMembers.values()).filter((wm) => wm.workspaceId === workspaceId);
     const memberUserIds = new Set(memberRows.map((wm) => wm.userId));
 

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   Search, Bell, Menu, Plus, Sparkles, CheckCircle2, 
-  AlertCircle, Info, ExternalLink, ShieldCheck, X, ChevronRight
+  AlertCircle, Info, ExternalLink, ShieldCheck, X, ChevronRight,
+  Users, UserPlus, FolderKanban, CheckSquare, ChevronDown
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { motion, AnimatePresence } from 'motion/react';

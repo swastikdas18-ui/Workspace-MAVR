@@ -144,7 +144,22 @@ export class ProjectRepository {
               userTeamIds.add(userRow.teamId);
             }
 
-            // Also check if user is a team lead
+            // Also check employee_profiles.departmentId (People OS department assignment)
+            const [empProfile] = await db
+              .select({ departmentId: schema.employeeProfiles.departmentId })
+              .from(schema.employeeProfiles)
+              .where(
+                and(
+                  eq(schema.employeeProfiles.workspaceId, workspaceId),
+                  eq(schema.employeeProfiles.userId, userId)
+                )
+              )
+              .limit(1);
+            if (empProfile?.departmentId) {
+              userTeamIds.add(empProfile.departmentId);
+            }
+
+            // Also check if user is a department head or team lead
             const ledTeams = await db
               .select({ id: schema.teams.id })
               .from(schema.teams)
@@ -156,7 +171,18 @@ export class ProjectRepository {
               );
             ledTeams.forEach((lt) => userTeamIds.add(lt.id));
 
-            // Find projects assigned to the user's teams (projects -> project_teams)
+            const headDepts = await db
+              .select({ id: schema.departments.id })
+              .from(schema.departments)
+              .where(
+                and(
+                  eq(schema.departments.workspaceId, workspaceId),
+                  eq(schema.departments.headId, userId)
+                )
+              );
+            headDepts.forEach((hd) => userTeamIds.add(hd.id));
+
+            // Find projects assigned to the user's teams/departments (projects -> project_teams)
             teamRows.forEach((tr) => {
               if (userTeamIds.has(tr.teamId)) {
                 userProjectIds.add(tr.projectId);
@@ -234,6 +260,17 @@ export class ProjectRepository {
       );
       Array.from(inMemoryDb.teams.values()).forEach((t) => {
         if (t.leadId === userId) userTeamIds.add(t.id);
+      });
+
+      const empProf = Array.from(inMemoryDb.employeeProfiles.values()).find(
+        (ep) => ep.workspaceId === workspaceId && ep.userId === userId
+      );
+      if (empProf?.departmentId) {
+        userTeamIds.add(empProf.departmentId);
+      }
+
+      Array.from(inMemoryDb.departments.values()).forEach((d) => {
+        if (d.headId === userId) userTeamIds.add(d.id);
       });
 
       Array.from(inMemoryDb.projectTeams.values()).forEach((pt) => {

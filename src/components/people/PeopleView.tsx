@@ -416,8 +416,9 @@ export const PeopleView: React.FC = () => {
   const handleTransferDepartmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetReassignUser || !selectedNewDeptId) return;
+    const targetUserId = targetReassignUser.userId || targetReassignUser.user?.id || targetReassignUser.id;
     try {
-      await api.transferDepartment(targetReassignUser.id || targetReassignUser.userId, selectedNewDeptId);
+      await api.transferDepartment(targetUserId, selectedNewDeptId);
       addToast({ type: 'success', title: 'Department Transferred', message: 'Employee transferred successfully.' });
       setIsTransferModalOpen(false);
       setTargetReassignUser(null);
@@ -953,11 +954,11 @@ export const PeopleView: React.FC = () => {
                 <div>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <UserAvatar name={prof.user?.name || 'Staff'} avatar={prof.user?.avatar} size="lg" />
+                      <UserAvatar name={prof.user?.name || prof.name || (prof.user?.email ? prof.user.email.split('@')[0] : 'Staff')} avatar={prof.user?.avatar} size="lg" />
                       <div>
-                        <h4 className="font-semibold text-slate-100 text-sm">{prof.user?.name}</h4>
+                        <h4 className="font-semibold text-slate-100 text-sm">{prof.user?.name || prof.name || (prof.user?.email ? prof.user.email.split('@')[0] : 'Staff')}</h4>
                         <p className="text-xs text-purple-400 font-medium">{prof.designation}</p>
-                        <p className="text-xs text-slate-400">{prof.user?.email}</p>
+                        <p className="text-xs text-slate-400">{prof.user?.email || prof.email}</p>
                       </div>
                     </div>
                     <span
@@ -2291,17 +2292,21 @@ export const PeopleView: React.FC = () => {
                     required
                     value={targetReassignUser?.userId || targetReassignUser?.id || ''}
                     onChange={(e) => {
-                      const found = profiles.find((p) => (p.userId || p.id) === e.target.value);
+                      const found = profiles.find((p) => (p.userId || p.id) === e.target.value || p.user?.id === e.target.value);
                       setTargetReassignUser(found || null);
                     }}
                     className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
                   >
                     <option value="">-- Choose Employee --</option>
-                    {profiles.map((p) => (
-                      <option key={p.userId || p.id} value={p.userId || p.id}>
-                        {p.user?.name || p.name} ({p.department?.name || 'General Operations'})
-                      </option>
-                    ))}
+                    {profiles.map((p) => {
+                      const val = p.userId || p.user?.id || p.id;
+                      const displayName = p.user?.name || p.name || (p.user?.email ? p.user.email.split('@')[0] : 'Employee');
+                      return (
+                        <option key={val} value={val}>
+                          {displayName} ({p.department?.name || 'General Operations'})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

@@ -122,7 +122,14 @@ peopleRouter.post('/departments', requireAdmin, async (c) => {
     const department = await PeopleService.createDepartment(workspace.id, user.id, body);
     return c.json({ department, message: 'Department created successfully.' }, 201);
   } catch (err: any) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to create department.' } }, 400);
+    console.error('[POST /api/people/departments] Error:', err);
+    return c.json({ 
+      error: { 
+        code: 'BAD_REQUEST', 
+        message: err.message || 'Failed to create department.',
+        detail: err.detail || err.cause || String(err)
+      } 
+    }, 400);
   }
 });
 
@@ -142,7 +149,14 @@ peopleRouter.put('/departments/:id', requireAdmin, async (c) => {
     }
     return c.json({ department, message: 'Department updated successfully.' }, 200);
   } catch (err: any) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to update department.' } }, 400);
+    console.error('[PUT /api/people/departments/:id] Error:', err);
+    return c.json({ 
+      error: { 
+        code: 'BAD_REQUEST', 
+        message: err.message || 'Failed to update department.',
+        detail: err.detail || err.cause || String(err)
+      } 
+    }, 400);
   }
 });
 
@@ -158,7 +172,14 @@ peopleRouter.delete('/departments/:id', requireAdmin, async (c) => {
     await PeopleService.deleteDepartment(workspace.id, user.id, id);
     return c.json({ success: true, message: 'Department deleted successfully.' }, 200);
   } catch (err: any) {
-    return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to delete department.' } }, 500);
+    console.error('[DELETE /api/people/departments/:id] Error:', err);
+    return c.json({ 
+      error: { 
+        code: 'BAD_REQUEST', 
+        message: err.message || 'Failed to delete department.',
+        detail: err.detail || err.cause || String(err)
+      } 
+    }, 400);
   }
 });
 

@@ -234,12 +234,30 @@ export class PeopleRepository {
   static async createDepartment(workspaceId: string, data: { name: string; description?: string; headId?: string; parentId?: string; color?: string }): Promise<DepartmentEntity> {
     const id = crypto.randomUUID();
     const now = new Date();
+    
+    let validHeadId: string | null = null;
+    if (data.headId) {
+      try {
+        const db = getDb();
+        if (db) {
+          const userRows = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.id, data.headId)).limit(1);
+          if (userRows.length > 0) {
+            validHeadId = data.headId;
+          }
+        } else {
+          validHeadId = data.headId;
+        }
+      } catch {
+        validHeadId = null;
+      }
+    }
+
     const record = {
       id,
       workspaceId,
       name: data.name.trim(),
       description: data.description?.trim() || null,
-      headId: data.headId || null,
+      headId: validHeadId,
       parentId: data.parentId || null,
       color: data.color || '#7C3AED',
       createdAt: now,
@@ -254,7 +272,7 @@ export class PeopleRepository {
       }
     } catch (err: any) {
       console.error('[PeopleRepository] createDepartment DB insert error:', err);
-      throw new Error(`Failed to persist department to database: ${err.message}`);
+      throw new Error(`Failed to persist department to database: ${err.message || String(err)}`);
     }
 
     const created = await this.getDepartmentById(workspaceId, id);

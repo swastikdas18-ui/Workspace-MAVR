@@ -124,10 +124,11 @@ async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> 
   const json = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const errorMsg = json?.error?.message || `HTTP error ${response.status}`;
+    const errorMsg = json?.error?.detail ? `${json?.error?.message} (${json?.error?.detail})` : (json?.error?.message || `HTTP error ${response.status}`);
     const errorObj = new Error(errorMsg);
     (errorObj as any).code = json?.error?.code || 'API_ERROR';
     (errorObj as any).status = response.status;
+    (errorObj as any).detail = json?.error?.detail;
     throw errorObj;
   }
 

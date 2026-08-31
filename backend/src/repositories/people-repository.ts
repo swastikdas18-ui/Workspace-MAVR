@@ -1169,15 +1169,15 @@ export class PeopleRepository {
     const internsCount = profiles.filter((p) => p.employmentType === 'intern' || p.user?.role === 'intern').length;
     const fullTimeCount = profiles.filter((p) => p.employmentType === 'full_time').length;
 
-    const avgGoalProgress = goals.length > 0 ? Math.round(goals.reduce((acc, g) => acc + g.progress, 0) / goals.length) : 78;
+    const avgGoalProgress = goals.length > 0 ? Math.round(goals.reduce((acc, g) => acc + g.progress, 0) / goals.length) : 0;
     const atRiskCount = goals.filter((g) => g.status === 'at_risk' || g.status === 'behind').length;
 
     // Top Performers calculation
     const topPerformers = profiles.slice(0, 4).map((p) => {
       const userGoals = goals.filter((g) => g.userId === p.userId);
       const userReviews = reviews.filter((r) => r.userId === p.userId && r.status === 'completed');
-      const userProgress = userGoals.length > 0 ? Math.round(userGoals.reduce((a, g) => a + g.progress, 0) / userGoals.length) : 88;
-      const rating = userReviews[0]?.finalRating || '4.8';
+      const userProgress = userGoals.length > 0 ? Math.round(userGoals.reduce((a, g) => a + g.progress, 0) / userGoals.length) : 0;
+      const rating = userReviews[0]?.finalRating || '5.0';
 
       return {
         userId: p.userId,
@@ -1204,7 +1204,7 @@ export class PeopleRepository {
         attendanceRate: attendance.attendanceRate,
       },
       hiring: {
-        openPositions: 3,
+        openPositions: 0,
         newJoineesCount: profiles.filter((p) => new Date(p.joiningDate).getFullYear() === 2026).length,
       },
       performance: {

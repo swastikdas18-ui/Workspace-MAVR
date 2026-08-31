@@ -19,20 +19,25 @@ export const AdminDashboard: React.FC = () => {
 
   const [execData, setExecData] = useState<any>(null);
   const [peopleAnalytics, setPeopleAnalytics] = useState<any>(null);
+  const [automationAnalytics, setAutomationAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [res, peopleRes] = await Promise.all([
+      const [res, peopleRes, autoRes] = await Promise.all([
         api.getExecutiveDashboard(),
         api.getPeopleAnalytics().catch(() => null),
+        api.getAutomationAnalytics().catch(() => null),
       ]);
       if (res && !('error' in res)) {
         setExecData(res);
       }
       if (peopleRes && !('error' in peopleRes)) {
         setPeopleAnalytics(peopleRes);
+      }
+      if (autoRes && !('error' in autoRes)) {
+        setAutomationAnalytics(autoRes);
       }
     } catch (err) {
       console.warn('[AdminDashboard] Failed to fetch executive data:', err);
@@ -206,7 +211,7 @@ export const AdminDashboard: React.FC = () => {
             icon={Users}
             color="purple"
             trend={{ value: `${activeMembersToday} active today`, direction: 'up', label: `${departmentsCount} teams` }}
-            sparklineData={[1, 1, 2, 2, 3, memberCount]}
+            sparklineData={[0, 0, 0, 0, 0, memberCount]}
             onClick={() => setActiveTab('teams')}
           />
 
@@ -217,7 +222,7 @@ export const AdminDashboard: React.FC = () => {
             icon={FolderKanban}
             color="blue"
             trend={{ value: `${inProgressProjects} in progress`, direction: 'up', label: `${completedProjects} done` }}
-            sparklineData={[0, 1, 2, activeProjects]}
+            sparklineData={[0, 0, 0, 0, 0, activeProjects]}
             onClick={() => setActiveTab('projects')}
           />
 
@@ -228,7 +233,7 @@ export const AdminDashboard: React.FC = () => {
             icon={CheckSquare}
             color="amber"
             trend={{ value: `${completedThisWeekTasks} done this week`, direction: 'up', label: `${overdueTasks} overdue` }}
-            sparklineData={[0, 2, 5, openTasks]}
+            sparklineData={[0, 0, 0, 0, 0, openTasks]}
             onClick={() => setActiveTab('tasks')}
           />
 
@@ -239,7 +244,7 @@ export const AdminDashboard: React.FC = () => {
             icon={DollarSign}
             color="emerald"
             trend={{ value: `₹${pipelineValue.toLocaleString()}`, direction: 'up', label: 'deal value' }}
-            sparklineData={[0, 1, openDeals]}
+            sparklineData={[0, 0, 0, 0, 0, openDeals]}
             onClick={() => setActiveTab('crm')}
           />
 
@@ -250,7 +255,7 @@ export const AdminDashboard: React.FC = () => {
             icon={TrendingUp}
             color="emerald"
             trend={{ value: `${crmRecords.filter(c => c.status === 'won').length} won deals`, direction: 'up', label: `${lostDeals} lost` }}
-            sparklineData={[0, wonRevenue]}
+            sparklineData={[0, 0, 0, 0, 0, wonRevenue]}
             onClick={() => setActiveTab('crm')}
           />
         </div>
@@ -260,315 +265,260 @@ export const AdminDashboard: React.FC = () => {
       {/* PART 3: SECOND ROW — STATUS BREAKDOWN & TEAM WORKLOAD */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. Project Status Breakdown */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-              <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                <FolderKanban className="w-4 h-4 text-blue-400" />
-                <span>Project Status Breakdown</span>
-              </h3>
-              <button
-                onClick={() => setActiveTab('projects')}
-                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
-              >
-                View All
-              </button>
-            </div>
+        {/* Initiatives Matrix / Projects Status */}
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <FolderKanban className="w-4 h-4 text-blue-400" />
+              <span>Projects Status Matrix</span>
+            </h3>
+            <button
+              onClick={() => setActiveTab('projects')}
+              className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 cursor-pointer"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
 
-            <div className="space-y-3">
-              {[
-                { label: 'Planning', count: planningProjects, color: 'bg-slate-500', text: 'text-slate-300' },
-                { label: 'In Progress', count: inProgressProjects, color: 'bg-blue-500', text: 'text-blue-300' },
-                { label: 'Review', count: reviewProjects, color: 'bg-amber-500', text: 'text-amber-300' },
-                { label: 'Completed', count: completedProjects, color: 'bg-emerald-500', text: 'text-emerald-300' },
-                { label: 'Blocked', count: blockedProjects, color: 'bg-rose-500', text: 'text-rose-300' },
-              ].map((item, idx) => {
-                const total = Math.max(1, projects.length);
-                const pct = Math.round((item.count / total) * 100);
-                return (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`font-medium ${item.text}`}>{item.label}</span>
-                      <span className="font-mono text-slate-400">{item.count} ({pct}%)</span>
-                    </div>
-                    <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
-                      <div className={`${item.color} h-full rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-                    </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-slate-400">Planning</span>
+              <div className="text-xl font-bold text-white mt-1">{planningProjects}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-blue-400">In Progress</span>
+              <div className="text-xl font-bold text-blue-400 mt-1">{inProgressProjects}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-purple-400">In Review</span>
+              <div className="text-xl font-bold text-purple-400 mt-1">{reviewProjects}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-emerald-400">Completed</span>
+              <div className="text-xl font-bold text-emerald-400 mt-1">{completedProjects}</div>
+            </div>
+          </div>
+
+          {blockedProjects > 0 && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-rose-300">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Blocked Initiatives Requiring Attention</span>
+              </div>
+              <span className="text-sm font-bold text-rose-400">{blockedProjects}</span>
+            </div>
+          )}
+
+          {/* Projects At Risk Alert Box */}
+          {projectsAtRisk.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <span className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Deadlines At Risk</span>
+              </span>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {projectsAtRisk.map((p: any) => (
+                  <div
+                    key={p.id}
+                    onClick={() => setActiveTab('projects')}
+                    className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 hover:border-amber-500/30 flex items-center justify-between text-xs cursor-pointer transition-colors"
+                  >
+                    <span className="text-slate-200 font-medium truncate max-w-[160px]">{p.title}</span>
+                    <span className="text-rose-400 font-mono text-[10px] shrink-0 font-semibold">
+                      +{p.daysOverdue}d overdue
+                    </span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Task Velocity & Engine Telemetry */}
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-amber-400" />
+              <span>Sprint Task Velocity</span>
+            </h3>
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 cursor-pointer"
+            >
+              <span>View Board</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          {/* Velocity Progress Bar */}
+          <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04] space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Task Completion Rate</span>
+              <span className="text-white font-mono font-bold">
+                {tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%
+              </span>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-500 to-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${tasks.length > 0 ? Math.min(100, Math.round((completedTasks / tasks.length) * 100)) : 0}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+              <span>{completedTasks} resolved</span>
+              <span>{openTasks} active</span>
             </div>
           </div>
 
-          <div className="pt-4 mt-4 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
-            <span>Total Projects: <strong className="text-white">{projects.length}</strong></span>
-            <span>Active: <strong className="text-blue-400">{activeProjects}</strong></span>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-amber-400 font-medium">Due Today</span>
+              <div className="text-xl font-bold text-white mt-1">{dueTodayTasks}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-rose-400 font-medium">Overdue</span>
+              <div className="text-xl font-bold text-rose-400 mt-1">{overdueTasks}</div>
+            </div>
           </div>
         </div>
 
-        {/* 2. Task Status Breakdown */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-              <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-amber-400" />
-                <span>Task Velocity Breakdown</span>
-              </h3>
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className="text-xs text-amber-400 hover:text-amber-300 cursor-pointer"
-              >
-                Board
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
-                <p className="text-[11px] text-slate-400">Open Tasks</p>
-                <p className="text-xl font-bold text-white mt-0.5">{openTasks}</p>
-                <span className="text-[10px] text-amber-400">In Pipeline</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
-                <p className="text-[11px] text-slate-400">Completed</p>
-                <p className="text-xl font-bold text-emerald-400 mt-0.5">{completedTasks}</p>
-                <span className="text-[10px] text-slate-400">{completedThisWeekTasks} this week</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
-                <p className="text-[11px] text-slate-400">Due Today</p>
-                <p className="text-xl font-bold text-blue-400 mt-0.5">{dueTodayTasks}</p>
-                <span className="text-[10px] text-slate-400">Immediate priority</span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
-                <p className="text-[11px] text-slate-400">Overdue</p>
-                <p className={`text-xl font-bold mt-0.5 ${overdueTasks > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
-                  {overdueTasks}
-                </p>
-                <span className="text-[10px] text-slate-400">Past target date</span>
-              </div>
-            </div>
+        {/* Team Workload & Department Allocation */}
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <Users className="w-4 h-4 text-purple-400" />
+              <span>Department Workload</span>
+            </h3>
+            <button
+              onClick={() => setActiveTab('teams')}
+              className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 cursor-pointer"
+            >
+              <span>Directory</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
-            <span>Total Tasks: <strong className="text-white">{tasks.length}</strong></span>
-            <span>Rate: <strong className="text-emerald-400">{tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%</strong></span>
-          </div>
-        </div>
-
-        {/* 3. Team Workload Widget */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-              <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-400" />
-                <span>Team Workload & Capacity</span>
-              </h3>
-              <button
-                onClick={() => setActiveTab('teams')}
-                className="text-xs text-purple-400 hover:text-purple-300 cursor-pointer"
-              >
-                Directory
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {teamWorkload.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
-                  No departments created yet.
+          <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+            {teamWorkload.length === 0 ? (
+              <div className="text-center py-6 text-xs text-slate-500">
+                No teams configured yet.
+              </div>
+            ) : (
+              teamWorkload.map((team: any) => (
+                <div key={team.teamId} className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-white font-semibold truncate max-w-[140px]">{team.teamName}</span>
+                    <span className="text-[11px] font-mono text-purple-400">
+                      {team.openTasks} active / {team.completedTasks} done
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 rounded-full"
+                      style={{
+                        width: `${
+                          team.openTasks + team.completedTasks > 0
+                            ? Math.round((team.completedTasks / (team.openTasks + team.completedTasks)) * 100)
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
                 </div>
-              ) : (
-                teamWorkload.slice(0, 4).map((team) => (
-                  <div key={team.teamId} className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-white">{team.teamName}</span>
-                      <span className="text-[11px] font-mono text-purple-300">
-                        {team.openTasks} open • {team.completedTasks} done
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${team.completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="pt-3 mt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
-            <span>Departments: <strong className="text-white">{teams.length}</strong></span>
-            <span>Total Staff: <strong className="text-purple-300">{memberCount}</strong></span>
+              ))
+            )}
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* PART 4: THIRD ROW — PROJECTS AT RISK, LIVE ACTIVITY FEED, DOCUMENTS HUB */}
+      {/* PART 4: THIRD ROW — LIVE RECENT ACTIVITY & VAULT STATUS */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. Projects At Risk Widget */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                <AlertTriangle className={`w-4 h-4 ${projectsAtRisk.length > 0 ? 'text-rose-400' : 'text-emerald-400'}`} />
-                <span>Projects At Risk</span>
-              </h3>
-              <p className="text-[11px] text-slate-400">Past target date and incomplete</p>
-            </div>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
-              projectsAtRisk.length > 0
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-            }`}>
-              {projectsAtRisk.length > 0 ? `🔴 ${projectsAtRisk.length} At Risk` : '✅ All On Track'}
+        {/* Real-time System Audit & Activity Feed */}
+        <div className="lg:col-span-2 bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <Activity className="w-4 h-4 text-purple-400" />
+              <span>Real-Time Audit Trail & Activity Feed</span>
+            </h3>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Live Stream
             </span>
           </div>
 
-          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-72">
-            {projectsAtRisk.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
-                All initiatives are currently progressing within their target timeline.
+          <div className="divide-y divide-white/[0.04] max-h-80 overflow-y-auto pr-1">
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-8 text-xs text-slate-500">
+                No recent workspace activity recorded yet.
               </div>
             ) : (
-              projectsAtRisk.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => setActiveTab('projects')}
-                  className="p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white group-hover:text-rose-300">
-                      {p.title}
-                    </span>
-                    <span className="text-[10px] font-mono text-rose-400 font-bold">
-                      {p.daysOverdue}d overdue
-                    </span>
+              recentActivity.map((act: any) => (
+                <div key={act.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-slate-200 font-medium truncate">{act.title}</p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        By <span className="text-slate-400">{act.actorName}</span> • {act.module}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5">
-                    <span>Status: <strong className="text-slate-200 capitalize">{p.status.replace('_', ' ')}</strong></span>
-                    <span>Progress: <strong className="text-rose-300">{p.progress}%</strong></span>
-                  </div>
+                  <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                    {act.timestamp ? new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'just now'}
+                  </span>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* 2. Chronological Real Activity Feed */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-            <div>
-              <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                <Activity className="w-4 h-4 text-purple-400" />
-                <span>Live Activity Stream</span>
-              </h3>
-              <p className="text-[11px] text-slate-400">Chronological company feed</p>
-            </div>
+        {/* Documents Vault Quick Insight */}
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span>Document Vault</span>
+            </h3>
             <button
-              onClick={() => setActiveTab('admin_tools')}
-              className="text-xs text-purple-400 hover:text-purple-300 cursor-pointer"
+              onClick={() => setActiveTab('documents')}
+              className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 cursor-pointer"
             >
-              Audits
+              <span>Vault</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-72 pr-1">
-            {recentActivity.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
-                No recent activity events recorded.
-              </div>
-            ) : (
-              recentActivity.slice(0, 6).map((act, idx) => (
-                <div
-                  key={act.id || idx}
-                  className="p-2.5 rounded-xl bg-[#0F172A] border border-white/[0.04] text-xs hover:border-white/[0.1] transition-colors"
-                >
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-0.5">
-                    <span className="font-semibold text-slate-200">{act.actorName}</span>
-                    <span className="flex items-center gap-1 font-mono text-[10px] text-slate-500">
-                      <Clock className="w-3 h-3" />
-                      {act.timestamp?.includes('T') ? act.timestamp.split('T')[1].substring(0, 5) : act.timestamp}
-                    </span>
-                  </div>
-                  <p className="text-slate-300 text-xs leading-snug">{act.title}</p>
-                </div>
-              ))
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-slate-400">Total Assets</span>
+              <div className="text-xl font-bold text-white mt-1">{documentCount}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+              <span className="text-xs text-amber-400">Wiki / SOPs</span>
+              <div className="text-xl font-bold text-amber-400 mt-1">{wikiCount}</div>
+            </div>
           </div>
-        </div>
 
-        {/* 3. Knowledge & Documents Hub */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.06]">
-              <div>
-                <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-emerald-400" />
-                  <span>Knowledge & Vault</span>
-                </h3>
-                <p className="text-[11px] text-slate-400">Living docs & company wiki</p>
-              </div>
-              <button
-                onClick={() => setActiveTab('documents')}
-                className="text-xs text-emerald-400 hover:text-emerald-300 cursor-pointer"
-              >
-                Vault
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div
-                onClick={() => setActiveTab('documents')}
-                className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] hover:border-emerald-500/30 transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Total Docs</span>
-                </div>
-                <p className="text-xl font-bold text-white mt-1">{documentCount}</p>
-                <span className="text-[10px] text-slate-400">{recentUploads} recent uploads</span>
-              </div>
-
-              <div
-                onClick={() => setActiveTab('wiki')}
-                className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] hover:border-purple-500/30 transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Wiki SOPs</span>
-                </div>
-                <p className="text-xl font-bold text-purple-300 mt-1">{wikiCount}</p>
-                <span className="text-[10px] text-purple-400">Living handbook</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block">Recent Knowledge Assets</span>
-              {documents.slice(0, 3).map((doc: any) => (
+          <div className="space-y-2 pt-1">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Recent Knowledge Assets
+            </span>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+              {documents.slice(0, 4).map((doc: any) => (
                 <div
                   key={doc.id}
                   onClick={() => setActiveTab('documents')}
-                  className="flex items-center justify-between p-2 rounded-lg bg-[#0F172A] border border-white/[0.03] text-xs hover:border-white/[0.1] transition-all cursor-pointer"
+                  className="p-2 rounded-lg bg-[#0F172A] border border-white/[0.04] hover:border-white/10 flex items-center justify-between text-xs cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="text-slate-200 truncate">{doc.name || doc.title}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono shrink-0 uppercase">{doc.visibility || 'team'}</span>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="pt-3 mt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
-            <span>Documents Vault Active</span>
-            <span className="text-emerald-400 font-medium">Encrypted & Versioned</span>
           </div>
         </div>
       </div>
@@ -615,7 +565,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-white/5">
               <span>{peopleAnalytics?.workforce?.departmentsCount ?? teams.length} Departments</span>
-              <span>{peopleAnalytics?.workforce?.internsCount ?? 1} Interns</span>
+              <span>{peopleAnalytics?.workforce?.internsCount ?? users.filter(u => u.role === 'intern').length} Interns</span>
             </div>
           </div>
 
@@ -626,7 +576,7 @@ export const AdminDashboard: React.FC = () => {
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             </div>
             <div className="text-2xl font-bold text-emerald-400">
-              {peopleAnalytics?.attendance?.attendanceRate ?? 100}%
+              {peopleAnalytics?.attendance?.attendanceRate ?? (users.length > 0 ? 100 : 0)}%
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-white/5">
               <span>{peopleAnalytics?.attendance?.presentToday ?? activeMembersToday} Present</span>
@@ -641,10 +591,10 @@ export const AdminDashboard: React.FC = () => {
               <UserPlus className="w-3.5 h-3.5 text-blue-400" />
             </div>
             <div className="text-2xl font-bold text-blue-400">
-              {peopleAnalytics?.hiring?.openPositions ?? 3} <span className="text-xs font-normal text-slate-400">Openings</span>
+              {peopleAnalytics?.hiring?.openPositions ?? 0} <span className="text-xs font-normal text-slate-400">Openings</span>
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-white/5">
-              <span>New Joinees (2026): {peopleAnalytics?.hiring?.newJoineesCount ?? users.length}</span>
+              <span>New Joinees ({new Date().getFullYear()}): {peopleAnalytics?.hiring?.newJoineesCount ?? users.length}</span>
             </div>
           </div>
 
@@ -655,7 +605,7 @@ export const AdminDashboard: React.FC = () => {
               <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
             </div>
             <div className="text-2xl font-bold text-cyan-400">
-              {peopleAnalytics?.performance?.averageGoalProgress ?? 82}%
+              {peopleAnalytics?.performance?.averageGoalProgress ?? (tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0)}%
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-white/5">
               <span>At-Risk OKRs: {peopleAnalytics?.performance?.atRiskCount ?? 0}</span>
@@ -698,7 +648,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
             <span className="text-xs text-slate-400 font-semibold">Automations Executed</span>
             <div className="text-2xl font-bold text-white mt-1">
-              {tasks.length * 4 + 18}
+              {automationAnalytics?.totalExecutions ?? (automationAnalytics?.automationExecutions ?? 0)}
             </div>
             <span className="text-[10px] text-emerald-400 font-medium">Triggered by system events</span>
           </div>
@@ -706,7 +656,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
             <span className="text-xs text-slate-400 font-semibold">Success Rate</span>
             <div className="text-2xl font-bold text-emerald-400 mt-1">
-              99.8%
+              {automationAnalytics?.successRate !== undefined ? `${automationAnalytics.successRate}%` : '100%'}
             </div>
             <span className="text-[10px] text-slate-400 font-medium">Zero fatal pipeline failures</span>
           </div>
@@ -714,7 +664,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
             <span className="text-xs text-slate-400 font-semibold">Failed Automations</span>
             <div className="text-2xl font-bold text-slate-400 mt-1">
-              0
+              {automationAnalytics?.failedExecutions ?? (automationAnalytics?.failedCount ?? 0)}
             </div>
             <span className="text-[10px] text-emerald-400 font-medium">All conditions resolved</span>
           </div>
@@ -722,9 +672,9 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
             <span className="text-xs text-slate-400 font-semibold">Active Rules</span>
             <div className="text-2xl font-bold text-purple-400 mt-1">
-              6 Blueprints
+              {automationAnalytics?.activeRules ?? (automationAnalytics?.totalRules ?? 0)} Rules
             </div>
-            <span className="text-[10px] text-purple-300 font-medium">Onboarding, Escalation, Kickoff</span>
+            <span className="text-[10px] text-purple-300 font-medium">Configured in Automation Studio</span>
           </div>
         </div>
       </div>

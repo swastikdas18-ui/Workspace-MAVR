@@ -10,7 +10,8 @@ export interface WikiPage {
   coverImage: string | null;
   slug: string;
   contentJson: Record<string, any>;
-  visibility: 'public' | 'team' | 'private' | 'learning';
+  departmentId?: string | null;
+  visibility: 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +51,8 @@ export class WikiRepository {
           coverImage: p.coverImage,
           slug: p.slug,
           contentJson: (p.contentJson as Record<string, any>) || {},
-          visibility: (p.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+          departmentId: p.departmentId || null,
+          visibility: (p.visibility as any) || 'workspace',
           createdBy: p.createdBy,
           createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
           updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
@@ -91,7 +93,8 @@ export class WikiRepository {
             coverImage: p.coverImage,
             slug: p.slug,
             contentJson: (p.contentJson as Record<string, any>) || {},
-            visibility: (p.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+            departmentId: p.departmentId || null,
+            visibility: (p.visibility as any) || 'workspace',
             createdBy: p.createdBy,
             createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
             updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
@@ -112,7 +115,8 @@ export class WikiRepository {
     title: string;
     icon?: string;
     contentJson?: Record<string, any>;
-    visibility?: 'public' | 'team' | 'private' | 'learning';
+    departmentId?: string | null;
+    visibility?: 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
     createdBy: string;
   }): Promise<WikiPage> {
     const id = `wiki-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -128,7 +132,8 @@ export class WikiRepository {
       coverImage: null,
       slug: `${slug}-${id.slice(-4)}`,
       contentJson: data.contentJson || { blocks: [{ id: 'b1', type: 'paragraph', content: 'Start typing here...' }] },
-      visibility: data.visibility || 'team',
+      departmentId: data.departmentId || null,
+      visibility: data.visibility || 'workspace',
       createdBy: data.createdBy,
       createdAt: now,
       updatedAt: now,
@@ -148,6 +153,7 @@ export class WikiRepository {
           coverImage: page.coverImage,
           slug: page.slug,
           contentJson: page.contentJson,
+          departmentId: page.departmentId,
           visibility: page.visibility,
           createdBy: page.createdBy,
           createdAt: now,

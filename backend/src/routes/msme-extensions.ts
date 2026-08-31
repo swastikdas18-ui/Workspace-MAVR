@@ -26,14 +26,35 @@ wikiRouter.use('*', authMiddleware);
 const listPagesHandler = async (c: any) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
-  const role = workspace?.roleInWorkspace || user?.role;
+  const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
 
   const pages = await WikiRepository.getWorkspacePages(workspace?.id || '');
+
+  let userDepartmentId: string | null = null;
+  if (role === 'employee' || role === 'intern') {
+    try {
+      const { PeopleRepository } = await import('../repositories/people-repository.js');
+      const profiles = await PeopleRepository.listProfiles(workspace?.id || '');
+      const profile = profiles.find((p) => p.userId === user?.id);
+      if (profile?.departmentId) userDepartmentId = profile.departmentId;
+    } catch {}
+  }
   
-  // Filter for intern role
   const visible = pages.filter((p) => {
-    if (role === 'intern') return p.visibility === 'public' || p.visibility === 'learning';
-    if (role === 'employee' && p.visibility === 'private') return p.createdBy === user?.id;
+    if (role === 'admin') return true;
+    if (role === 'employee') {
+      if (p.visibility === 'admin_only') return false;
+      if (p.visibility === 'private') return p.createdBy === user?.id;
+      if (p.visibility === 'department') return userDepartmentId && p.departmentId === userDepartmentId;
+      if (p.visibility === 'workspace' || p.visibility === 'team' || p.visibility === 'public' || p.visibility === 'learning') return true;
+      return false;
+    }
+    if (role === 'intern') {
+      if (p.visibility === 'admin_only' || p.visibility === 'private') return false;
+      if (p.visibility === 'department') return userDepartmentId && p.departmentId === userDepartmentId;
+      if (p.visibility === 'workspace' || p.visibility === 'public' || p.visibility === 'learning') return true;
+      return false;
+    }
     return true;
   });
 
@@ -52,13 +73,26 @@ const getPageHandler = async (c: any) => {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
   }
 
-  // Role visibility checks
-  if (role === 'intern' && page.visibility !== 'public' && page.visibility !== 'learning') {
-    return c.json({ error: { code: 'FORBIDDEN', message: 'Interns can only access public or learning wiki documents.' } }, 403);
+  let userDepartmentId: string | null = null;
+  if (role === 'employee' || role === 'intern') {
+    try {
+      const { PeopleRepository } = await import('../repositories/people-repository.js');
+      const profiles = await PeopleRepository.listProfiles(workspace?.id || '');
+      const profile = profiles.find((p) => p.userId === user?.id);
+      if (profile?.departmentId) userDepartmentId = profile.departmentId;
+    } catch {}
   }
 
-  if (role === 'employee' && page.visibility === 'private' && page.createdBy !== user?.id) {
-    return c.json({ error: { code: 'FORBIDDEN', message: 'Private wiki documents are only accessible to their author or administrators.' } }, 403);
+  if (role !== 'admin') {
+    if (page.visibility === 'admin_only') {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Admin only document.' } }, 403);
+    }
+    if (page.visibility === 'private' && page.createdBy !== user?.id) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Private document access restricted.' } }, 403);
+    }
+    if (page.visibility === 'department' && (!userDepartmentId || page.departmentId !== userDepartmentId)) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Department document access restricted.' } }, 403);
+    }
   }
 
   return c.json({ page }, 200);
@@ -82,7 +116,8 @@ const createPageHandler = async (c: any) => {
     title: body.title || 'Untitled Page',
     icon: body.icon || '📄',
     contentJson: body.contentJson,
-    visibility: body.visibility || (role === 'admin' ? 'team' : 'team'),
+    departmentId: body.departmentId || body.department_id || null,
+    visibility: body.visibility || 'workspace',
     createdBy: user?.id || 'usr-default',
   });
 

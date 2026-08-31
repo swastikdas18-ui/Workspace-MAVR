@@ -292,12 +292,16 @@ export async function runMigrations() {
         r2_url TEXT,
         owner_id TEXT NOT NULL REFERENCES users(id),
         workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
-        visibility TEXT NOT NULL DEFAULT 'team',
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        visibility TEXT NOT NULL DEFAULT 'workspace',
         category TEXT NOT NULL DEFAULT 'General',
         download_count INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
+    await sql`ALTER TABLE documents ALTER COLUMN visibility SET DEFAULT 'workspace';`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_documents_department_id ON documents(department_id);`;
     await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_size_bytes INTEGER NOT NULL DEFAULT 0;`;
     await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type TEXT NOT NULL DEFAULT 'application/pdf';`;
     await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_key TEXT;`;
@@ -519,12 +523,16 @@ export async function runMigrations() {
         cover_image TEXT,
         slug TEXT NOT NULL,
         content_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-        visibility TEXT NOT NULL DEFAULT 'team',
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        visibility TEXT NOT NULL DEFAULT 'workspace',
         created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE wiki_pages ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
+    await sql`ALTER TABLE wiki_pages ALTER COLUMN visibility SET DEFAULT 'workspace';`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_wiki_pages_department_id ON wiki_pages(department_id);`;
 
     // 25. Wiki Page Versions
     await sql`

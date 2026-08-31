@@ -15,7 +15,8 @@ export interface DocumentEntity {
   r2Url?: string | null;
   ownerId: string;
   workspaceId: string;
-  visibility: 'public' | 'team' | 'private' | 'learning';
+  departmentId?: string | null;
+  visibility: 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
   category: string;
   downloadCount: number;
   createdAt: Date;
@@ -35,7 +36,8 @@ export interface CreateDocumentParams {
   r2Url?: string;
   ownerId: string;
   workspaceId: string;
-  visibility?: 'public' | 'team' | 'private' | 'learning';
+  departmentId?: string | null;
+  visibility?: 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
   category?: string;
 }
 
@@ -67,7 +69,8 @@ export class DocumentRepository {
             r2Url: d.r2Url || d.storageUrl || null,
             ownerId: d.ownerId,
             workspaceId: d.workspaceId || workspaceId,
-            visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+            departmentId: (d as any).departmentId || null,
+            visibility: (d.visibility as any) || 'workspace',
             category: d.category || 'General',
             downloadCount: d.downloadCount || 0,
             createdAt: d.createdAt,
@@ -100,7 +103,8 @@ export class DocumentRepository {
       r2Url: d.r2Url || d.storageUrl || null,
       ownerId: d.ownerId,
       workspaceId: d.workspaceId,
-      visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+      departmentId: (d as any).departmentId || null,
+      visibility: (d.visibility as any) || 'workspace',
       category: d.category || 'General',
       downloadCount: d.downloadCount || 0,
       createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
@@ -142,7 +146,8 @@ export class DocumentRepository {
             r2Url: doc.r2Url || doc.storageUrl || null,
             ownerId: doc.ownerId,
             workspaceId: doc.workspaceId || workspaceId,
-            visibility: (doc.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+            departmentId: (doc as any).departmentId || null,
+            visibility: (doc.visibility as any) || 'workspace',
             category: doc.category || 'General',
             downloadCount: doc.downloadCount || 0,
             createdAt: doc.createdAt,
@@ -170,7 +175,8 @@ export class DocumentRepository {
       r2Url: d.r2Url || d.storageUrl || null,
       ownerId: d.ownerId,
       workspaceId: d.workspaceId,
-      visibility: (d.visibility as 'public' | 'team' | 'private' | 'learning') || 'team',
+      departmentId: (d as any).departmentId || null,
+      visibility: (d.visibility as any) || 'workspace',
       category: d.category || 'General',
       downloadCount: d.downloadCount || 0,
       createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
@@ -190,8 +196,9 @@ export class DocumentRepository {
     const fileSize = data.fileSize || '1.5 MB';
     const fileSizeBytes = data.fileSizeBytes || 1024 * 100;
     const mimeType = data.mimeType || 'application/pdf';
-    const visibility = data.visibility || 'team';
+    const visibility = data.visibility || 'workspace';
     const category = data.category || 'General';
+    const departmentId = data.departmentId || null;
 
     const newDoc = {
       id: docId,
@@ -207,6 +214,7 @@ export class DocumentRepository {
       r2Url: storageUrl,
       ownerId: data.ownerId,
       workspaceId: data.workspaceId,
+      departmentId,
       visibility,
       category,
       downloadCount: 0,
@@ -232,6 +240,7 @@ export class DocumentRepository {
           r2Url: storageUrl,
           ownerId: data.ownerId,
           workspaceId: data.workspaceId,
+          departmentId,
           visibility,
           category,
           downloadCount: 0,

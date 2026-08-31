@@ -176,7 +176,7 @@ export interface Task {
   activity_count?: number;
 }
 
-export type DocumentVisibility = 'public' | 'team' | 'private' | 'learning';
+export type DocumentVisibility = 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
 
 export interface DocumentItem {
   id: string;
@@ -190,6 +190,7 @@ export interface DocumentItem {
   file_size: string;
   file_size_bytes?: number;
   owner_id: string;
+  department_id?: string | null;
   visibility: DocumentVisibility;
   category: 'Policy' | 'Design' | 'Technical' | 'Marketing' | 'Onboarding' | 'General' | string;
   created_at: string;

@@ -287,7 +287,8 @@ export const documents = pgTable(
     r2Url: text('r2_url'),
     ownerId: text('owner_id').notNull().references(() => users.id),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
-    visibility: text('visibility').default('team').notNull(), // 'public' | 'team' | 'private' | 'learning'
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    visibility: text('visibility').default('workspace').notNull(), // 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning'
     category: text('category').default('General').notNull(),
     downloadCount: integer('download_count').default(0).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -295,6 +296,7 @@ export const documents = pgTable(
   (table) => ({
     workspaceIdx: index('idx_documents_workspace_id').on(table.workspaceId),
     ownerIdx: index('idx_documents_owner_id').on(table.ownerId),
+    deptIdx: index('idx_documents_department_id').on(table.departmentId),
     visibilityIdx: index('idx_documents_visibility').on(table.visibility),
     titleIdx: index('idx_documents_title').on(table.title),
     categoryIdx: index('idx_documents_category').on(table.category),
@@ -610,7 +612,8 @@ export const wikiPages = pgTable(
     coverImage: text('cover_image'),
     slug: text('slug').notNull(),
     contentJson: jsonb('content_json').default({}).notNull(),
-    visibility: text('visibility').default('team').notNull(), // 'public' | 'team' | 'private' | 'learning'
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    visibility: text('visibility').default('workspace').notNull(), // 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning'
     createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -618,6 +621,7 @@ export const wikiPages = pgTable(
   (table) => ({
     wsIdx: index('idx_wiki_pages_ws_id').on(table.workspaceId),
     parentIdx: index('idx_wiki_pages_parent_id').on(table.parentId),
+    deptIdx: index('idx_wiki_pages_department_id').on(table.departmentId),
     slugWsIdx: uniqueIndex('idx_wiki_pages_slug_ws').on(table.workspaceId, table.slug),
   })
 );

@@ -116,10 +116,11 @@ const uploadHandler = async (c: any) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    let role = normalizeRole(workspace.roleInWorkspace || user.role);
     let title = '';
     let category = 'General';
-    let visibility: any = 'team';
+    let visibility: any = 'workspace';
+    let departmentId: string | null = null;
     let fileType = 'pdf';
     let mimeType = 'application/pdf';
     let buffer: Buffer | undefined;
@@ -132,7 +133,8 @@ const uploadHandler = async (c: any) => {
       const file = formData.get('file') as File | null;
       title = (formData.get('title') as string) || (file ? file.name.replace(/\.[^/.]+$/, '') : '');
       category = (formData.get('category') as string) || 'General';
-      visibility = (formData.get('visibility') as string) || 'team';
+      visibility = (formData.get('visibility') as string) || 'workspace';
+      departmentId = (formData.get('departmentId') as string) || (formData.get('department_id') as string) || null;
 
       if (file && typeof file.arrayBuffer === 'function') {
         const ab = await file.arrayBuffer();
@@ -147,7 +149,8 @@ const uploadHandler = async (c: any) => {
       const body = await c.req.json();
       title = body.title;
       category = body.category || 'General';
-      visibility = body.visibility || 'team';
+      visibility = body.visibility || 'workspace';
+      departmentId = body.departmentId || body.department_id || null;
       fileType = body.fileType || body.file_type || 'pdf';
       mimeType = body.mimeType || body.mime_type || (fileType === 'pdf' ? 'application/pdf' : 'application/octet-stream');
       fileSize = body.fileSize || body.file_size;
@@ -168,6 +171,7 @@ const uploadHandler = async (c: any) => {
       title,
       category,
       visibility,
+      departmentId,
       fileType,
       mimeType,
       fileSize,

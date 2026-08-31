@@ -26,6 +26,7 @@ import { runExecutiveDashboardV2Tests } from './executive-dashboard-v2.test';
 import { runTaskEngineTests } from './task-engine.test';
 import { runAutomationEngineV2Tests } from './automation-engine-v2.test';
 import { runPeopleOsTests } from './people-os.test';
+import { runDocumentsVisibilityTests } from './documents-visibility.test';
 
 async function main() {
   try {
@@ -81,7 +82,9 @@ async function main() {
     await runAutomationEngineV2Tests();
     console.log('\n>>> Starting Suite 26: Phase 4 People Operating System (HR + Team Mgmt)');
     await runPeopleOsTests();
-    console.log('\n🌟 ALL 26 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 27: Documents & Wiki Visibility Engine');
+    await runDocumentsVisibilityTests();
+    console.log('\n🌟 ALL 27 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

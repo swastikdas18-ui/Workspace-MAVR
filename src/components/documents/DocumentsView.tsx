@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { DocumentItem, DocumentVisibility } from '../../types';
+import { api } from '../../lib/api';
 import { 
   FileText, Plus, Download, Trash2, Eye, Search, Filter, 
   FileCode, FileSpreadsheet, Presentation, BookOpen, Lock, Globe, Users, X,
@@ -22,10 +23,22 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
     deleteDocument, incrementDocDownload, searchQuery 
   } = useWorkspace();
 
+  const [departments, setDepartments] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
+
+  // Fetch departments for department-scoped document creation
+  useEffect(() => {
+    async function loadDepts() {
+      try {
+        const res = await api.getDepartments();
+        if (res?.departments) setDepartments(res.departments);
+      } catch {}
+    }
+    loadDepts();
+  }, []);
 
   // Sync routeDocumentId with preview modal
   useEffect(() => {
@@ -47,21 +60,16 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
   // Upload Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<DocumentItem['category']>('General');
-  const [visibility, setVisibility] = useState<DocumentVisibility>('team');
+  const [visibility, setVisibility] = useState<DocumentVisibility>('workspace');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [fileType, setFileType] = useState<DocumentItem['file_type']>('pdf');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Role visibility filter
+  // Role visibility filter (Presentation secondary filter)
   const visibleDocs = documents.filter((doc) => {
-    if (currentRole === 'intern' && doc.visibility !== 'learning' && doc.visibility !== 'public') {
-      return false;
-    }
-    if (currentRole === 'employee' && doc.visibility === 'private' && doc.owner_id !== currentUser.id) {
-      return false;
-    }
     if (selectedCategory !== 'all' && doc.category !== selectedCategory) {
       return false;
     }
@@ -98,6 +106,9 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
         formData.append('title', title || selectedFile.name);
         formData.append('category', category);
         formData.append('visibility', visibility);
+        if (visibility === 'department' && selectedDepartmentId) {
+          formData.append('departmentId', selectedDepartmentId);
+        }
         formData.append('fileType', fileType);
 
         const success = await uploadDocument(formData as any);
@@ -105,20 +116,23 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
           setIsUploadModalOpen(false);
           setTitle('');
           setSelectedFile(null);
+          setSelectedDepartmentId('');
         }
       } else {
         const success = await uploadDocument({
           title,
           category,
           visibility,
+          department_id: visibility === 'department' ? selectedDepartmentId : undefined,
           file_type: fileType,
           file_size: '1.4 MB',
           file_url: `/api/documents/vault/stream?workspaceId=${currentWorkspace.id}&title=${encodeURIComponent(title)}`,
-        });
+        } as any);
         if (success) {
           setIsUploadModalOpen(false);
           setTitle('');
           setSelectedFile(null);
+          setSelectedDepartmentId('');
         }
       }
     } finally {
@@ -141,30 +155,34 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
     }
   };
 
-  const getVisibilityBadge = (v: DocumentVisibility) => {
+  const getVisibilityBadge = (v: DocumentVisibility, deptId?: string | null) => {
     switch (v) {
-      case 'public':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            <Globe className="w-2.5 h-2.5" /> Public
-          </span>
-        );
-      case 'team':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-            <Users className="w-2.5 h-2.5" /> Team
-          </span>
-        );
-      case 'learning':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-            <BookOpen className="w-2.5 h-2.5" /> Learning
-          </span>
-        );
       case 'private':
         return (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
             <Lock className="w-2.5 h-2.5" /> Private
+          </span>
+        );
+      case 'department':
+        const deptName = departments.find((d) => d.id === deptId)?.name || 'Department';
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+            <Users className="w-2.5 h-2.5" /> {deptName}
+          </span>
+        );
+      case 'admin_only':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+            <ShieldCheck className="w-2.5 h-2.5" /> Admin Only
+          </span>
+        );
+      case 'workspace':
+      case 'public':
+      case 'team':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+            <Globe className="w-2.5 h-2.5" /> Workspace
           </span>
         );
     }
@@ -272,7 +290,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
                     <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.06] group-hover:border-purple-500/30 transition-colors">
                       {getDocIcon(doc.file_type)}
                     </div>
-                    {getVisibilityBadge(doc.visibility)}
+                    {getVisibilityBadge(doc.visibility, doc.department_id)}
                   </div>
 
                   <h3 className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1 leading-snug line-clamp-2">
@@ -349,7 +367,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-slate-300">{doc.category}</td>
-                    <td className="py-3.5 px-4">{getVisibilityBadge(doc.visibility)}</td>
+                    <td className="py-3.5 px-4">{getVisibilityBadge(doc.visibility, doc.department_id)}</td>
                     <td className="py-3.5 px-4 font-mono text-slate-400">{doc.file_size}</td>
                     <td className="py-3.5 px-4 font-mono text-purple-400">{doc.download_count} DLs</td>
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -603,12 +621,31 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
                     onChange={(e) => setVisibility(e.target.value as DocumentVisibility)}
                     className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   >
-                    {permissions.documents.createOrgDoc && <option value="public">Public (All Organization)</option>}
-                    <option value="team">Team Shared</option>
-                    <option value="learning">Intern Learning Onboarding</option>
-                    <option value="private">Private (Restricted to Owner)</option>
+                    <option value="workspace">Workspace (All Organization)</option>
+                    <option value="department">Department</option>
+                    <option value="private">Private (Only Me)</option>
+                    {currentRole === 'admin' && <option value="admin_only">Admin Only</option>}
                   </select>
                 </div>
+
+                {visibility === 'department' && (
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1">Target Department</label>
+                    <select
+                      value={selectedDepartmentId}
+                      onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                      required
+                      className="w-full bg-[#111827] border border-purple-500/30 rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                    >
+                      <option value="">Select Department...</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
                   <button

@@ -17,7 +17,9 @@ export interface CreateDocumentInput {
   r2Key?: string;
   r2Url?: string;
   content?: string | Buffer;
-  visibility?: 'public' | 'team' | 'private' | 'learning';
+  departmentId?: string | null;
+  department_id?: string | null;
+  visibility?: 'private' | 'department' | 'workspace' | 'admin_only' | 'public' | 'team' | 'learning';
   category?: string;
 }
 
@@ -33,14 +35,37 @@ export class DocumentService {
     const role = normalizeRole(rawRole);
     let docs = await DocumentRepository.listDocuments(workspaceId);
 
-    if (role === 'intern') {
-      // Intern: strictly public or learning documents
-      docs = docs.filter((d) => d.visibility === 'public' || d.visibility === 'learning');
+    // Resolve employee's departmentId if applicable
+    let userDepartmentId: string | null = null;
+    if (role === 'employee' || role === 'intern') {
+      try {
+        const { PeopleRepository } = await import('../repositories/people-repository.js');
+        const profiles = await PeopleRepository.listProfiles(workspaceId);
+        const profile = profiles.find((p) => p.userId === userId);
+        userDepartmentId = profile?.departmentId || profile?.department?.id || (profile?.user as any)?.teamId || null;
+      } catch {}
+    }
+
+    if (role === 'admin') {
+      // Admin: sees all documents
+      docs = docs;
     } else if (role === 'employee') {
-      // Employee: public, team, learning, or private owned by user
-      docs = docs.filter(
-        (d) => d.visibility === 'public' || d.visibility === 'team' || d.visibility === 'learning' || d.ownerId === userId
-      );
+      // Employee: own private docs, department docs for their department, workspace docs (plus legacy public/team/learning)
+      docs = docs.filter((d) => {
+        if (d.visibility === 'admin_only') return false;
+        if (d.visibility === 'private') return d.ownerId === userId;
+        if (d.visibility === 'department') return userDepartmentId && d.departmentId === userDepartmentId;
+        if (d.visibility === 'workspace' || d.visibility === 'team' || d.visibility === 'public' || d.visibility === 'learning') return true;
+        return false;
+      });
+    } else if (role === 'intern') {
+      // Intern: workspace docs, department docs for their department (plus legacy public/learning)
+      docs = docs.filter((d) => {
+        if (d.visibility === 'admin_only' || d.visibility === 'private') return false;
+        if (d.visibility === 'department') return userDepartmentId && d.departmentId === userDepartmentId;
+        if (d.visibility === 'workspace' || d.visibility === 'public' || d.visibility === 'learning') return true;
+        return false;
+      });
     }
 
     return docs.map((d) => ({
@@ -56,7 +81,8 @@ export class DocumentService {
       r2_key: d.r2Key || d.storageKey || null,
       r2_url: d.r2Url || d.storageUrl || null,
       owner_id: d.ownerId,
-      visibility: d.visibility || 'team',
+      department_id: d.departmentId || null,
+      visibility: d.visibility || 'workspace',
       category: d.category || 'General',
       created_at: d.createdAt ? new Date(d.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       download_count: d.downloadCount || 0,
@@ -125,7 +151,8 @@ export class DocumentService {
       r2Url: storageResult.url,
       ownerId: userId,
       workspaceId,
-      visibility: input.visibility || 'team',
+      departmentId: input.departmentId || input.department_id || null,
+      visibility: input.visibility || 'workspace',
       category: input.category || 'General',
     });
 

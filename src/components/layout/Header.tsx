@@ -11,18 +11,27 @@ interface HeaderProps {
   onOpenMobileSidebar: () => void;
   onOpenCommandPalette: () => void;
   onOpenQuickCreate?: () => void;
+  onOpenCreateTeam?: () => void;
+  onOpenInviteMember?: () => void;
+  onOpenCreateProject?: () => void;
+  onOpenCreateTask?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenMobileSidebar,
   onOpenCommandPalette,
   onOpenQuickCreate,
+  onOpenCreateTeam,
+  onOpenInviteMember,
+  onOpenCreateProject,
+  onOpenCreateTask,
 }) => {
   const { 
     currentUser, currentRole, searchQuery, setSearchQuery, 
     activeTab, currentWorkspace, systemLogs, permissions, setActiveTab
   } = useWorkspace();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showNewActionMenu, setShowNewActionMenu] = useState(false);
 
   const getBreadcrumbLabel = (tab: string) => {
     switch (tab) {
@@ -35,6 +44,53 @@ export const Header: React.FC<HeaderProps> = ({
       default: return tab.charAt(0).toUpperCase() + tab.slice(1);
     }
   };
+
+  const actionMenuItems = [
+    {
+      id: 'create-team',
+      label: 'Create Team',
+      desc: 'Form a new department or functional group',
+      icon: Users,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenCreateTeam) onOpenCreateTeam();
+      },
+      permitted: permissions?.teams?.manageTeams,
+    },
+    {
+      id: 'invite-member',
+      label: 'Invite Member',
+      desc: 'Generate cryptographic invitation URL',
+      icon: UserPlus,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenInviteMember) onOpenInviteMember();
+      },
+      permitted: permissions?.teams?.inviteMembers,
+    },
+    {
+      id: 'create-project',
+      label: 'Create Project',
+      desc: 'Define strategic initiatives & milestones',
+      icon: FolderKanban,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenCreateProject) onOpenCreateProject();
+      },
+      permitted: permissions?.projects?.create,
+    },
+    {
+      id: 'create-task',
+      label: 'Create Task',
+      desc: 'Assign actionable work items and criteria',
+      icon: CheckSquare,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenCreateTask) onOpenCreateTask();
+      },
+      permitted: permissions?.tasks?.create,
+    },
+  ].filter(item => item.permitted !== false);
 
   return (
     <header className="h-16 border-b border-white/[0.08] bg-[#0F172A]/80 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 text-slate-200">
@@ -81,15 +137,60 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls Area */}
       <div className="flex items-center gap-2.5 sm:gap-3">
-        {/* Quick Action (+ New) button if permitted */}
-        {(permissions.tasks.create || permissions.projects.create) && (
-          <button
-            onClick={onOpenQuickCreate || onOpenCommandPalette}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Action</span>
-          </button>
+        {/* Global New Action dropdown menu */}
+        {actionMenuItems.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowNewActionMenu(!showNewActionMenu)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Action</span>
+              <ChevronDown className={`w-3 h-3 ml-0.5 transition-transform duration-200 ${showNewActionMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showNewActionMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowNewActionMenu(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute right-0 mt-2 w-64 bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-2 z-50 text-xs"
+                  >
+                    <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/[0.06] mb-1">
+                      Quick Workspace Actions
+                    </div>
+                    <div className="space-y-1">
+                      {actionMenuItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={item.action}
+                            className="w-full flex items-start gap-2.5 p-2 rounded-xl text-slate-200 hover:text-white hover:bg-slate-800/80 transition-colors text-left group cursor-pointer"
+                          >
+                            <div className="p-1.5 rounded-lg bg-purple-600/10 text-purple-400 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0 mt-0.5">
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-white leading-tight">{item.label}</div>
+                              <div className="text-[10px] text-slate-400 truncate mt-0.5">{item.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
         {/* Role Badge */}

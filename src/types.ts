@@ -112,13 +112,14 @@ export interface WorkspaceInvite {
   id: string;
   workspace_id: string;
   email: string;
-  role: 'employee' | 'intern';
+  role: 'admin' | 'employee' | 'intern' | string;
   token: string;
   invited_by: string;
   team_id?: string;
   expires_at: string;
   accepted_at?: string;
   created_at: string;
+  status?: 'pending' | 'sent' | 'opened' | 'accepted' | 'expired';
 }
 
 export interface Task {

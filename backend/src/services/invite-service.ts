@@ -352,10 +352,9 @@ export class InviteService {
         
         const now = new Date();
         return dbInvites
-          .filter((inv) => !inv.acceptedAt)
           .map((inv) => {
             const isExpired = inv.expiresAt ? new Date(inv.expiresAt) < now : false;
-            const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'sent';
+            const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'pending';
             return {
               id: inv.id,
               workspace_id: inv.workspaceId,
@@ -385,7 +384,7 @@ export class InviteService {
     }
 
     const invites = Array.from(inMemoryDb.workspaceInvites.values()).filter(
-      (inv) => inv.workspaceId === workspaceId && !inv.acceptedAt
+      (inv) => inv.workspaceId === workspaceId
     );
 
     // Deduplicate by token
@@ -400,7 +399,7 @@ export class InviteService {
     return Array.from(unique.values()).map((inv) => {
       const ext = inv as InviteWithStatus;
       const isExpired = new Date(inv.expiresAt) < now;
-      const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : (ext.status || 'sent');
+      const status = inv.acceptedAt ? 'accepted' : isExpired ? 'expired' : 'pending';
 
       return {
         id: inv.id,

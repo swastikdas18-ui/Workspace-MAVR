@@ -250,6 +250,12 @@ export const api = {
     });
   },
 
+  async cancelInvite(id: string) {
+    return await fetchApi<{ success: boolean; message: string }>(`/api/invites/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Projects API
   async getProjects() {
     return await fetchApi<{ projects: any[] }>('/api/projects');

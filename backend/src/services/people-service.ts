@@ -68,6 +68,23 @@ export class PeopleService {
         // Handled
       }
     }
+
+    // Mirror to teams repository with identical ID so Projects and Teams APIs refer to the same entity
+    try {
+      const { TeamRepository } = await import('../repositories/team-repository.js');
+      await TeamRepository.createTeam({
+        id: dept.id,
+        workspaceId,
+        name: dept.name,
+        description: dept.description || '',
+        leadId: dept.headId || actorId,
+        color: dept.color || '#7C3AED',
+        memberIds: dept.headId ? [dept.headId] : [actorId],
+      });
+    } catch (e) {
+      console.warn('[PeopleService] Department to team mirror notice:', e);
+    }
+
     await AuditRepository.log({
       workspaceId,
       userId: actorId,

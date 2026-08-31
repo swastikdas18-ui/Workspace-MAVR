@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { Project, ProjectStatus } from '../../types';
+import { Project, ProjectStatus, Department } from '../../types';
+import { api } from '../../lib/api';
 import {
   FolderKanban, Plus, LayoutGrid, List, Calendar, DollarSign,
   Trash2, Users, CheckCircle2, Clock, X, ArrowUpRight,
   TrendingUp, BarChart2, Tag, Layers, Check, Shield, Play,
-  Send, RotateCcw, CheckCircle, MessageSquare, AlertCircle, Sparkles
+  Send, RotateCcw, CheckCircle, MessageSquare, AlertCircle, Sparkles, Building2
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
@@ -28,6 +29,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
     users, teams, searchQuery, addToast
   } = useWorkspace();
 
+  const [departments, setDepartments] = useState<Department[]>([]);
+
   const [viewMode, setViewMode] = useState<ViewMode>('board');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -42,6 +45,21 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const [reviewFeedback, setReviewFeedback] = useState<string>('');
 
   const [submitReviewModalProject, setSubmitReviewModalProject] = useState<Project | null>(null);
+
+  // Fetch People OS departments to populate project team/department options
+  useEffect(() => {
+    async function loadDepts() {
+      try {
+        const res = await api.getDepartments();
+        if (res?.departments) {
+          setDepartments(res.departments);
+        }
+      } catch (err) {
+        console.warn('[ProjectsView] Error loading departments:', err);
+      }
+    }
+    loadDepts();
+  }, []);
 
   // Sync routeProjectId with active modal
   useEffect(() => {
@@ -718,6 +736,36 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     />
                   </div>
                 </div>
+
+                {/* Departments Assignment (People OS) */}
+                {departments.length > 0 && (
+                  <div>
+                    <label className="block text-slate-300 font-medium mb-1.5 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Assign To Department</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-purple-500/20">
+                      {departments.map((dept) => {
+                        const isSelected = selectedTeams.includes(dept.id);
+                        return (
+                          <button
+                            key={dept.id}
+                            type="button"
+                            onClick={() => toggleTeamSelection(dept.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
+                                ? 'bg-purple-600 text-white font-medium shadow-sm'
+                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                              }`}
+                          >
+                            <Building2 className="w-3 h-3 text-purple-300" />
+                            <span>{dept.name}</span>
+                            {isSelected && <Check className="w-3 h-3" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Teams Assignment */}
                 {teams.length > 0 && (

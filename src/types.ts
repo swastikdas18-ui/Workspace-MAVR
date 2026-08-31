@@ -44,6 +44,17 @@ export interface TeamMember {
   joined_at: string;
 }
 
+export interface Department {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  headId?: string;
+  parentId?: string;
+  color?: string;
+  memberCount?: number;
+}
+
 export type ProjectStatus = 'planning' | 'in_progress' | 'review' | 'completed' | 'on_hold';
 
 export interface Project {

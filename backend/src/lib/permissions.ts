@@ -128,13 +128,11 @@ export function can(
       case 'workspace:delete':
         return false;
 
-      // Documents: can read public/team/learning docs, download. Cannot upload org docs without explicit permission. Can delete ONLY owned docs
       case 'documents:read':
       case 'documents:download':
-        return true;
       case 'documents:createPersonal':
       case 'documents:createOrg':
-        return false;
+        return true;
       case 'documents:delete':
         if (resource && context?.userId) {
           const ownerId = resource.owner_id || resource.ownerId;

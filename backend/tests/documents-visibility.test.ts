@@ -188,6 +188,51 @@ export async function runDocumentsVisibilityTests() {
   assert(!internTitles.includes('Admin Personal Draft'), '✓ Intern access: Blocked from private document');
   assert(!internTitles.includes('Executive Payroll Summary'), '✓ Intern access: Blocked from admin_only document');
 
+  // 7. Employee Document Creation & Deletion Security Tests
+  // 7a. Employee Upload Test -> Should succeed
+  const empUploadReq = new Request('http://localhost:3000/api/documents', {
+    method: 'POST',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Employee Design Doc', visibility: 'workspace' })
+  });
+  const empUploadRes = await app.fetch(empUploadReq);
+  assert(empUploadRes.status === 201, '✓ Employee security: Employee can upload workspace document (201 Created)');
+  const empDocId = (await empUploadRes.json()).document.id;
+
+  // 7b. Employee Deleting Admin Document -> Should fail (403 Forbidden)
+  const adminDocToProtect = adminDocs.find((d: any) => d.title === 'Executive Payroll Summary');
+  const empDeleteAdminReq = new Request(`http://localhost:3000/api/documents/${adminDocToProtect.id}`, {
+    method: 'DELETE',
+    headers: empHeaders
+  });
+  const empDeleteAdminRes = await app.fetch(empDeleteAdminReq);
+  assert(empDeleteAdminRes.status === 403, '✓ Employee security: Employee CANNOT delete Admin document (403 Forbidden)');
+
+  // 7c. Employee Deleting Own Document -> Should succeed (200 OK)
+  const empDeleteOwnReq = new Request(`http://localhost:3000/api/documents/${empDocId}`, {
+    method: 'DELETE',
+    headers: empHeaders
+  });
+  const empDeleteOwnRes = await app.fetch(empDeleteOwnReq);
+  assert(empDeleteOwnRes.status === 200, '✓ Employee security: Employee CAN delete own document (200 OK)');
+
+  // 7d. Intern Document Upload -> Should fail (403 Forbidden)
+  const internUploadReq = new Request('http://localhost:3000/api/documents', {
+    method: 'POST',
+    headers: internHeaders,
+    body: JSON.stringify({ title: 'Unauthorized Intern Doc', visibility: 'workspace' })
+  });
+  const internUploadRes = await app.fetch(internUploadReq);
+  assert(internUploadRes.status === 403, '✓ Intern security: Intern CANNOT upload document (403 Forbidden)');
+
+  // 7e. Intern Document Delete -> Should fail (403 Forbidden)
+  const internDeleteReq = new Request(`http://localhost:3000/api/documents/${adminDocToProtect.id}`, {
+    method: 'DELETE',
+    headers: internHeaders
+  });
+  const internDeleteRes = await app.fetch(internDeleteReq);
+  assert(internDeleteRes.status === 403, '✓ Intern security: Intern CANNOT delete document (403 Forbidden)');
+
   console.log('\n===============================================================');
   console.log(' DOCUMENTS & WIKI VISIBILITY ENGINE TESTS: ALL CHECKS PASSED');
   console.log('===============================================================\n');

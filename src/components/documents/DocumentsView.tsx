@@ -15,9 +15,10 @@ import { motion, AnimatePresence } from 'motion/react';
 interface DocumentsViewProps {
   routeDocumentId?: string | null;
   onRouteChange?: (documentId: string | null) => void;
+  embedded?: boolean;
 }
 
-export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, onRouteChange }) => {
+export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, onRouteChange, embedded = false }) => {
   console.log("ACTIVE DOCUMENT VIEW");
 
   const { 
@@ -200,58 +201,60 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <PageHeader
-        title={currentRole === 'admin' ? 'Document Vault & Knowledge Base' : currentRole === 'employee' ? 'Team Knowledge & Docs' : 'Learning Resources & Guides'}
-        description={
-          currentRole === 'intern'
-            ? 'Access architecture blueprints, engineering handbooks, and onboarding specifications.'
-            : 'Authoritative PostgreSQL and Object Storage backed documentation repository with access controls.'
-        }
-        badge={
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono border border-white/[0.08]">
-            {visibleDocs.length} Documents
-          </span>
-        }
-        actions={
-          <div className="flex items-center gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Notion Grid</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'list'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">List</span>
-              </button>
-            </div>
+      {!embedded && (
+        <PageHeader
+          title={currentRole === 'admin' ? 'Document Vault & Knowledge Base' : currentRole === 'employee' ? 'Team Knowledge & Docs' : 'Learning Resources & Guides'}
+          description={
+            currentRole === 'intern'
+              ? 'Access architecture blueprints, engineering handbooks, and onboarding specifications.'
+              : 'Authoritative PostgreSQL and Object Storage backed documentation repository with access controls.'
+          }
+          badge={
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono border border-white/[0.08]">
+              {visibleDocs.length} Documents
+            </span>
+          }
+          actions={
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle */}
+              <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Notion Grid</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                    viewMode === 'list'
+                      ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">List</span>
+                </button>
+              </div>
 
-            {(permissions.documents.createOrgDoc || permissions.documents.createPersonalDoc) && (
-              <button
-                onClick={() => setIsUploadModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Upload Document</span>
-              </button>
-            )}
-          </div>
-        }
-      />
+              {(permissions.documents.createOrgDoc || permissions.documents.createPersonalDoc) && (
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Upload Document</span>
+                </button>
+              )}
+            </div>
+          }
+        />
+      )}
 
       {/* Category Pills Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">

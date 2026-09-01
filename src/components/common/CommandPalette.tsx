@@ -3,7 +3,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   Search, LayoutDashboard, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  Plus, UserPlus, FileUp, Sparkles, X, CornerDownLeft, BookOpen, Clock, Globe, Zap
+  Plus, UserPlus, FileUp, Sparkles, X, CornerDownLeft, BookOpen, Clock, Globe, Zap, GraduationCap, ShieldCheck, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SentryClient } from '../../lib/sentry';
@@ -64,18 +64,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     try {
       const role = currentRole || 'employee';
       const items = [
-        { id: 'nav-dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, category: 'Navigation', tab: 'dashboard', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-dashboard', label: 'Go to Command Center', icon: LayoutDashboard, category: 'Navigation', tab: 'dashboard', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-crm', label: 'Go to CRM Pipeline', icon: DollarSign, category: 'Navigation', tab: 'crm', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
         { id: 'nav-projects', label: 'Go to Projects', icon: FolderKanban, category: 'Navigation', tab: 'projects', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
         { id: 'nav-tasks', label: 'Go to Tasks Engine', icon: CheckSquare, category: 'Navigation', tab: 'tasks', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
-        { id: 'nav-automations', label: 'Go to Workflow Automations Engine', icon: Zap, category: 'Navigation', tab: 'automations', roles: ['admin', 'founder', 'platform_admin'] },
-        { id: 'nav-documents', label: 'Go to Documents', icon: FileText, category: 'Navigation', tab: 'documents', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
-        { id: 'nav-wiki', label: 'Go to Knowledge Wiki', icon: BookOpen, category: 'Navigation', tab: 'wiki', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
-        { id: 'nav-time', label: 'Go to Time Tracking', icon: Clock, category: 'Navigation', tab: 'time', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
-        { id: 'nav-portal', label: 'Go to Client Portal', icon: Globe, category: 'Navigation', tab: 'portal', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
-        { id: 'nav-crm', label: 'Go to CRM Pipeline', icon: DollarSign, category: 'Navigation', tab: 'crm', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
-        { id: 'nav-teams', label: 'Go to Team Directory', icon: Users, category: 'Navigation', tab: 'teams', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
-        { id: 'nav-analytics', label: 'Go to Analytics & Velocity', icon: BarChart3, category: 'Navigation', tab: 'analytics', roles: ['admin', 'founder', 'platform_admin'] },
-        { id: 'nav-settings', label: 'Go to Workspace Settings', icon: Settings, category: 'Navigation', tab: 'settings', roles: ['admin', 'founder', 'platform_admin'] },
+        { id: 'nav-teams', label: 'Go to People OS', icon: Users, category: 'Navigation', tab: 'teams', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
+        { id: 'nav-knowledge', label: 'Go to Knowledge Center (Operational Brain)', icon: BookOpen, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-sop', label: 'Company SOPs, Policies & Protocols (Knowledge)', icon: ShieldCheck, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-playbook', label: 'Project Execution Playbooks (Knowledge)', icon: FolderKanban, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-onboarding', label: 'Employee Onboarding Tracks (Knowledge)', icon: GraduationCap, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-template', label: 'Knowledge Templates Repository (Knowledge)', icon: Copy, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-documents', label: 'Documents Vault & File Uploads (Knowledge)', icon: FileText, category: 'Navigation', tab: 'knowledge', roles: ['admin', 'employee', 'intern', 'founder', 'platform_admin'] },
+        { id: 'nav-settings', label: 'Go to Settings & Labs', icon: Settings, category: 'Navigation', tab: 'settings', roles: ['admin', 'founder', 'platform_admin'] },
+        { id: 'nav-automations', label: 'Go to Automations Engine (Labs)', icon: Zap, category: 'Navigation', tab: 'automations', roles: ['admin', 'founder', 'platform_admin'] },
+        { id: 'nav-time', label: 'Go to Time & Utilization (Labs)', icon: Clock, category: 'Navigation', tab: 'time', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
+        { id: 'nav-portal', label: 'Go to Client Portal (Labs)', icon: Globe, category: 'Navigation', tab: 'portal', roles: ['admin', 'employee', 'founder', 'platform_admin'] },
+        { id: 'nav-analytics', label: 'Go to Analytics & Velocity (Labs)', icon: BarChart3, category: 'Navigation', tab: 'analytics', roles: ['admin', 'founder', 'platform_admin'] },
         { id: 'nav-admin_tools', label: 'Go to Admin RBAC Tools', icon: ShieldAlert, category: 'Navigation', tab: 'admin_tools', roles: ['admin', 'founder', 'platform_admin'] },
       ];
 

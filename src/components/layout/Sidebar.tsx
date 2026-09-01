@@ -27,25 +27,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser, logout, systemLogs } = useWorkspace();
 
-  // Navigation items strictly mapped to role specifications
-  const getNavItems = () => {
+  // 7 Core Navigation Pillars mapped to role specifications
+  const getCoreNavItems = () => {
     if (currentRole === 'admin') {
       return [
-        { id: 'dashboard', label: 'Executive Center', icon: LayoutDashboard, badge: null },
-        { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
+        { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, badge: null },
+        { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
         { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
         { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
-        { id: 'automations', label: 'Automations Engine', icon: Zap, badge: 'Auto' },
-        { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Notion' },
-        { id: 'time', label: 'Time & Utilization', icon: Clock, badge: 'Live' },
-        { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
-        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: 'Guests' },
-        { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Calendar' },
-        { id: 'teams', label: 'Team Directory', icon: Users, badge: null },
-        { id: 'documents', label: 'Vault Documents', icon: FileText, badge: 'Docs' },
-        { id: 'analytics', label: 'Analytics & Velocity', icon: BarChart3, badge: null },
-        { id: 'settings', label: 'Settings', icon: Settings, badge: null },
-        { id: 'admin_tools', label: 'Admin RBAC Tools', icon: ShieldAlert, badge: 'Sec' },
+        { id: 'teams', label: 'People OS', icon: Users, badge: null },
+        { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'Docs' },
+        { id: 'settings', label: 'Settings & Config', icon: Settings, badge: null },
       ];
     }
 
@@ -54,10 +46,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
         { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
         { id: 'tasks', label: 'Tasks & Board', icon: CheckSquare, badge: 'Flow' },
-        { id: 'wiki', label: 'Workspace Wiki', icon: BookOpen, badge: 'Docs' },
-        { id: 'time', label: 'Timesheets', icon: Clock, badge: 'Timer' },
-        { id: 'teams', label: 'My Team', icon: Users, badge: null },
-        { id: 'documents', label: 'Shared Documents', icon: FileText, badge: null },
+        { id: 'teams', label: 'People OS', icon: Users, badge: null },
+        { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'Docs' },
+        { id: 'settings', label: 'Settings', icon: Settings, badge: null },
       ];
     }
 
@@ -67,21 +58,92 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Intern Role: strictly Dashboard, Learning Tasks, Assigned Work, Learning Wiki, Learning Documents
+    // Intern Role: strictly Command Sandbox, Learning Tasks, Knowledge Center, Time
     return [
       { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
       { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
-      { id: 'wiki', label: 'Learning Wiki', icon: BookOpen, badge: 'SOPs' },
+      { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'SOPs' },
       { id: 'time', label: 'Time Logs', icon: Clock, badge: null },
-      { id: 'documents', label: 'Learning Resources', icon: FileText, badge: 'Docs' },
     ];
   };
 
-  const navItems = getNavItems();
+  // Secondary Labs & Enterprise Extensions
+  const getLabsNavItems = () => {
+    if (currentRole === 'admin') {
+      return [
+        { id: 'automations', label: 'Automations', icon: Zap, badge: 'Labs' },
+        { id: 'time', label: 'Time & Utilization', icon: Clock, badge: 'Labs' },
+        { id: 'analytics', label: 'Analytics & Velocity', icon: BarChart3, badge: 'Labs' },
+        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: 'Labs' },
+        { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Labs' },
+        { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
+        { id: 'admin_tools', label: 'Admin RBAC Tools', icon: ShieldAlert, badge: 'Sec' },
+      ];
+    }
+    if (currentRole === 'employee') {
+      return [
+        { id: 'time', label: 'Timesheets', icon: Clock, badge: 'Timer' },
+        { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Sync' },
+      ];
+    }
+    return [];
+  };
+
+  const coreNavItems = getCoreNavItems();
+  const labsNavItems = getLabsNavItems();
 
   const handleNavClick = (id: string) => {
     setActiveTab(id);
     if (onCloseMobile) onCloseMobile();
+  };
+
+  const renderNavItem = (item: { id: string; label: string; icon: any; badge: string | null }) => {
+    const Icon = item.icon;
+    const isActive = activeTab === item.id;
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleNavClick(item.id)}
+        className={`group relative w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+          isActive
+            ? 'bg-[#7C3AED]/20 text-white border border-purple-500/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.25)]'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
+        } ${isCollapsed ? 'justify-center px-2' : ''}`}
+        title={isCollapsed ? item.label : undefined}
+      >
+        {/* Linear-style active indicator bar */}
+        {isActive && (
+          <motion.div
+            layoutId="activeNavIndicator"
+            className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#7C3AED] rounded-r-full shadow-[0_0_8px_rgba(124,58,237,0.8)]"
+            transition={{ duration: 0.2 }}
+          />
+        )}
+
+        <Icon
+          className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+            isActive ? 'text-purple-300' : 'text-slate-400 group-hover:text-slate-200'
+          }`}
+        />
+
+        {!isCollapsed && (
+          <>
+            <span className="truncate flex-1 text-left">{item.label}</span>
+            {item.badge && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  isActive
+                    ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
+                    : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+      </button>
+    );
   };
 
   const sidebarContent = (
@@ -124,58 +186,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
         {!isCollapsed && (
           <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            Operating System
+            7 Core Pillars
           </div>
         )}
 
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`group relative w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-[#7C3AED]/20 text-white border border-purple-500/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.25)]'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
-              } ${isCollapsed ? 'justify-center px-2' : ''}`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              {/* Linear-style active indicator bar */}
-              {isActive && (
-                <motion.div
-                  layoutId="activeNavIndicator"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#7C3AED] rounded-r-full shadow-[0_0_8px_rgba(124,58,237,0.8)]"
-                  transition={{ duration: 0.2 }}
-                />
-              )}
+        {coreNavItems.map(renderNavItem)}
 
-              <Icon
-                className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
-                  isActive ? 'text-purple-300' : 'text-slate-400 group-hover:text-slate-200'
-                }`}
-              />
-
-              {!isCollapsed && (
-                <>
-                  <span className="truncate flex-1 text-left">{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                        isActive
-                          ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </>
+        {labsNavItems.length > 0 && (
+          <>
+            <div className="pt-3 pb-1">
+              {!isCollapsed ? (
+                <div className="px-3 py-1 text-[10px] font-semibold text-purple-400/80 uppercase tracking-wider border-t border-white/[0.06] pt-3">
+                  Labs & Extensions
+                </div>
+              ) : (
+                <div className="border-t border-white/[0.06] my-2" />
               )}
-            </button>
-          );
-        })}
+            </div>
+            {labsNavItems.map(renderNavItem)}
+          </>
+        )}
       </div>
 
       {/* BOTTOM SECTION: User Profile, Activity, Logout */}

@@ -37,10 +37,12 @@ export const Header: React.FC<HeaderProps> = ({
   const getBreadcrumbLabel = (tab: string) => {
     switch (tab) {
       case 'admin_tools': return 'Admin RBAC Tools';
-      case 'dashboard': return currentRole === 'admin' ? 'Executive Center' : currentRole === 'employee' ? 'Productivity Hub' : 'Learning Sandbox';
+      case 'dashboard': return currentRole === 'admin' ? 'Command Center' : currentRole === 'employee' ? 'Productivity Hub' : 'Learning Sandbox';
+      case 'teams': return 'People OS';
       case 'time': return 'Time & Utilization';
       case 'crm': return 'CRM Pipeline';
-      case 'wiki': return 'Workspace Wiki';
+      case 'knowledge': return 'Knowledge Center';
+      case 'settings': return 'Settings & Labs';
       case 'portal': return 'Client Portal';
       default: return tab.charAt(0).toUpperCase() + tab.slice(1);
     }

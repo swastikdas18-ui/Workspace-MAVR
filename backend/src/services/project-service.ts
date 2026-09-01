@@ -65,12 +65,43 @@ export class ProjectService {
   }
 
   /**
-   * Helper to check if a user is team lead of any of the project's assigned teams
+   * Helper to check if a user is department head or team lead of any of the project's assigned departments/teams
    */
   private static async isProjectTeamLead(userId: string, projectTeamIds: string[]): Promise<boolean> {
     if (!projectTeamIds || projectTeamIds.length === 0) return false;
+
+    // Check Department Head status (People OS Source of Truth)
+    try {
+      const { PeopleRepository } = await import('../repositories/people-repository.js');
+      const departments = await PeopleRepository.listDepartments('');
+      const userHeadDepts = departments.filter((d: any) => d.headId === userId).map((d: any) => d.id);
+      if (projectTeamIds.some((tId) => userHeadDepts.includes(tId))) {
+        return true;
+      }
+    } catch {}
+
+    // Legacy fallback check
     const ledTeams = await TeamRepository.getUserLedTeams(userId);
     return projectTeamIds.some((tId) => ledTeams.includes(tId));
+  }
+
+  /**
+   * Helper to resolve both People OS department assignment and legacy team IDs for a user
+   */
+  private static async getUserDepartmentsAndTeams(workspaceId: string, userId: string): Promise<string[]> {
+    const ids: string[] = [];
+    try {
+      const { PeopleRepository } = await import('../repositories/people-repository.js');
+      const profile = await PeopleRepository.getProfileByUserId(workspaceId, userId);
+      if (profile?.departmentId) {
+        ids.push(profile.departmentId);
+      }
+    } catch {}
+    const legacyTeams = await TeamRepository.getUserTeams(userId);
+    legacyTeams.forEach((tId) => {
+      if (!ids.includes(tId)) ids.push(tId);
+    });
+    return ids;
   }
 
   /**
@@ -230,7 +261,7 @@ export class ProjectService {
     const isOwner = existing.createdBy === userId;
     const currentMemberIds = existing.memberIds || [existing.createdBy];
     const isMember = currentMemberIds.includes(userId);
-    const userTeams = await TeamRepository.getUserTeams(userId);
+    const userTeams = await this.getUserDepartmentsAndTeams(workspaceId, userId);
     const isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
 
     if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember) {
@@ -551,7 +582,7 @@ export class ProjectService {
 
     let isTeamMember = false;
     if (existing.teamIds && existing.teamIds.length > 0) {
-      const userTeams = await TeamRepository.getUserTeams(userId);
+      const userTeams = await this.getUserDepartmentsAndTeams(workspaceId, userId);
       isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
     }
     

@@ -17,7 +17,8 @@ import { PageHeader } from '../common/PageHeader';
 export const PeopleView: React.FC = () => {
   const { 
     currentUser, currentRole, currentWorkspace, addToast,
-    permissions, users, teams, createTeam, inviteMember, invites, loadInvites 
+    permissions, users, teams, createTeam, inviteMember, invites, loadInvites,
+    projects, tasks
   } = useWorkspace();
 
   const [activeSubTab, setActiveSubTab] = useState<'directory' | 'departments' | 'invitations' | 'orgchart' | 'leaves' | 'attendance' | 'goals' | 'performance'>('directory');
@@ -815,12 +816,39 @@ export const PeopleView: React.FC = () => {
                           {dept.description}
                         </p>
                       )}
+
+                      {/* Department Workload Engine Metrics */}
+                      {(() => {
+                        const deptProjects = projects.filter((p) => p.team_ids?.includes(dept.id));
+                        const deptTasks = tasks.filter((t) => deptProjects.some((p) => p.id === t.projectId));
+                        const overdueDeptTasks = deptTasks.filter(
+                          (t) => t.status !== 'done' && t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < new Date()
+                        );
+                        return (
+                          <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-3 gap-2 text-center text-[10px] font-mono">
+                            <div className="bg-slate-900/60 p-1.5 rounded-lg border border-white/[0.04]">
+                              <span className="text-slate-500 block uppercase">Projects</span>
+                              <span className="font-bold text-purple-400 text-xs">{deptProjects.length}</span>
+                            </div>
+                            <div className="bg-slate-900/60 p-1.5 rounded-lg border border-white/[0.04]">
+                              <span className="text-slate-500 block uppercase">Tasks</span>
+                              <span className="font-bold text-blue-400 text-xs">{deptTasks.length}</span>
+                            </div>
+                            <div className="bg-slate-900/60 p-1.5 rounded-lg border border-white/[0.04]">
+                              <span className="text-slate-500 block uppercase">Overdue</span>
+                              <span className={`font-bold text-xs ${overdueDeptTasks.length > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                                {overdueDeptTasks.length}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
                         <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                        <span>{memberCount} workforce assigned</span>
+                        <span>{memberCount} Workforce Assigned</span>
                       </div>
 
                       <div className="flex items-center gap-2 justify-end">

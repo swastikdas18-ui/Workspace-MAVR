@@ -14,9 +14,10 @@ import { motion, AnimatePresence } from 'motion/react';
 interface WikiViewProps {
   routePageId?: string | null;
   onRouteChange?: (pageId: string | null) => void;
+  embedded?: boolean;
 }
 
-export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }) => {
+export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, embedded = false }) => {
   console.log("ACTIVE WIKI VIEW");
 
   const { currentRole, currentUser, currentWorkspace, addToast } = useWorkspace();
@@ -312,21 +313,23 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Workspace Wiki & Knowledge Base"
-        description="Notion-lite interactive documentation engine with nested pages, live revisions, and team comments."
-        actions={
-          currentRole !== 'intern' ? (
-            <button
-              onClick={() => openCreateModal(null)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Wiki Page</span>
-            </button>
-          ) : undefined
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Workspace Wiki & Knowledge Base"
+          description="Notion-lite interactive documentation engine with nested pages, live revisions, and team comments."
+          actions={
+            currentRole !== 'intern' ? (
+              <button
+                onClick={() => openCreateModal(null)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Wiki Page</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[600px]">
         {/* LEFT SIDEBAR: Page Navigation Tree */}

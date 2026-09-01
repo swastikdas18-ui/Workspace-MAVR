@@ -690,8 +690,15 @@ export class InviteService {
       }
     }
 
-    // If invite had a teamId, join team
+    // If invite had a teamId / departmentId, join team and set employeeProfile departmentId
     if (invite.team_id) {
+      try {
+        const { PeopleRepository } = await import('../repositories/people-repository.js');
+        await PeopleRepository.transferDepartment(invite.workspace_id, userId, invite.team_id);
+      } catch (err: any) {
+        console.warn('[InviteService] Could not sync department_id on employeeProfile:', err.message);
+      }
+
       let existingTeamMember: any = Array.from(inMemoryDb.teamMembers.values()).find(
         (tm) => tm.teamId === invite.team_id && tm.userId === userId
       );

@@ -32,9 +32,9 @@ interface TeamBillingItem {
 }
 
 export const SettingsView: React.FC = () => {
-  const { currentWorkspace, updateWorkspace, addToast, users } = useWorkspace();
+  const { currentWorkspace, updateWorkspace, addToast, users, setActiveTab: setGlobalActiveTab } = useWorkspace();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'rbac' | 'team_billing' | 'api'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'rbac' | 'team_billing' | 'api' | 'labs'>('profile');
   const [name, setName] = useState(currentWorkspace?.name || 'Workspace OS HQ');
   const [slug, setSlug] = useState(currentWorkspace?.slug || 'workspaceos');
   const [allowPublicInvites, setAllowPublicInvites] = useState(false);
@@ -253,7 +253,124 @@ export const SettingsView: React.FC = () => {
           <Key className="w-3.5 h-3.5" />
           <span>Developer API & Secrets</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('labs')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+            activeTab === 'labs'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-[#111827] text-purple-400 hover:text-purple-200 border border-purple-500/20'
+          }`}
+        >
+          <Target className="w-3.5 h-3.5" />
+          <span>Labs & Enterprise Tools</span>
+        </button>
       </div>
+
+      {activeTab === 'labs' && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-2">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              <span>Labs & Enterprise Extensions Launcher</span>
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Access secondary enterprise tools including workflow automation rules, time utilization telemetry, velocity analytics, guest portal, and Google synchronization.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              onClick={() => setGlobalActiveTab('automations')}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-purple-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                <Target className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
+                  Automations Engine
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Event-driven trigger & action rules for project creation, document generation, and webhooks.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setGlobalActiveTab('time')}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-blue-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors">
+                  Time & Utilization
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Employee timesheets, billable hour tracking, utilization targets, and labor cost analysis.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setGlobalActiveTab('analytics')}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-emerald-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  Analytics & Velocity
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Sprint velocity forecasting, retention tracking, metric lineage graphs, and product analytics.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setGlobalActiveTab('portal')}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-amber-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                  Client Portal
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  External guest access sandbox for client project progress, shared deliverables, and invoice view.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setGlobalActiveTab('integrations')}
+              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-rose-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
+                <Webhook className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-rose-300 transition-colors">
+                  Google Sync & OAuth
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Third-party OAuth synchronization, Google Calendar event sync, and Google Drive integrations.
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Tab 1: Organization Profile */}

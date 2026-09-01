@@ -21,6 +21,7 @@ import { AcceptInviteView } from './components/invites/AcceptInviteView';
 import { OnboardingPage } from './components/onboarding/OnboardingPage';
 import { WorkspacesSelectionPage } from './components/workspace/WorkspacesSelectionPage';
 import { WikiView } from './components/wiki/WikiView';
+import { KnowledgeCenterView } from './components/knowledge/KnowledgeCenterView';
 import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
@@ -38,7 +39,8 @@ const pathToTabMap: Record<string, string> = {
   '/admin/projects': 'projects',
   '/admin/tasks': 'tasks',
   '/admin/automations': 'automations',
-  '/admin/documents': 'documents',
+  '/admin/documents': 'knowledge',
+  '/admin/knowledge': 'knowledge',
   '/admin/crm': 'crm',
   '/admin/teams': 'teams',
   '/admin/analytics': 'analytics',
@@ -46,7 +48,8 @@ const pathToTabMap: Record<string, string> = {
   '/admin/settings': 'settings',
   '/admin/tools': 'admin_tools',
   '/admin/audit': 'admin_tools',
-  '/admin/wiki': 'wiki',
+  '/admin/wiki': 'knowledge',
+  '/knowledge': 'knowledge',
   '/automations': 'automations',
   '/employee/dashboard': 'dashboard',
   '/employee/projects': 'projects',
@@ -349,16 +352,26 @@ const MainAppContent: React.FC = () => {
           />
         );
 
+      case 'knowledge':
+        return (
+          <KnowledgeCenterView
+            initialTab="wiki"
+            routePageId={wikiPageIdParam}
+            routeDocumentId={documentIdParam}
+            onRouteChange={(id) => {
+              setWikiPageIdParam(id || null);
+            }}
+          />
+        );
+
       case 'wiki':
         return (
-          <WikiView
+          <KnowledgeCenterView
+            initialTab="wiki"
             routePageId={wikiPageIdParam}
-            onRouteChange={(newPageId) => {
-              setWikiPageIdParam(newPageId || null);
-              const targetUrl = newPageId ? `/wiki/${newPageId}` : '/wiki';
-              if (window.location.pathname !== targetUrl) {
-                window.history.pushState(null, '', targetUrl);
-              }
+            routeDocumentId={documentIdParam}
+            onRouteChange={(id) => {
+              setWikiPageIdParam(id || null);
             }}
           />
         );
@@ -378,14 +391,12 @@ const MainAppContent: React.FC = () => {
 
       case 'documents':
         return (
-          <DocumentsView
+          <KnowledgeCenterView
+            initialTab="documents"
+            routePageId={wikiPageIdParam}
             routeDocumentId={documentIdParam}
-            onRouteChange={(newDocId) => {
-              setDocumentIdParam(newDocId || null);
-              const targetUrl = newDocId ? `/documents/${newDocId}` : '/documents';
-              if (window.location.pathname !== targetUrl) {
-                window.history.pushState(null, '', targetUrl);
-              }
+            onRouteChange={(id) => {
+              setDocumentIdParam(id || null);
             }}
           />
         );

@@ -68,7 +68,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // Secondary Labs & Enterprise Extensions
+  const SHOW_LABS_EXTENSIONS = false;
+
   const getLabsNavItems = () => {
+    if (!SHOW_LABS_EXTENSIONS) return [];
     if (currentRole === 'admin') {
       return [
         { id: 'automations', label: 'Automations', icon: Zap, badge: 'Labs' },
@@ -78,12 +81,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Labs' },
         { id: 'workspace', label: 'Workspace Hub', icon: Building2, badge: null },
         { id: 'admin_tools', label: 'Admin RBAC Tools', icon: ShieldAlert, badge: 'Sec' },
-      ];
-    }
-    if (currentRole === 'employee') {
-      return [
-        { id: 'time', label: 'Timesheets', icon: Clock, badge: 'Timer' },
-        { id: 'integrations', label: 'Google Sync', icon: Bell, badge: 'Sync' },
       ];
     }
     return [];

@@ -3,7 +3,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   Search, Bell, Menu, Plus, Sparkles, CheckCircle2, 
   AlertCircle, Info, ExternalLink, ShieldCheck, X, ChevronRight,
-  Users, UserPlus, FolderKanban, CheckSquare, ChevronDown
+  Users, UserPlus, FolderKanban, CheckSquare, ChevronDown, BookOpen, FileText
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,6 +16,8 @@ interface HeaderProps {
   onOpenInviteMember?: () => void;
   onOpenCreateProject?: () => void;
   onOpenCreateTask?: () => void;
+  onOpenCreateWiki?: () => void;
+  onOpenUploadDoc?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenInviteMember,
   onOpenCreateProject,
   onOpenCreateTask,
+  onOpenCreateWiki,
+  onOpenUploadDoc,
 }) => {
   const { 
     currentUser, currentRole, searchQuery, setSearchQuery, 
@@ -49,6 +53,28 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const actionMenuItems = [
+    {
+      id: 'create-wiki',
+      label: 'Create Wiki',
+      desc: 'Author SOPs & workspace documentation',
+      icon: BookOpen,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenCreateWiki) onOpenCreateWiki();
+      },
+      permitted: currentRole !== 'intern',
+    },
+    {
+      id: 'upload-doc',
+      label: 'Upload Document',
+      desc: 'Upload PDFs, DOCX & vault files',
+      icon: FileText,
+      action: () => {
+        setShowNewActionMenu(false);
+        if (onOpenUploadDoc) onOpenUploadDoc();
+      },
+      permitted: currentRole !== 'intern',
+    },
     {
       id: 'create-team',
       label: 'Create Team',

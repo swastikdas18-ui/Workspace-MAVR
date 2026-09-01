@@ -233,6 +233,76 @@ export async function runDocumentsVisibilityTests() {
   const internDeleteRes = await app.fetch(internDeleteReq);
   assert(internDeleteRes.status === 403, '✓ Intern security: Intern CANNOT delete document (403 Forbidden)');
 
+  // 8. Multi-format Document Upload & Download Tests (PDF, DOCX, PNG)
+  // 8a. Upload DOCX File
+  const uploadDocxReq = new Request('http://localhost:3000/api/documents', {
+    method: 'POST',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Product Specification Doc', fileType: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', visibility: 'workspace' })
+  });
+  const uploadDocxRes = await app.fetch(uploadDocxReq);
+  assert(uploadDocxRes.status === 201, '✓ Documents upload: DOCX document uploaded successfully (201 Created)');
+  const docxDoc = (await uploadDocxRes.json()).document;
+  assert(docxDoc.file_type === 'docx', '✓ Documents upload: DOCX file_type stored correctly');
+
+  // 8b. Upload PNG Image File
+  const uploadPngReq = new Request('http://localhost:3000/api/documents', {
+    method: 'POST',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Architecture Diagram Image', fileType: 'png', mimeType: 'image/png', visibility: 'workspace' })
+  });
+  const uploadPngRes = await app.fetch(uploadPngReq);
+  assert(uploadPngRes.status === 201, '✓ Documents upload: PNG image document uploaded successfully (201 Created)');
+
+  // 8c. Download Document payload
+  const downloadReq = new Request(`http://localhost:3000/api/documents/${docxDoc.id}/download`, {
+    method: 'GET',
+    headers: empHeaders
+  });
+  const downloadRes = await app.fetch(downloadReq);
+  assert(downloadRes.status === 200, '✓ Documents download: Signed download URL generated successfully (200 OK)');
+  const downloadData = await downloadRes.json();
+  assert(!!downloadData.signedUrl, '✓ Documents download: Payload contains valid signed URL');
+
+  // 9. Wiki Creation, Edit, Delete & RBAC Tests
+  // 9a. Employee Create Wiki Page
+  const createWikiReq = new Request('http://localhost:3000/api/wiki', {
+    method: 'POST',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Engineering Onboarding SOP', visibility: 'workspace', contentJson: { blocks: [{ type: 'paragraph', text: 'Welcome to the team.' }] } })
+  });
+  const createWikiRes = await app.fetch(createWikiReq);
+  assert(createWikiRes.status === 201, '✓ Wiki creation: Employee can create Wiki page (201 Created)');
+  const wikiPage = (await createWikiRes.json()).page;
+
+  // 9b. Employee Edit Own Wiki Page
+  const editWikiReq = new Request(`http://localhost:3000/api/wiki/${wikiPage.id}`, {
+    method: 'PATCH',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Engineering Onboarding SOP v2' })
+  });
+  const editWikiRes = await app.fetch(editWikiReq);
+  assert(editWikiRes.status === 200, '✓ Wiki edit: Employee can edit own Wiki page (200 OK)');
+  const updatedWiki = (await editWikiRes.json()).page;
+  assert(updatedWiki.title === 'Engineering Onboarding SOP v2', '✓ Wiki edit: Page title updated successfully');
+
+  // 9c. Intern Create Wiki Page -> Should fail (403 Forbidden)
+  const internWikiReq = new Request('http://localhost:3000/api/wiki', {
+    method: 'POST',
+    headers: internHeaders,
+    body: JSON.stringify({ title: 'Unauthorized Intern Wiki' })
+  });
+  const internWikiRes = await app.fetch(internWikiReq);
+  assert(internWikiRes.status === 403, '✓ Wiki security: Intern CANNOT create Wiki page (403 Forbidden)');
+
+  // 9d. Employee Delete Own Wiki Page
+  const deleteWikiReq = new Request(`http://localhost:3000/api/wiki/${wikiPage.id}`, {
+    method: 'DELETE',
+    headers: empHeaders
+  });
+  const deleteWikiRes = await app.fetch(deleteWikiReq);
+  assert(deleteWikiRes.status === 200, '✓ Wiki deletion: Employee can delete own Wiki page (200 OK)');
+
   console.log('\n===============================================================');
   console.log(' DOCUMENTS & WIKI VISIBILITY ENGINE TESTS: ALL CHECKS PASSED');
   console.log('===============================================================\n');

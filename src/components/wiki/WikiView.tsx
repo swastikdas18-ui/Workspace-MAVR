@@ -15,9 +15,17 @@ interface WikiViewProps {
   routePageId?: string | null;
   onRouteChange?: (pageId: string | null) => void;
   embedded?: boolean;
+  isCreateOpen?: boolean;
+  onCloseCreate?: () => void;
 }
 
-export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, embedded = false }) => {
+export const WikiView: React.FC<WikiViewProps> = ({ 
+  routePageId, 
+  onRouteChange, 
+  embedded = false,
+  isCreateOpen = false,
+  onCloseCreate,
+}) => {
   console.log("ACTIVE WIKI VIEW");
 
   const { currentRole, currentUser, currentWorkspace, addToast } = useWorkspace();
@@ -38,6 +46,14 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
   const [createVisibility, setCreateVisibility] = useState<string>('workspace');
   const [createDepartmentId, setCreateDepartmentId] = useState<string>('');
   const [createParentId, setCreateParentId] = useState<string | null>(null);
+
+  // Sync external isCreateOpen prop
+  useEffect(() => {
+    if (isCreateOpen) {
+      openCreateModal(null);
+      onCloseCreate?.();
+    }
+  }, [isCreateOpen]);
 
   // Comments state
   const [comments, setComments] = useState<WikiCommentItem[]>([]);
@@ -334,6 +350,18 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[600px]">
         {/* LEFT SIDEBAR: Page Navigation Tree */}
         <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full shadow-xl">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Pages</h3>
+            {currentRole !== 'intern' && (
+              <button
+                onClick={() => openCreateModal(null)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[11px] font-semibold border border-blue-500/30 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Page</span>
+              </button>
+            )}
+          </div>
           <div className="relative mb-3">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -354,6 +382,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
               visiblePages.map((page) => {
                 const isSelected = page.id === selectedPage?.id;
                 const isSubpage = !!page.parentId;
+                const displayTitle = page.title.charAt(0).toUpperCase() + page.title.slice(1);
                 return (
                   <div
                     key={page.id}
@@ -368,9 +397,8 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm">{page.icon}</span>
-                      <span className="truncate">{page.title}</span>
+                      <span className="truncate">{displayTitle}</span>
                     </div>
-                    {getVisibilityBadge(page.visibility, (page as any).department_id || (page as any).departmentId)}
                   </div>
                 );
               })
@@ -397,27 +425,8 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
             </div>
           ) : selectedPage ? (
             <div>
-              {/* Breadcrumb Navigation */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 pb-3 border-b border-white/[0.06]">
-                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-                <span onClick={() => onRouteChange?.(null)} className="cursor-pointer hover:text-white">Wiki</span>
-                {getBreadcrumbs().map((crumb, idx) => (
-                  <React.Fragment key={crumb.id}>
-                    <ChevronRight className="w-3 h-3 text-slate-600" />
-                    <span
-                      onClick={() => selectPage(crumb.id)}
-                      className={`cursor-pointer hover:text-white ${
-                        idx === getBreadcrumbs().length - 1 ? 'text-white font-semibold' : ''
-                      }`}
-                    >
-                      {crumb.title}
-                    </span>
-                  </React.Fragment>
-                ))}
-              </div>
-
-              {/* Header Title & Actions */}
-              <div className="flex items-start justify-between gap-4 mb-6">
+              {/* Clean Header Title & Actions */}
+              <div className="flex items-start justify-between gap-4 mb-6 pb-4 border-b border-white/[0.06]">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl p-2 rounded-2xl bg-[#0F172A] border border-white/[0.08] shadow-inner">
                     {selectedPage.icon}
@@ -432,13 +441,11 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                       />
                     ) : (
                       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                        {selectedPage.title}
+                        {selectedPage.title.charAt(0).toUpperCase() + selectedPage.title.slice(1)}
                       </h1>
                     )}
                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                       <span>Updated {new Date(selectedPage.updatedAt).toLocaleDateString()}</span>
-                      <span>•</span>
-                      {getVisibilityBadge(selectedPage.visibility, (selectedPage as any).department_id || (selectedPage as any).departmentId)}
                     </div>
                   </div>
                 </div>
@@ -483,77 +490,51 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                 )}
               </div>
 
-              {/* View Tabs */}
-              <div className="flex items-center gap-2 border-b border-white/[0.06] mb-6 text-xs">
-                <button
-                  onClick={() => setActiveTab('content')}
-                  className={`pb-2.5 px-2 font-semibold transition-colors cursor-pointer border-b-2 ${
-                    activeTab === 'content'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Document Content
-                </button>
-                <button
-                  onClick={() => setActiveTab('comments')}
-                  className={`pb-2.5 px-2 font-semibold transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
-                    activeTab === 'comments'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <span>Team Comments</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-blue-400 font-bold">
-                    {comments.filter((c) => c.pageId === selectedPage.id).length}
-                  </span>
-                </button>
+              {/* Direct Document Content Rendering */}
+              <div className="space-y-4 text-slate-300 leading-relaxed text-sm mb-8">
+                {isEditing ? (
+                  <textarea
+                    rows={10}
+                    value={editContentText}
+                    onChange={(e) => setEditContentText(e.target.value)}
+                    placeholder="Write your markdown and documentation..."
+                    className="w-full p-4 rounded-xl bg-[#0F172A] border border-blue-500/50 text-slate-200 text-sm focus:outline-none"
+                  />
+                ) : (
+                  selectedPage.contentJson.blocks?.map((block: any, idx: number) => {
+                    if (block.type === 'header') {
+                      return (
+                        <h3 key={idx} className="text-lg font-bold text-white mt-4 first:mt-0">
+                          {block.text}
+                        </h3>
+                      );
+                    }
+                    if (block.type === 'paragraph') {
+                      return <p key={idx}>{block.text}</p>;
+                    }
+                    if (block.type === 'checklist') {
+                      return (
+                        <div key={idx} className="space-y-2 my-3 p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
+                          {block.items?.map((item: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })
+                )}
               </div>
 
-              {/* TAB 1: Document Blocks */}
-              {activeTab === 'content' && (
-                <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
-                  {isEditing ? (
-                    <textarea
-                      rows={10}
-                      value={editContentText}
-                      onChange={(e) => setEditContentText(e.target.value)}
-                      placeholder="Write your markdown and documentation..."
-                      className="w-full p-4 rounded-xl bg-[#0F172A] border border-blue-500/50 text-slate-200 text-sm focus:outline-none"
-                    />
-                  ) : (
-                    selectedPage.contentJson.blocks?.map((block: any, idx: number) => {
-                      if (block.type === 'header') {
-                        return (
-                          <h3 key={idx} className="text-lg font-bold text-white mt-4 first:mt-0">
-                            {block.text}
-                          </h3>
-                        );
-                      }
-                      if (block.type === 'paragraph') {
-                        return <p key={idx}>{block.text}</p>;
-                      }
-                      if (block.type === 'checklist') {
-                        return (
-                          <div key={idx} className="space-y-2 my-3 p-4 rounded-xl bg-[#0F172A] border border-white/[0.04]">
-                            {block.items?.map((item: string, i: number) => (
-                              <div key={i} className="flex items-center gap-2 text-xs">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                <span>{item}</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })
-                  )}
-                </div>
-              )}
-
-              {/* TAB 2: Inline & Page Comments */}
-              {activeTab === 'comments' && (
-                <div className="space-y-4">
+              {/* Render Team Comments ONLY when comments exist */}
+              {comments.filter((c) => c.pageId === selectedPage.id).length > 0 && (
+                <div className="pt-6 border-t border-white/[0.06] space-y-4">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Comments ({comments.filter((c) => c.pageId === selectedPage.id).length})
+                  </h4>
                   <div className="space-y-3">
                     {comments
                       .filter((c) => c.pageId === selectedPage.id)
@@ -570,17 +551,17 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                       ))}
                   </div>
 
-                  <form onSubmit={handleAddComment} className="flex items-center gap-2 mt-4">
+                  <form onSubmit={handleAddComment} className="flex gap-2 pt-2">
                     <input
                       type="text"
-                      placeholder="Add an inline or page comment..."
+                      placeholder="Write a comment..."
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#0F172A] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-blue-500"
+                      className="flex-1 px-3.5 py-2 rounded-xl bg-[#0F172A] border border-white/[0.08] text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>Post</span>
@@ -595,14 +576,14 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                 <BookOpen className="w-6 h-6 text-blue-400" />
               </div>
               <h3 className="text-base font-semibold text-white mb-1">
-                {pages.length === 0 ? "No Wiki Documents Yet" : "Page Not Found"}
+                {pages.length === 0 ? "No pages yet" : "Page Not Found"}
               </h3>
               <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
                 {pages.length === 0
-                  ? "Create company playbooks, engineering checklists, or intern onboarding guides."
+                  ? "Create your first SOP, process document, or company policy."
                   : routePageId
-                  ? `The requested document ID or slug "${routePageId}" could not be found or may have been deleted.`
-                  : "Select a wiki page from the sidebar navigation or create a new document."}
+                  ? `The requested document ID "${routePageId}" could not be found.`
+                  : "Select a wiki page from the sidebar navigation or create a new page."}
               </p>
               <div className="flex items-center gap-3">
                 {pages.length > 0 && (
@@ -619,7 +600,7 @@ export const WikiView: React.FC<WikiViewProps> = ({ routePageId, onRouteChange, 
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Create Document</span>
+                    <span>Create Page</span>
                   </button>
                 )}
               </div>

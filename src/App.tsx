@@ -110,6 +110,8 @@ const MainAppContent: React.FC = () => {
   const [taskIdParam, setTaskIdParam] = useState<string | null>(null);
   const [crmLeadIdParam, setCrmLeadIdParam] = useState<string | null>(null);
   const [documentIdParam, setDocumentIdParam] = useState<string | null>(null);
+  const [openCreateWiki, setOpenCreateWiki] = useState(false);
+  const [openUploadDoc, setOpenUploadDoc] = useState(false);
 
   // Check URL on initial load and handle invite tokens or deep paths
   useEffect(() => {
@@ -353,23 +355,18 @@ const MainAppContent: React.FC = () => {
         );
 
       case 'knowledge':
-        return (
-          <KnowledgeCenterView
-            initialTab="wiki"
-            routePageId={wikiPageIdParam}
-            routeDocumentId={documentIdParam}
-            onRouteChange={(id) => {
-              setWikiPageIdParam(id || null);
-            }}
-          />
-        );
-
       case 'wiki':
         return (
           <KnowledgeCenterView
             initialTab="wiki"
             routePageId={wikiPageIdParam}
             routeDocumentId={documentIdParam}
+            openCreateWiki={openCreateWiki}
+            openUploadDoc={openUploadDoc}
+            onHandledAction={() => {
+              setOpenCreateWiki(false);
+              setOpenUploadDoc(false);
+            }}
             onRouteChange={(id) => {
               setWikiPageIdParam(id || null);
             }}
@@ -395,6 +392,12 @@ const MainAppContent: React.FC = () => {
             initialTab="documents"
             routePageId={wikiPageIdParam}
             routeDocumentId={documentIdParam}
+            openCreateWiki={openCreateWiki}
+            openUploadDoc={openUploadDoc}
+            onHandledAction={() => {
+              setOpenCreateWiki(false);
+              setOpenUploadDoc(false);
+            }}
             onRouteChange={(id) => {
               setDocumentIdParam(id || null);
             }}
@@ -465,7 +468,20 @@ const MainAppContent: React.FC = () => {
     }
   };
 
-  return <AppLayout>{renderActiveView()}</AppLayout>;
+  return (
+    <AppLayout
+      onOpenCreateWiki={() => {
+        setActiveTab('wiki');
+        setOpenCreateWiki(true);
+      }}
+      onOpenUploadDoc={() => {
+        setActiveTab('documents');
+        setOpenUploadDoc(true);
+      }}
+    >
+      {renderActiveView()}
+    </AppLayout>
+  );
 };
 
 export default function App() {

@@ -18,6 +18,7 @@ interface AppLayoutProps {
   onOpenUploadDoc?: () => void;
   onOpenInviteMember?: () => void;
   onOpenCreateTeam?: () => void;
+  onOpenCreateWiki?: () => void;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ 
@@ -28,6 +29,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onOpenUploadDoc,
   onOpenInviteMember,
   onOpenCreateTeam,
+  onOpenCreateWiki,
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -231,6 +233,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             onOpenInviteMember={handleTriggerInviteMember}
             onOpenCreateProject={handleTriggerCreateProject}
             onOpenCreateTask={handleTriggerCreateTask}
+            onOpenCreateWiki={onOpenCreateWiki}
+            onOpenUploadDoc={onOpenUploadDoc}
           />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-y-auto">

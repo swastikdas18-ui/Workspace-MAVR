@@ -16,9 +16,17 @@ interface DocumentsViewProps {
   routeDocumentId?: string | null;
   onRouteChange?: (documentId: string | null) => void;
   embedded?: boolean;
+  isUploadOpen?: boolean;
+  onCloseUpload?: () => void;
 }
 
-export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, onRouteChange, embedded = false }) => {
+export const DocumentsView: React.FC<DocumentsViewProps> = ({ 
+  routeDocumentId, 
+  onRouteChange, 
+  embedded = false,
+  isUploadOpen = false,
+  onCloseUpload,
+}) => {
   console.log("ACTIVE DOCUMENT VIEW");
 
   const { 
@@ -27,10 +35,18 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
   } = useWorkspace();
 
   const [departments, setDepartments] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
+
+  // Sync external isUploadOpen prop
+  useEffect(() => {
+    if (isUploadOpen) {
+      setIsUploadModalOpen(true);
+      onCloseUpload?.();
+    }
+  }, [isUploadOpen]);
 
   // Fetch departments for department-scoped document creation
   useEffect(() => {
@@ -256,21 +272,33 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
         />
       )}
 
-      {/* Category Pills Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        {categories.map((cat) => (
+      {/* Category Pills Bar & Embedded Upload Button */}
+      <div className="flex items-center justify-between gap-3 overflow-x-auto pb-1 text-xs">
+        <div className="flex items-center gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-xl font-medium capitalize whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === cat
+                  ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
+                  : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
+              }`}
+            >
+              {cat === 'all' ? 'All Resources' : cat}
+            </button>
+          ))}
+        </div>
+
+        {embedded && currentRole !== 'intern' && (
           <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl font-medium capitalize whitespace-nowrap transition-all cursor-pointer ${
-              selectedCategory === cat
-                ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-                : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-            }`}
+            onClick={() => setIsUploadModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all cursor-pointer shrink-0"
           >
-            {cat === 'all' ? 'All Resources' : cat}
+            <Plus className="w-3.5 h-3.5" />
+            <span>Upload Document</span>
           </button>
-        ))}
+        )}
       </div>
 
       {/* Documents View Canvas */}
@@ -349,18 +377,18 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
             <table className="w-full text-left text-xs border-collapse min-w-[650px]">
             <thead>
               <tr className="border-b border-white/[0.08] bg-[#0F172A] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="py-3.5 px-4">Document Title</th>
+                <th className="py-3.5 px-4">Name</th>
                 <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Visibility</th>
-                <th className="py-3.5 px-4">File Size</th>
-                <th className="py-3.5 px-4">Telemetry</th>
+                <th className="py-3.5 px-4">Uploaded By</th>
+                <th className="py-3.5 px-4">Date</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04] text-slate-300">
               {visibleDocs.map((doc) => {
-                const isOwner = doc.owner_id === currentUser.id;
+                const isOwner = doc.owner_id === currentUser?.id;
                 const canDelete = permissions.documents.delete || (currentRole === 'employee' && isOwner);
+                const ownerName = isOwner ? (currentUser?.name || 'You') : 'Organization Staff';
 
                 return (
                   <tr 
@@ -373,20 +401,38 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
                         <div className="p-2 rounded-lg bg-[#0F172A] border border-white/[0.06]">
                           {getDocIcon(doc.file_type)}
                         </div>
-                        <span className="font-semibold text-white group-hover:text-purple-300 transition-colors">
-                          {doc.title}
-                        </span>
+                        <div>
+                          <div className="font-semibold text-white group-hover:text-purple-300 transition-colors">
+                            {doc.title}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {doc.file_type.toUpperCase()} • {doc.file_size}
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-300">{doc.category}</td>
-                    <td className="py-3.5 px-4">{getVisibilityBadge(doc.visibility, doc.department_id)}</td>
-                    <td className="py-3.5 px-4 font-mono text-slate-400">{doc.file_size}</td>
-                    <td className="py-3.5 px-4 font-mono text-purple-400">{doc.download_count} DLs</td>
+                    <td className="py-3.5 px-4">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 capitalize">
+                        {doc.category || 'General'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-300 font-medium">{ownerName}</td>
+                    <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
+                      {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'Today'}
+                    </td>
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         <button
+                          onClick={() => handleSelectDoc(doc)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                          title="Preview Document"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => incrementDocDownload(doc.id)}
                           className="p-1.5 rounded-lg bg-slate-800 hover:bg-[#7C3AED] hover:text-white text-slate-300 transition-colors cursor-pointer"
+                          title="Download File"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
@@ -394,6 +440,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({ routeDocumentId, o
                           <button
                             onClick={() => deleteDocument(doc.id)}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Delete Document"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

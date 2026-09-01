@@ -148,12 +148,16 @@ const updatePageHandler = async (c: any) => {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Page belongs to another workspace.' } }, 403);
   }
 
-  // Only Admin can update any page or change visibility; Employee can update pages they created or general team pages if allowed
+  // Admin can update any page. Employee can update ONLY pages they authored. Intern is forbidden.
   if (effectiveRole === 'intern') {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Interns are not permitted to edit wiki pages.' } }, 403);
   }
 
-  // If changing visibility to private/admin or updating page authored by admin, employee must be admin or author
+  if (effectiveRole !== 'admin' && existingPage.createdBy !== user?.id) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Employees can only edit wiki pages they authored.' } }, 403);
+  }
+
+  // If changing visibility, only admin can modify visibility
   if (effectiveRole !== 'admin' && body.visibility && body.visibility !== existingPage.visibility) {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Only administrators can modify document visibility.' } }, 403);
   }
@@ -178,9 +182,13 @@ const deletePageHandler = async (c: any) => {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
   }
 
-  // Admin can delete any page, Employee can delete own page
+  // Admin can delete any page. Employee can delete ONLY pages they authored. Intern is forbidden.
+  if (effectiveRole === 'intern') {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Interns are not permitted to delete wiki pages.' } }, 403);
+  }
+
   if (effectiveRole !== 'admin' && page.createdBy !== user?.id) {
-    return c.json({ error: { code: 'FORBIDDEN', message: 'Only admins or page owners can delete wiki pages.' } }, 403);
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Employees can only delete wiki pages they authored.' } }, 403);
   }
 
   const success = await WikiRepository.deletePage(pageId);

@@ -450,7 +450,7 @@ export const WikiView: React.FC<WikiViewProps> = ({
                   </div>
                 </div>
 
-                {currentRole !== 'intern' && (
+                {currentRole !== 'intern' && (currentRole === 'admin' || selectedPage.createdBy === currentUser?.id || (selectedPage as any).created_by === currentUser?.id) && (
                   <div className="flex items-center gap-2">
                     {isEditing ? (
                       <button
@@ -475,15 +475,13 @@ export const WikiView: React.FC<WikiViewProps> = ({
                           <Edit3 className="w-3.5 h-3.5 text-blue-400" />
                           <span>Edit</span>
                         </button>
-                        {(currentRole === 'admin' || selectedPage.createdBy === currentUser.id) && (
-                          <button
-                            onClick={() => handleDeletePage(selectedPage.id)}
-                            className="p-1.5 rounded-xl bg-[#1E293B] hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 border border-white/[0.08] cursor-pointer transition-colors"
-                            title="Delete Document"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeletePage(selectedPage.id)}
+                          className="p-1.5 rounded-xl bg-[#1E293B] hover:bg-rose-950/40 hover:text-rose-400 text-slate-400 border border-white/[0.08] cursor-pointer transition-colors"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </>
                     )}
                   </div>

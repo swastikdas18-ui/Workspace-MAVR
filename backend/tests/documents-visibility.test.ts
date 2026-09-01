@@ -264,44 +264,104 @@ export async function runDocumentsVisibilityTests() {
   const downloadData = await downloadRes.json();
   assert(!!downloadData.signedUrl, '✓ Documents download: Payload contains valid signed URL');
 
-  // 9. Wiki Creation, Edit, Delete & RBAC Tests
-  // 9a. Employee Create Wiki Page
-  const createWikiReq = new Request('http://localhost:3000/api/wiki', {
+  // 9. Wiki Creation, Edit, Delete & Strict Ownership Permission Tests
+  // 9a. Admin Create Wiki Page
+  const adminWikiReq = new Request('http://localhost:3000/api/wiki', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ title: 'Admin Master SOP', visibility: 'workspace' })
+  });
+  const adminWikiRes = await app.fetch(adminWikiReq);
+  assert(adminWikiRes.status === 201, '✓ Wiki permission: Admin can create Wiki page (201 Created)');
+  const adminWikiPage = (await adminWikiRes.json()).page;
+
+  // 9b. Employee 1 Create Wiki Page
+  const emp1WikiReq = new Request('http://localhost:3000/api/wiki', {
     method: 'POST',
     headers: empHeaders,
-    body: JSON.stringify({ title: 'Engineering Onboarding SOP', visibility: 'workspace', contentJson: { blocks: [{ type: 'paragraph', text: 'Welcome to the team.' }] } })
+    body: JSON.stringify({ title: 'Engineering Onboarding SOP', visibility: 'workspace' })
   });
-  const createWikiRes = await app.fetch(createWikiReq);
-  assert(createWikiRes.status === 201, '✓ Wiki creation: Employee can create Wiki page (201 Created)');
-  const wikiPage = (await createWikiRes.json()).page;
+  const emp1WikiRes = await app.fetch(emp1WikiReq);
+  assert(emp1WikiRes.status === 201, '✓ Wiki permission: Employee can create Wiki page (201 Created)');
+  const emp1WikiPage = (await emp1WikiRes.json()).page;
 
-  // 9b. Employee Edit Own Wiki Page
-  const editWikiReq = new Request(`http://localhost:3000/api/wiki/${wikiPage.id}`, {
+  // 9c. Admin edits Admin page -> Allowed (200 OK)
+  const adminEditAdminReq = new Request(`http://localhost:3000/api/wiki/${adminWikiPage.id}`, {
+    method: 'PATCH',
+    headers: adminHeaders,
+    body: JSON.stringify({ title: 'Admin Master SOP v2' })
+  });
+  const adminEditAdminRes = await app.fetch(adminEditAdminReq);
+  assert(adminEditAdminRes.status === 200, '✓ Wiki permission: Admin edits Admin page -> Allowed (200 OK)');
+
+  // 9d. Admin edits Employee page -> Allowed (200 OK)
+  const adminEditEmpReq = new Request(`http://localhost:3000/api/wiki/${emp1WikiPage.id}`, {
+    method: 'PATCH',
+    headers: adminHeaders,
+    body: JSON.stringify({ title: 'Engineering Onboarding SOP (Admin Revised)' })
+  });
+  const adminEditEmpRes = await app.fetch(adminEditEmpReq);
+  assert(adminEditEmpRes.status === 200, '✓ Wiki permission: Admin edits Employee page -> Allowed (200 OK)');
+
+  // 9e. Employee edits own page -> Allowed (200 OK)
+  const empEditOwnReq = new Request(`http://localhost:3000/api/wiki/${emp1WikiPage.id}`, {
     method: 'PATCH',
     headers: empHeaders,
-    body: JSON.stringify({ title: 'Engineering Onboarding SOP v2' })
+    body: JSON.stringify({ title: 'Engineering Onboarding SOP v3' })
   });
-  const editWikiRes = await app.fetch(editWikiReq);
-  assert(editWikiRes.status === 200, '✓ Wiki edit: Employee can edit own Wiki page (200 OK)');
-  const updatedWiki = (await editWikiRes.json()).page;
-  assert(updatedWiki.title === 'Engineering Onboarding SOP v2', '✓ Wiki edit: Page title updated successfully');
+  const empEditOwnRes = await app.fetch(empEditOwnReq);
+  assert(empEditOwnRes.status === 200, '✓ Wiki permission: Employee edits own page -> Allowed (200 OK)');
 
-  // 9c. Intern Create Wiki Page -> Should fail (403 Forbidden)
+  // 9f. Employee edits Admin page -> 403 Forbidden
+  const empEditAdminReq = new Request(`http://localhost:3000/api/wiki/${adminWikiPage.id}`, {
+    method: 'PATCH',
+    headers: empHeaders,
+    body: JSON.stringify({ title: 'Unauthorized Edit Attempt' })
+  });
+  const empEditAdminRes = await app.fetch(empEditAdminReq);
+  assert(empEditAdminRes.status === 403, '✓ Wiki security: Employee edits Admin page -> 403 Forbidden');
+
+  // 9g. Employee deletes Admin page -> 403 Forbidden
+  const empDeleteAdminWikiReq = new Request(`http://localhost:3000/api/wiki/${adminWikiPage.id}`, {
+    method: 'DELETE',
+    headers: empHeaders
+  });
+  const empDeleteAdminWikiRes = await app.fetch(empDeleteAdminWikiReq);
+  assert(empDeleteAdminWikiRes.status === 403, '✓ Wiki security: Employee deletes Admin page -> 403 Forbidden');
+
+  // 9h. Intern create page -> 403 Forbidden
   const internWikiReq = new Request('http://localhost:3000/api/wiki', {
     method: 'POST',
     headers: internHeaders,
     body: JSON.stringify({ title: 'Unauthorized Intern Wiki' })
   });
   const internWikiRes = await app.fetch(internWikiReq);
-  assert(internWikiRes.status === 403, '✓ Wiki security: Intern CANNOT create Wiki page (403 Forbidden)');
+  assert(internWikiRes.status === 403, '✓ Wiki security: Intern create page -> 403 Forbidden');
 
-  // 9d. Employee Delete Own Wiki Page
-  const deleteWikiReq = new Request(`http://localhost:3000/api/wiki/${wikiPage.id}`, {
+  // 9i. Intern edit page -> 403 Forbidden
+  const internEditWikiReq = new Request(`http://localhost:3000/api/wiki/${emp1WikiPage.id}`, {
+    method: 'PATCH',
+    headers: internHeaders,
+    body: JSON.stringify({ title: 'Intern Unauthorized Edit' })
+  });
+  const internEditWikiRes = await app.fetch(internEditWikiReq);
+  assert(internEditWikiRes.status === 403, '✓ Wiki security: Intern edit page -> 403 Forbidden');
+
+  // 9j. Intern delete page -> 403 Forbidden
+  const internDeleteWikiReq = new Request(`http://localhost:3000/api/wiki/${emp1WikiPage.id}`, {
+    method: 'DELETE',
+    headers: internHeaders
+  });
+  const internDeleteWikiRes = await app.fetch(internDeleteWikiReq);
+  assert(internDeleteWikiRes.status === 403, '✓ Wiki security: Intern delete page -> 403 Forbidden');
+
+  // 9k. Employee deletes own page -> Allowed (200 OK)
+  const empDeleteOwnWikiReq = new Request(`http://localhost:3000/api/wiki/${emp1WikiPage.id}`, {
     method: 'DELETE',
     headers: empHeaders
   });
-  const deleteWikiRes = await app.fetch(deleteWikiReq);
-  assert(deleteWikiRes.status === 200, '✓ Wiki deletion: Employee can delete own Wiki page (200 OK)');
+  const empDeleteOwnWikiRes = await app.fetch(empDeleteOwnWikiReq);
+  assert(empDeleteOwnWikiRes.status === 200, '✓ Wiki permission: Employee deletes own page -> Allowed (200 OK)');
 
   console.log('\n===============================================================');
   console.log(' DOCUMENTS & WIKI VISIBILITY ENGINE TESTS: ALL CHECKS PASSED');

@@ -157,12 +157,17 @@ export function can(
       // Phase 12: Employee permissions
       case 'wiki:read':
       case 'wiki:create':
-      case 'wiki:update':
       case 'wiki:comment':
       case 'time:read':
       case 'time:log':
         return true;
+      case 'wiki:update':
       case 'wiki:delete':
+        if (resource && context?.userId) {
+          const authorId = resource.createdBy || resource.created_by || resource.authorId || resource.author_id;
+          return authorId === context.userId;
+        }
+        return true;
       case 'time:manage':
       case 'portal:access':
       case 'portal:approve':

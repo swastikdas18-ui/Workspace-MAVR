@@ -14,6 +14,8 @@ export interface CreateProjectInput {
   budget?: string;
   memberIds?: string[];
   member_ids?: string[];
+  departmentId?: string;
+  department_id?: string;
   teamIds?: string[];
   team_ids?: string[];
   tags?: string[];
@@ -45,6 +47,8 @@ export class ProjectService {
       title: p.title,
       description: p.description || '',
       workspace_id: p.workspaceId,
+      department_id: p.departmentId || p.department_id || null,
+      departmentId: p.departmentId || p.department_id || null,
       created_by: p.createdBy,
       status: p.status,
       progress: p.progress || 0,
@@ -58,7 +62,6 @@ export class ProjectService {
       approved_by: p.approvedBy || undefined,
       review_feedback: p.reviewFeedback || undefined,
       member_ids: p.memberIds && p.memberIds.length > 0 ? p.memberIds : [p.createdBy],
-      team_ids: p.teamIds || [],
       tags: p.tags || ['Enterprise', 'Core'],
       created_at: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
     };
@@ -67,22 +70,38 @@ export class ProjectService {
   /**
    * Helper to check if a user is department head or team lead of any of the project's assigned departments/teams
    */
-  private static async isProjectTeamLead(userId: string, projectTeamIds: string[]): Promise<boolean> {
-    if (!projectTeamIds || projectTeamIds.length === 0) return false;
+  private static async isProjectTeamLead(userId: string, projectTeamIds?: string[], departmentId?: string): Promise<boolean> {
+    if (departmentId) {
+      try {
+        const { PeopleRepository } = await import('../repositories/people-repository.js');
+        const dept = await PeopleRepository.getDepartmentById(departmentId);
+        if (dept?.headId === userId) return true;
+      } catch {}
+    }
 
-    // Check Department Head status (People OS Source of Truth)
-    try {
-      const { PeopleRepository } = await import('../repositories/people-repository.js');
-      const departments = await PeopleRepository.listDepartments('');
-      const userHeadDepts = departments.filter((d: any) => d.headId === userId).map((d: any) => d.id);
-      if (projectTeamIds.some((tId) => userHeadDepts.includes(tId))) {
+    if (projectTeamIds && projectTeamIds.length > 0) {
+      try {
+        const { PeopleRepository } = await import('../repositories/people-repository.js');
+        const departments = await PeopleRepository.listDepartments('');
+        const userHeadDepts = departments.filter((d: any) => d.headId === userId).map((d: any) => d.id);
+        if (projectTeamIds.some((tId) => userHeadDepts.includes(tId))) {
+          return true;
+        }
+      } catch {}
+
+      const ledTeams = await TeamRepository.getUserLedTeams(userId);
+      if (projectTeamIds.some((tId) => ledTeams.includes(tId))) {
         return true;
       }
+    }
+
+    // Fallback: check if user is a Team Lead or Department Head in the organization
+    try {
+      const ledTeams = await TeamRepository.getUserLedTeams(userId);
+      if (ledTeams.length > 0) return true;
     } catch {}
 
-    // Legacy fallback check
-    const ledTeams = await TeamRepository.getUserLedTeams(userId);
-    return projectTeamIds.some((tId) => ledTeams.includes(tId));
+    return false;
   }
 
   /**
@@ -142,8 +161,8 @@ export class ProjectService {
     }
 
     const memberIds = input.memberIds || input.member_ids;
-    const teamIds = input.teamIds || input.team_ids || [];
-    console.log('[ProjectService.createProject]', { teamIds, memberIds });
+    const departmentId = input.departmentId || input.department_id;
+    console.log('[ProjectService.createProject]', { departmentId, memberIds });
 
     // Validate cross-workspace boundaries for memberIds
     if (memberIds && memberIds.length > 0) {
@@ -154,6 +173,7 @@ export class ProjectService {
       title: input.title.trim(),
       description: input.description?.trim() || '',
       workspaceId,
+      departmentId,
       createdBy: userId,
       status: input.status || 'planning',
       progress: 0,
@@ -162,7 +182,6 @@ export class ProjectService {
       budget: input.budget || '$0',
       tags: input.tags || ['General'],
       memberIds: memberIds && memberIds.length > 0 ? memberIds : [userId],
-      teamIds,
     });
 
     // Emit event: Project Created
@@ -172,10 +191,56 @@ export class ProjectService {
         id: created.id,
         title: created.title,
         memberIds: created.memberIds || [userId],
-        teamIds: created.teamIds || [],
         budget: created.budget,
       }
     );
+
+    // Dispatch Notifications: Department Lead & Assigned Members
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const { inMemoryDb } = await import('../../packages/database/index.js');
+      const creator = inMemoryDb.users.get(userId);
+      const notifiedRecipients = new Set<string>();
+
+      // 1. Notify assigned department lead
+      if (departmentId) {
+        const { PeopleRepository } = await import('../repositories/people-repository.js');
+        const dept = await PeopleRepository.getDepartmentById(departmentId);
+        if (dept?.headId && dept.headId !== userId) {
+          notifiedRecipients.add(dept.headId);
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: dept.headId,
+            actorId: userId,
+            type: 'task_assigned',
+            title: 'New Department Initiative Created',
+            message: `${creator?.name || 'A team member'} launched initiative "${created.title}" in your department.`,
+            entityType: 'project',
+            entityId: created.id,
+            link: `/projects/${created.id}`,
+          }).catch(() => null);
+        }
+      }
+
+      // 2. Notify assigned members
+      const finalMemberIds = created.memberIds || [userId];
+      for (const mId of finalMemberIds) {
+        if (mId !== userId && !notifiedRecipients.has(mId)) {
+          notifiedRecipients.add(mId);
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: mId,
+            actorId: userId,
+            type: 'task_assigned',
+            title: 'Assigned to New Initiative',
+            message: `${creator?.name || 'A team member'} assigned you to initiative "${created.title}".`,
+            entityType: 'project',
+            entityId: created.id,
+            link: `/projects/${created.id}`,
+          }).catch(() => null);
+        }
+      }
+    } catch {}
 
     const projectPayload = this.formatProject(created);
 
@@ -263,9 +328,11 @@ export class ProjectService {
     const isMember = currentMemberIds.includes(userId);
     const userTeams = await this.getUserDepartmentsAndTeams(workspaceId, userId);
     const isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+    const projDeptId = existing.departmentId || (existing as any).department_id;
+    const isDeptMember = projDeptId ? userTeams.includes(projDeptId) : false;
 
-    if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember) {
-      const error: any = new Error('You can only start work on initiatives assigned to you or your teams.');
+    if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember && !isDeptMember) {
+      const error: any = new Error('You can only start work on initiatives assigned to you or your department.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
@@ -585,11 +652,18 @@ export class ProjectService {
       const userTeams = await this.getUserDepartmentsAndTeams(workspaceId, userId);
       isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
     }
-    
+
+    let isDeptMember = false;
+    const projDeptId = existing.departmentId || (existing as any).department_id;
+    if (projDeptId) {
+      const userDepts = await this.getUserDepartmentsAndTeams(workspaceId, userId);
+      isDeptMember = userDepts.includes(projDeptId);
+    }
+
     const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
 
-    if (role === 'employee' && !isOwner && !isMember && !isTeamMember && !isLead) {
-      const error: any = new Error('You can only update projects assigned to you or your teams.');
+    if (role === 'employee' && !isOwner && !isMember && !isTeamMember && !isDeptMember && !isLead) {
+      const error: any = new Error('You can only update projects assigned to you or your department.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
@@ -607,8 +681,8 @@ export class ProjectService {
       // 4. review -> in_progress (Admin / Lead only)
       // 5. in_progress -> planning (Admin only)
       if (from === 'planning' && to === 'in_progress') {
-        if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember) {
-          const error: any = new Error('You can only start work on projects assigned to you or your teams.');
+        if (role === 'employee' && !isLead && !isOwner && !isMember && !isTeamMember && !isDeptMember) {
+          const error: any = new Error('You can only start work on projects assigned to you or your department.');
           error.code = 'FORBIDDEN';
           error.status = 403;
           throw error;

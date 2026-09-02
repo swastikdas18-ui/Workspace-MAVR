@@ -35,7 +35,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const { 
-    activeTab, currentUser, users, teams, projects, 
+    activeTab, currentUser, users, teams, departments, projects, 
     createTeam, inviteMember, createTask, createProject, addToast 
   } = useWorkspace();
 
@@ -65,7 +65,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [projectDescription, setProjectDescription] = useState('');
   const [projectDueDate, setProjectDueDate] = useState('');
   const [projectBudget, setProjectBudget] = useState('');
-  const [selectedProjectTeams, setSelectedProjectTeams] = useState<string[]>([]);
+  const [selectedProjectDepartmentId, setSelectedProjectDepartmentId] = useState<string>('');
   const [selectedProjectMembers, setSelectedProjectMembers] = useState<string[]>([]);
   const [projectTagsInput, setProjectTagsInput] = useState('');
 
@@ -161,7 +161,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       due_date: projectDueDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       budget: projectBudget ? (projectBudget.startsWith('$') ? projectBudget : `$${projectBudget}`) : '$15,000',
       member_ids: selectedProjectMembers,
-      team_ids: selectedProjectTeams,
+      department_id: selectedProjectDepartmentId || undefined,
       tags: projectTagsInput.split(',').map((t) => t.trim()).filter(Boolean)
     });
     if (success) {
@@ -170,7 +170,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       setProjectDescription('');
       setProjectDueDate('');
       setProjectBudget('');
-      setSelectedProjectTeams([]);
+      setSelectedProjectDepartmentId('');
       setSelectedProjectMembers([]);
       setProjectTagsInput('');
     }
@@ -590,6 +590,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Assign to Department</label>
+                  <select
+                    value={selectedProjectDepartmentId}
+                    onChange={(e) => setSelectedProjectDepartmentId(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  >
+                    <option value="">Select Department (Optional)</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

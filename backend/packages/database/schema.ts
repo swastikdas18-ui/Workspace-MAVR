@@ -141,6 +141,7 @@ export const projects = pgTable(
     title: text('title').notNull(),
     description: text('description'),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+    departmentId: text('department_id').references(() => departments.id),
     createdBy: text('created_by').notNull().references(() => users.id),
     status: text('status').default('in_progress').notNull(),
     progress: integer('progress').default(0).notNull(),

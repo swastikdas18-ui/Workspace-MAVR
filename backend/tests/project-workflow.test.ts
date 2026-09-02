@@ -127,8 +127,7 @@ export async function runProjectWorkflowTests() {
     body: JSON.stringify({
       title: 'Realtime Workflow Engine',
       description: 'Phase 1 operational workflow engine',
-      teamIds: [teamId],
-      memberIds: [empId],
+      memberIds: [leadId, empId],
       dueDate: new Date(Date.now() + 30 * 86400000).toISOString(),
     }),
   });

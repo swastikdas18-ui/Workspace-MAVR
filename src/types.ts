@@ -74,6 +74,8 @@ export interface Project {
   approved_by?: string;
   review_feedback?: string;
   member_ids: string[];
+  department_id?: string;
+  departmentId?: string;
   team_ids?: string[];
   teams?: any[];
   members?: any[];

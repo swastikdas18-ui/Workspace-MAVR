@@ -80,7 +80,7 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
       workspaceId: workspace.id,
       userId: user.id,
       title: body.title || body.name,
-      teamIds: body.teamIds || body.team_ids,
+      departmentId: body.departmentId || body.department_id,
       memberIds: body.memberIds || body.member_ids,
     });
     const title = (body.title || body.name || '').trim();
@@ -91,12 +91,13 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
     const project = await ProjectService.createProject(workspace.id, user.id, role, {
       ...body,
       title,
+      departmentId: body.departmentId || body.department_id,
       dueDate: body.dueDate || body.due_date || new Date(Date.now() + 30 * 86400000).toISOString(),
     });
     console.log('[ROUTER] POST /api/projects -> project created successfully:', {
       id: project.id,
       title: project.title,
-      team_ids: project.team_ids,
+      department_id: project.department_id || project.departmentId,
     });
     return c.json({ project }, 201);
   } catch (err: any) {

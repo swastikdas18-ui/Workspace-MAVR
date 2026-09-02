@@ -791,7 +791,7 @@ export const PeopleView: React.FC = () => {
 
                       {/* Department Workload Engine Metrics */}
                       {(() => {
-                        const deptProjects = projects.filter((p) => p.team_ids?.includes(dept.id));
+                        const deptProjects = projects.filter((p) => p.department_id === dept.id || p.departmentId === dept.id);
                         const deptTasks = tasks.filter((t) => deptProjects.some((p) => p.id === t.projectId));
                         const overdueDeptTasks = deptTasks.filter(
                           (t) => t.status !== 'done' && t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < new Date()

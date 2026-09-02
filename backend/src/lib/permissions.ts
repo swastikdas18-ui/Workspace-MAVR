@@ -91,7 +91,9 @@ export function can(
         if (resource && context?.userId) {
           const memberIds = resource.member_ids || resource.memberIds || [];
           const isCreator = resource.created_by === context.userId || resource.createdBy === context.userId;
-          return isCreator || memberIds.includes(context.userId);
+          const projDeptId = resource.department_id || resource.departmentId;
+          const userDeptId = (context as any)?.departmentId || (context as any)?.department_id;
+          return isCreator || memberIds.includes(context.userId) || (!!projDeptId && projDeptId === userDeptId);
         }
         return true;
 

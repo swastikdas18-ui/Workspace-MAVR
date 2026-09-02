@@ -595,7 +595,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       logAction('Attempted unauthorized project creation', 'PROJECTS', 'denied');
       return false;
     }
-    console.log('[WorkspaceContext.createProject]', data.team_ids);
+    console.log('[WorkspaceContext.createProject]', data.department_id || data.departmentId);
     try {
       const res = await api.createProject({
         title: data.title,
@@ -605,7 +605,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: data.due_date,
         budget: data.budget,
         memberIds: data.member_ids,
-        teamIds: data.team_ids,
+        departmentId: data.department_id || data.departmentId,
         tags: data.tags,
       });
       if (res.project) {
@@ -631,7 +631,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (updates.start_date) payload.startDate = updates.start_date;
       if (updates.due_date) payload.dueDate = updates.due_date;
       if (updates.member_ids) payload.memberIds = updates.member_ids;
-      if (updates.team_ids) payload.teamIds = updates.team_ids;
+      if (updates.department_id || updates.departmentId) payload.departmentId = updates.department_id || updates.departmentId;
 
       const res = await api.updateProject(id, payload);
       if (res.project) {

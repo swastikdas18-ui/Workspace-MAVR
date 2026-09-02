@@ -6,6 +6,7 @@ export interface ProjectEntity {
   title: string;
   description: string | null;
   workspaceId: string;
+  departmentId?: string | null;
   createdBy: string;
   status: string;
   progress: number;
@@ -20,7 +21,7 @@ export interface ProjectEntity {
   reviewFeedback?: string | null;
   createdAt: Date;
   memberIds: string[];
-  teamIds: string[];
+  teamIds?: string[];
   tags?: string[];
 }
 
@@ -29,6 +30,7 @@ export interface CreateProjectParams {
   title: string;
   description?: string;
   workspaceId: string;
+  departmentId?: string;
   createdBy: string;
   status?: string;
   progress?: number;
@@ -49,6 +51,8 @@ export interface CreateProjectParams {
 export interface UpdateProjectParams {
   title?: string;
   description?: string;
+  workspaceId?: string;
+  departmentId?: string;
   status?: string;
   progress?: number;
   startDate?: Date;
@@ -206,7 +210,9 @@ export class ProjectRepository {
             filteredProjects = projectRows.filter((p) => {
               const isOwner = p.createdBy === userId;
               const isMemberOrTeam = userProjectIds.has(p.id);
-              return isOwner || isMemberOrTeam;
+              const projDeptId = p.departmentId;
+              const isDeptMatch = projDeptId ? userTeamIds.has(projDeptId) : false;
+              return isOwner || isMemberOrTeam || isDeptMatch;
             });
           }
 
@@ -215,6 +221,7 @@ export class ProjectRepository {
             title: p.title,
             description: p.description,
             workspaceId: p.workspaceId || workspaceId,
+            departmentId: (p as any).departmentId || (p as any).department_id || null,
             createdBy: p.createdBy,
             status: p.status,
             progress: p.progress,
@@ -288,8 +295,9 @@ export class ProjectRepository {
       allProjects = allProjects.filter((p) => {
         const isOwner = p.createdBy === userId;
         const isMember = userProjectIds.has(p.id);
-        const isTeam = (p as any).teamId ? userTeamIds.has((p as any).teamId) : false;
-        return isOwner || isMember || isTeam;
+        const projDeptId = (p as any).departmentId || (p as any).department_id;
+        const isDeptMatch = projDeptId ? userTeamIds.has(projDeptId) : false;
+        return isOwner || isMember || isDeptMatch;
       });
     }
 
@@ -307,6 +315,7 @@ export class ProjectRepository {
         title: p.title,
         description: p.description || '',
         workspaceId: p.workspaceId,
+        departmentId: (p as any).departmentId || (p as any).department_id || null,
         createdBy: p.createdBy,
         status: p.status,
         progress: p.progress || 0,
@@ -368,6 +377,7 @@ export class ProjectRepository {
             title: project.title,
             description: project.description,
             workspaceId: project.workspaceId || workspaceId,
+            departmentId: (project as any).departmentId || (project as any).department_id || null,
             createdBy: project.createdBy,
             status: project.status,
             progress: project.progress,
@@ -407,6 +417,7 @@ export class ProjectRepository {
       title: p.title,
       description: p.description || '',
       workspaceId: p.workspaceId,
+      departmentId: (p as any).departmentId || (p as any).department_id || null,
       createdBy: p.createdBy,
       status: p.status,
       progress: p.progress || 0,
@@ -443,6 +454,7 @@ export class ProjectRepository {
       title: data.title,
       description: data.description || '',
       workspaceId: data.workspaceId,
+      departmentId: data.departmentId || null,
       createdBy: data.createdBy,
       status: data.status || 'in_progress',
       progress: data.progress || 0,
@@ -458,8 +470,7 @@ export class ProjectRepository {
     const validMemberIds = memberIds.filter((mId) => typeof mId === 'string' && mId.trim().length > 0);
     const validTeamIds = teamIds.filter((tId) => typeof tId === 'string' && tId.trim().length > 0);
 
-    console.log('[Repository.createProject incoming]', { teamIds });
-    console.log('[Repository.createProject validTeamIds]', validTeamIds);
+    console.log('[Repository.createProject incoming]', { departmentId: data.departmentId });
 
     for (const mId of validMemberIds) {
       const pmId = 'pm-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -495,6 +506,7 @@ export class ProjectRepository {
           title: data.title,
           description: data.description || '',
           workspaceId: data.workspaceId,
+          departmentId: data.departmentId || null,
           createdBy: data.createdBy,
           status: data.status || 'in_progress',
           progress: data.progress || 0,
@@ -557,6 +569,7 @@ export class ProjectRepository {
       title: newProject.title,
       description: newProject.description,
       workspaceId: newProject.workspaceId,
+      departmentId: newProject.departmentId,
       createdBy: newProject.createdBy,
       status: newProject.status,
       progress: newProject.progress,

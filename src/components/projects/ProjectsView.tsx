@@ -81,21 +81,23 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
     }
   };
 
-  // Helper to determine if current user is lead of project's teams
+  // Helper to determine if current user is lead of project's department
   const isTeamLeadForProject = (project: Project) => {
     if (currentRole === 'admin') return true;
-    if (!project.team_ids || project.team_ids.length === 0) return false;
-    const userLedTeams = teams.filter((t) => t.lead_id === currentUser.id).map((t) => t.id);
-    return project.team_ids.some((tId) => userLedTeams.includes(tId));
+    const projDeptId = project.department_id || project.departmentId;
+    if (!projDeptId) return false;
+    const headDepts = departments.filter((d: any) => d.headId === currentUser.id || d.head_id === currentUser.id).map((d) => d.id);
+    return headDepts.includes(projDeptId);
   };
 
-  // Helper to determine if user is assigned member/team of project
+  // Helper to determine if user is assigned member/department of project
   const isAssignedToProject = (project: Project) => {
     if (currentRole === 'admin') return true;
     if (project.created_by === currentUser.id) return true;
     if (project.member_ids?.includes(currentUser.id)) return true;
-    const userTeams = teams.filter((t) => t.member_count > 0 && (t.lead_id === currentUser.id || t.id === currentUser.team_id)).map((t) => t.id);
-    return project.team_ids?.some((tId) => userTeams.includes(tId)) || false;
+    const projDeptId = project.department_id || project.departmentId;
+    if (projDeptId && (currentUser.department_id === projDeptId || currentUser.departmentId === projDeptId)) return true;
+    return false;
   };
 
   // Form State for Project Creation
@@ -104,10 +106,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const [dueDate, setDueDate] = useState('');
   const [budget, setBudget] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([currentUser.id]);
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // Project visibility is resolved by the server from verified workspace, team,
+  // Project visibility is resolved by the server from verified workspace, department,
   // and project memberships. Apply only presentation filters here.
   const visibleProjects = projects.filter((p) => {
     if (selectedStatus !== 'all' && p.status !== selectedStatus) {
@@ -133,7 +135,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
       due_date: dueDate || new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10),
       budget: budget ? (budget.startsWith('$') ? budget : `$${budget}`) : '$15,000',
       member_ids: selectedMembers,
-      team_ids: selectedTeams,
+      department_id: selectedDepartmentId || undefined,
       tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
     });
     if (success) {
@@ -142,7 +144,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
       setDescription('');
       setDueDate('');
       setBudget('');
-      setSelectedTeams([]);
+      setSelectedDepartmentId('');
       setTagsInput('');
     }
   };
@@ -747,12 +749,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     </label>
                     <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-purple-500/20">
                       {departments.map((dept) => {
-                        const isSelected = selectedTeams.includes(dept.id);
+                        const isSelected = selectedDepartmentId === dept.id;
                         return (
                           <button
                             key={dept.id}
                             type="button"
-                            onClick={() => toggleTeamSelection(dept.id)}
+                            onClick={() => setSelectedDepartmentId(isSelected ? '' : dept.id)}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
                                 ? 'bg-purple-600 text-white font-medium shadow-sm'
                                 : 'bg-slate-800 text-slate-400 hover:text-white'
@@ -760,33 +762,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           >
                             <Building2 className="w-3 h-3 text-purple-300" />
                             <span>{dept.name}</span>
-                            {isSelected && <Check className="w-3 h-3" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Teams Assignment */}
-                {teams.length > 0 && (
-                  <div>
-                    <label className="block text-slate-300 font-medium mb-1.5">Assign To Teams</label>
-                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-white/[0.06]">
-                      {teams.map((team) => {
-                        const isSelected = selectedTeams.includes(team.id);
-                        return (
-                          <button
-                            key={team.id}
-                            type="button"
-                            onClick={() => toggleTeamSelection(team.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
-                                ? 'bg-blue-600 text-white font-medium shadow-sm'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
-                              }`}
-                          >
-                            <Users className="w-3 h-3" />
-                            <span>{team.name}</span>
                             {isSelected && <Check className="w-3 h-3" />}
                           </button>
                         );
@@ -1072,7 +1047,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             : 'bg-rose-500/10 text-rose-400 border-rose-500/30';
 
           const creatorUser = users.find((u) => u.id === selectedProjectModal.created_by);
-          const assignedDepts = departments.filter((d) => selectedProjectModal.team_ids?.includes(d.id));
+          const assignedDept = departments.find((d) => d.id === selectedProjectModal.department_id || d.id === selectedProjectModal.departmentId);
 
           return (
             <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

@@ -615,7 +615,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return true;
       }
     } catch (err: any) {
-      addToast({ type: 'error', title: 'Error', message: err.message || 'Failed to create project.' });
+      console.error('[WorkspaceContext.createProject error]', err);
+      addToast({ type: 'error', title: 'Error', message: 'Unable to create initiative. Please try again.' });
     }
     return false;
   };

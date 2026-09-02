@@ -188,6 +188,27 @@ export class PeopleRepository {
     });
   }
 
+  static async exists(departmentId: string, workspaceId?: string): Promise<boolean> {
+    if (!departmentId) return false;
+    try {
+      const db = getDb();
+      if (db) {
+        const query = workspaceId
+          ? and(eq(schema.departments.id, departmentId), eq(schema.departments.workspaceId, workspaceId))
+          : eq(schema.departments.id, departmentId);
+        const rows = await db.select({ id: schema.departments.id }).from(schema.departments).where(query).limit(1);
+        if (rows.length > 0) return true;
+      }
+    } catch {}
+
+    const dept = inMemoryDb.departments.get(departmentId);
+    if (dept) {
+      if (workspaceId && dept.workspaceId !== workspaceId) return false;
+      return true;
+    }
+    return false;
+  }
+
   static async getDepartmentById(workspaceId: string, departmentId: string): Promise<DepartmentEntity | null> {
     try {
       const db = getDb();
@@ -1463,3 +1484,7 @@ export class PeopleRepository {
     };
   }
 }
+
+export const departmentRepository = {
+  exists: (departmentId: string, workspaceId?: string) => PeopleRepository.exists(departmentId, workspaceId),
+};

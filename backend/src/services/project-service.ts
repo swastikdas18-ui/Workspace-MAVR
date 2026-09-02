@@ -164,6 +164,16 @@ export class ProjectService {
     const departmentId = input.departmentId || input.department_id;
     console.log('[ProjectService.createProject]', { departmentId, memberIds });
 
+    if (departmentId) {
+      const { departmentRepository } = await import('../repositories/people-repository.js');
+      if (!(await departmentRepository.exists(departmentId, workspaceId))) {
+        const error: any = new Error('Selected department does not exist');
+        error.code = 'BAD_REQUEST';
+        error.status = 400;
+        throw error;
+      }
+    }
+
     // Validate cross-workspace boundaries for memberIds
     if (memberIds && memberIds.length > 0) {
       WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, memberIds);

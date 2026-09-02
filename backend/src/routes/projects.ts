@@ -88,6 +88,14 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Project title is required.' } }, 400);
     }
 
+    const departmentId = body.departmentId || body.department_id;
+    if (departmentId) {
+      const { departmentRepository } = await import('../repositories/people-repository.js');
+      if (!(await departmentRepository.exists(departmentId, workspace.id))) {
+        return c.json({ error: { code: 'BAD_REQUEST', message: 'Selected department does not exist' } }, 400);
+      }
+    }
+
     const project = await ProjectService.createProject(workspace.id, user.id, role, {
       ...body,
       title,

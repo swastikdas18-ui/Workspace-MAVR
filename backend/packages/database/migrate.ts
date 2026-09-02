@@ -174,6 +174,8 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_projects_department_id ON projects(department_id);`;
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE;`;
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS submitted_for_review_at TIMESTAMP WITH TIME ZONE;`;
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS submitted_by TEXT REFERENCES users(id);`;

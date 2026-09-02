@@ -27,6 +27,7 @@ import { runTaskEngineTests } from './task-engine.test';
 import { runAutomationEngineV2Tests } from './automation-engine-v2.test';
 import { runPeopleOsTests } from './people-os.test';
 import { runDocumentsVisibilityTests } from './documents-visibility.test';
+import { runNotificationsTests } from './notifications.test';
 
 async function main() {
   try {
@@ -84,7 +85,9 @@ async function main() {
     await runPeopleOsTests();
     console.log('\n>>> Starting Suite 27: Documents & Wiki Visibility Engine');
     await runDocumentsVisibilityTests();
-    console.log('\n🌟 ALL 27 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 28: Real-Time Notification System (MVP)');
+    await runNotificationsTests();
+    console.log('\n🌟 ALL 28 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

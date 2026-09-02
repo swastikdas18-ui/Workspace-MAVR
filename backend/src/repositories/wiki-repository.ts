@@ -1,5 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
+import { NotificationService } from '../services/notification-service';
 
 export interface WikiPage {
   id: string;
@@ -164,6 +165,27 @@ export class WikiRepository {
 
     // Record initial revision
     await this.createVersion(id, 1, page.contentJson, data.createdBy);
+
+    // Trigger wiki_created notification for workspace members
+    try {
+      const author = inMemoryDb.users.get(data.createdBy);
+      const members = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+        (wm) => wm.workspaceId === data.workspaceId && wm.userId !== data.createdBy
+      );
+      for (const member of members) {
+        await NotificationService.createNotification({
+          workspaceId: data.workspaceId,
+          recipientId: member.userId,
+          actorId: data.createdBy,
+          type: 'wiki_created',
+          title: 'New Wiki Page Created',
+          message: `${author?.name || 'A team member'} created page "${page.title}".`,
+          entityType: 'wiki_page',
+          entityId: page.id,
+          link: `/wiki/${page.id}`,
+        }).catch(() => null);
+      }
+    } catch {}
 
     return page;
   }

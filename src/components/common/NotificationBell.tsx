@@ -21,29 +21,29 @@ interface Notification {
 const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
   task_assigned: <Zap className="w-3.5 h-3.5 text-blue-400" />,
   TASK_ASSIGNED: <Zap className="w-3.5 h-3.5 text-blue-400" />,
+  task_status_changed: <AlertCircle className="w-3.5 h-3.5 text-cyan-400" />,
+  comment_mentioned: <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />,
+  leave_submitted: <Users className="w-3.5 h-3.5 text-amber-400" />,
+  leave_approved: <Check className="w-3.5 h-3.5 text-emerald-400" />,
+  leave_rejected: <X className="w-3.5 h-3.5 text-rose-400" />,
+  wiki_created: <FileText className="w-3.5 h-3.5 text-purple-400" />,
+  document_uploaded: <FileText className="w-3.5 h-3.5 text-indigo-400" />,
   review_requested: <AlertCircle className="w-3.5 h-3.5 text-amber-400" />,
   task_approved: <Check className="w-3.5 h-3.5 text-emerald-400" />,
   task_overdue: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
-  TASK_OVERDUE: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
-  task_blocked: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
   automation_alert: <Zap className="w-3.5 h-3.5 text-purple-400" />,
-  payment_received: <CreditCard className="w-3.5 h-3.5 text-emerald-400" />,
-  invite_accepted: <Users className="w-3.5 h-3.5 text-blue-400" />,
-  comment_added: <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />,
 };
 
 const NOTIFICATION_COLORS: Record<string, string> = {
   task_assigned: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
   TASK_ASSIGNED: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
-  review_requested: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
-  task_approved: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
-  task_overdue: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
-  TASK_OVERDUE: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
-  task_blocked: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
-  automation_alert: 'border-purple-500/30 bg-purple-500/10 text-purple-400',
-  payment_received: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
-  invite_accepted: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
-  comment_added: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  task_status_changed: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400',
+  comment_mentioned: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  leave_submitted: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+  leave_approved: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  leave_rejected: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
+  wiki_created: 'border-purple-500/30 bg-purple-500/10 text-purple-400',
+  document_uploaded: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400',
 };
 
 function timeAgo(date: string | Date): string {
@@ -58,6 +58,7 @@ function timeAgo(date: string | Date): string {
 }
 
 export const NotificationBell: React.FC = () => {
+  const { setActiveTab: setAppActiveTab } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<'unread' | 'read' | 'archived'>('unread');
@@ -67,7 +68,7 @@ export const NotificationBell: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       const res = await api.getNotifications();
-      if (res && res.notifications && res.notifications.length > 0) {
+      if (res && res.notifications) {
         setNotifications(
           res.notifications.map((n: any) => ({
             id: n.id,
@@ -80,13 +81,6 @@ export const NotificationBell: React.FC = () => {
             metadata: n.metadata,
           }))
         );
-      } else {
-        setNotifications([
-          { id: '1', title: 'Task Assigned', message: 'You have been assigned: "Production Engine Architecture"', type: 'task_assigned', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 300000).toISOString() },
-          { id: '2', title: 'Automation Triggered', message: 'Rule "Escalation on Overdue Work" executed successfully.', type: 'automation_alert', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 1800000).toISOString() },
-          { id: '3', title: 'Review Requested', message: 'Alex Intern submitted "API Documentation" for lead signoff.', type: 'review_requested', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 7200000).toISOString() },
-          { id: '4', title: 'Task Approved', message: 'Your task "Database Indexing Optimization" was approved.', type: 'task_approved', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 86400000).toISOString() },
-        ]);
       }
     } catch {
       // Fallback
@@ -95,6 +89,9 @@ export const NotificationBell: React.FC = () => {
 
   useEffect(() => {
     fetchNotifications();
+    // Fallback 30 second polling interval
+    const pollInterval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(pollInterval);
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead && !n.isArchived).length;
@@ -303,9 +300,17 @@ export const NotificationBell: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2 border-t border-white/[0.06] bg-slate-900/60 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-              <span>Real-Time Event Stream</span>
-              <span>Workspace OS Automation Center</span>
+            <div className="px-4 py-2.5 border-t border-white/[0.06] bg-slate-900/80 flex items-center justify-between text-xs">
+              <span className="text-[10px] text-slate-500 font-mono">30s Sync Engine Active</span>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setAppActiveTab('notifications');
+                }}
+                className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition cursor-pointer"
+              >
+                View All Notifications &rarr;
+              </button>
             </div>
           </motion.div>
         )}

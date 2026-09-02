@@ -1,5 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
+import { NotificationService } from '../services/notification-service';
 
 export interface DocumentEntity {
   id: string;
@@ -250,6 +251,27 @@ export class DocumentRepository {
     } catch {
       // In-memory handled
     }
+
+    // Trigger document_uploaded notification for workspace members
+    try {
+      const uploader = inMemoryDb.users.get(data.ownerId);
+      const members = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+        (wm) => wm.workspaceId === data.workspaceId && wm.userId !== data.ownerId
+      );
+      for (const member of members) {
+        await NotificationService.createNotification({
+          workspaceId: data.workspaceId,
+          recipientId: member.userId,
+          actorId: data.ownerId,
+          type: 'document_uploaded',
+          title: 'New Document Uploaded',
+          message: `${uploader?.name || 'A team member'} uploaded document "${data.title}".`,
+          entityType: 'document',
+          entityId: docId,
+          link: `/documents/${docId}`,
+        }).catch(() => null);
+      }
+    } catch {}
 
     return newDoc;
   }

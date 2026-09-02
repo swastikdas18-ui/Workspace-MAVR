@@ -379,10 +379,14 @@ export const notifications = pgTable(
   {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    recipientId: text('recipient_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
     title: text('title').notNull(),
     message: text('message').notNull(),
-    type: text('type').notNull(), // 'task_created' | 'task_assigned' | 'task_completed' | 'review_requested' | 'task_approved' | 'task_overdue' | 'task_blocked' | 'project_created' | 'project_updated' | 'document_uploaded' | 'invite_accepted' | 'team_created' | 'crm_stage_changed' | 'system'
+    type: text('type').notNull(), // 'task_assigned' | 'task_status_changed' | 'comment_mentioned' | 'leave_submitted' | 'leave_approved' | 'leave_rejected' | 'wiki_created' | 'document_uploaded'
+    entityType: text('entity_type'),
+    entityId: text('entity_id'),
     link: text('link'),
     isRead: boolean('is_read').default(false).notNull(),
     metadata: jsonb('metadata'),
@@ -390,6 +394,7 @@ export const notifications = pgTable(
   },
   (table) => ({
     workspaceIdx: index('idx_notifications_workspace_id').on(table.workspaceId),
+    recipientIdx: index('idx_notifications_recipient_id').on(table.recipientId),
     userIdx: index('idx_notifications_user_id').on(table.userId),
     isReadIdx: index('idx_notifications_is_read').on(table.isRead),
     createdAtIdx: index('idx_notifications_created_at').on(table.createdAt),

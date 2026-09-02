@@ -22,6 +22,7 @@ import { OnboardingPage } from './components/onboarding/OnboardingPage';
 import { WorkspacesSelectionPage } from './components/workspace/WorkspacesSelectionPage';
 import { WikiView } from './components/wiki/WikiView';
 import { KnowledgeCenterView } from './components/knowledge/KnowledgeCenterView';
+import { NotificationsView } from './components/notifications/NotificationsView';
 import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
@@ -77,6 +78,7 @@ const pathToTabMap: Record<string, string> = {
   '/workspace': 'workspace',
   '/dashboard': 'dashboard',
   '/onboarding': 'onboarding',
+  '/notifications': 'notifications',
 };
 
 const tabToPathMap: Record<string, string> = {
@@ -98,6 +100,7 @@ const tabToPathMap: Record<string, string> = {
   dashboard: '/dashboard',
   onboarding: '/onboarding',
   workspaces: '/workspaces',
+  notifications: '/notifications',
 };
 
 const MainAppContent: React.FC = () => {
@@ -317,6 +320,8 @@ const MainAppContent: React.FC = () => {
         return <WorkspacesSelectionPage />;
       case 'onboarding':
         return <OnboardingPage />;
+      case 'notifications':
+        return <NotificationsView />;
       case 'workspace':
         return (
           <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workspace configuration and member management is restricted to Company Administrators." />}>

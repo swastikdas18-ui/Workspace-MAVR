@@ -1,5 +1,6 @@
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
+import { NotificationService } from '../services/notification-service';
 
 export interface TaskEntity {
   id: string;
@@ -946,6 +947,24 @@ export class TaskRepository {
       type: 'comment',
       comment: content.trim(),
     }, workspaceId);
+
+    // Trigger comment_mentioned notification to task assignee if different from commenter
+    try {
+      const task = inMemoryDb.tasks.get(taskId);
+      if (task && task.assignedTo && task.assignedTo !== userId) {
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: task.assignedTo,
+          actorId: userId,
+          type: 'comment_mentioned',
+          title: 'New Comment on Task',
+          message: `${authorName} commented on task "${task.title}": "${content.slice(0, 60)}"`,
+          entityType: 'task',
+          entityId: taskId,
+          link: `/tasks/${taskId}`,
+        });
+      }
+    } catch {}
 
     return {
       id: commentId,

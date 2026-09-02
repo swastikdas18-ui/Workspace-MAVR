@@ -3,6 +3,7 @@ import { can, normalizeRole } from '../lib/permissions';
 import { TaskRepository, TaskEntity, TaskCommentEntity, TaskUpdateEntity } from '../repositories/task-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { NotificationRepository } from '../repositories/notification-repository';
+import { NotificationService } from './notification-service';
 import { EventService } from './event-service';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 import { inArray } from 'drizzle-orm';
@@ -300,14 +301,17 @@ export class TaskService {
 
     // Dispatch Notification to Assignee if different from creator
     if (assignedTo !== userId) {
-      await NotificationRepository.createNotification({
+      await NotificationService.createNotification({
         workspaceId,
-        userId: assignedTo,
+        recipientId: assignedTo,
+        actorId: userId,
         title: 'New Task Assigned',
         message: `You have been assigned task "${task.title}" on project "${project.title}".`,
         type: 'task_assigned',
-        metadata: { taskId: task.id, projectId: task.projectId },
-      });
+        entityType: 'task',
+        entityId: task.id,
+        link: `/tasks/${task.id}`,
+      }).catch(() => null);
     }
 
     // Emit event: Task Created
@@ -555,7 +559,7 @@ export class TaskService {
       // Recalculate project progress
       await this.recalculateProjectProgress(workspaceId, updatedTask.projectId);
 
-      // Emit event: Task Completed
+      // Emit event: Task Completed for Automation Engine
       if (targetStatus === 'done' || targetStatus === 'completed') {
         await EventService.emitTaskCompleted(
           { workspaceId, actorId: userId },
@@ -567,6 +571,21 @@ export class TaskService {
           }
         );
       }
+
+      // Dispatch Notification for status change
+      if (updatedTask.assignedTo && updatedTask.assignedTo !== userId) {
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: updatedTask.assignedTo,
+          actorId: userId,
+          type: 'task_status_changed',
+          title: 'Task Status Updated',
+          message: `Task "${updatedTask.title}" status changed to ${targetStatus}.`,
+          entityType: 'task',
+          entityId: updatedTask.id,
+          link: `/tasks/${updatedTask.id}`,
+        }).catch(() => null);
+      }
     }
 
     // Reassignment log & notification
@@ -577,14 +596,17 @@ export class TaskService {
         comment: `Task reassigned from ${existing.assignedTo} to ${newAssignee}`,
       }, workspaceId);
 
-      await NotificationRepository.createNotification({
+      await NotificationService.createNotification({
         workspaceId,
-        userId: newAssignee,
+        recipientId: newAssignee,
+        actorId: userId,
         title: 'Task Assigned to You',
         message: `You have been assigned task "${updatedTask.title}".`,
         type: 'task_assigned',
-        metadata: { taskId: updatedTask.id, projectId: updatedTask.projectId },
-      });
+        entityType: 'task',
+        entityId: updatedTask.id,
+        link: `/tasks/${updatedTask.id}`,
+      }).catch(() => null);
     }
 
     const userMap = await this.resolveAssigneeMap([updatedTask.assignedTo]);

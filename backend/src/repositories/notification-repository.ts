@@ -5,10 +5,15 @@ import { EventBus } from '../realtime/event-bus';
 export interface NotificationEntity {
   id: string;
   workspaceId: string;
+  recipientId: string;
   userId: string;
+  actorId?: string | null;
   title: string;
   message: string;
   type: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  link?: string | null;
   isRead: boolean;
   metadata?: Record<string, any> | null;
   createdAt: Date;
@@ -17,10 +22,15 @@ export interface NotificationEntity {
 export interface CreateNotificationParams {
   id?: string;
   workspaceId: string;
+  recipientId?: string;
   userId: string;
+  actorId?: string | null;
   title: string;
   message: string;
   type: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  link?: string | null;
   isRead?: boolean;
   metadata?: Record<string, any> | null;
   createdAt?: Date;
@@ -42,14 +52,20 @@ export class NotificationRepository {
   ): Promise<NotificationEntity> {
     const id = data.id || 'notif-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
     const now = data.createdAt || new Date();
+    const recipientId = data.recipientId || data.userId;
 
     const record: NotificationEntity = {
       id,
       workspaceId: data.workspaceId,
-      userId: data.userId,
+      recipientId,
+      userId: recipientId,
+      actorId: data.actorId || null,
       title: data.title,
       message: data.message,
       type: data.type,
+      entityType: data.entityType || null,
+      entityId: data.entityId || null,
+      link: data.link || null,
       isRead: data.isRead ?? false,
       metadata: data.metadata || null,
       createdAt: now,
@@ -64,10 +80,15 @@ export class NotificationRepository {
         await runner.insert(schema.notifications).values({
           id,
           workspaceId: data.workspaceId,
-          userId: data.userId,
+          recipientId,
+          userId: recipientId,
+          actorId: data.actorId || null,
           title: data.title,
           message: data.message,
           type: data.type,
+          entityType: data.entityType || null,
+          entityId: data.entityId || null,
+          link: data.link || null,
           isRead: data.isRead ?? false,
           metadata: data.metadata || null,
           createdAt: now,
@@ -124,13 +145,18 @@ export class NotificationRepository {
           .offset(offset);
 
         if (rows.length > 0) {
-          return rows.map((r) => ({
+          return rows.map((r: any) => ({
             id: r.id,
             workspaceId: r.workspaceId,
-            userId: r.userId,
+            recipientId: r.recipientId || r.userId,
+            userId: r.userId || r.recipientId,
+            actorId: r.actorId || null,
             title: r.title,
             message: r.message,
             type: r.type,
+            entityType: r.entityType || null,
+            entityId: r.entityId || null,
+            link: r.link || null,
             isRead: r.isRead,
             metadata: (r.metadata as Record<string, any>) || null,
             createdAt: r.createdAt,
@@ -143,8 +169,11 @@ export class NotificationRepository {
 
     // Fallback to inMemoryDb
     let list = Array.from(inMemoryDb.notifications.values()).filter(
-      (n) => n.workspaceId === workspaceId && n.userId === userId
-    );
+      (n: any) => n.workspaceId === workspaceId && (n.recipientId === userId || n.userId === userId)
+    ).map((n: any) => ({
+      ...n,
+      recipientId: n.recipientId || n.userId,
+    }));
 
     if (options.unreadOnly) {
       list = list.filter((n) => !n.isRead);
@@ -163,7 +192,9 @@ export class NotificationRepository {
     notificationId: string
   ): Promise<boolean> {
     const memoryItem = inMemoryDb.notifications.get(notificationId);
-    if (memoryItem && memoryItem.workspaceId === workspaceId && memoryItem.userId === userId) {
+    const isOwner = memoryItem && memoryItem.workspaceId === workspaceId && (memoryItem.recipientId === userId || memoryItem.userId === userId);
+    
+    if (isOwner && memoryItem) {
       memoryItem.isRead = true;
     }
 
@@ -177,16 +208,16 @@ export class NotificationRepository {
             and(
               eq(schema.notifications.id, notificationId),
               eq(schema.notifications.workspaceId, workspaceId),
-              eq(schema.notifications.userId, userId)
+              eq(schema.notifications.recipientId, userId)
             )
           );
-        return true;
+        return isOwner;
       }
     } catch {
       // Handled
     }
 
-    return !!memoryItem;
+    return isOwner;
   }
 
   /**

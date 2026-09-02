@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
+import { NotificationService } from '../services/notification-service';
 import { NotificationRepository } from '../repositories/notification-repository';
 import { inMemoryDb } from '../../packages/database/index.js';
 
@@ -19,7 +20,7 @@ notificationRouter.get('/unread-count', async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const count = await NotificationRepository.getUnreadCount(workspace.id, user.id);
+    const count = await NotificationService.getUnreadCount(workspace.id, user.id);
     return c.json({ count }, 200);
   } catch (err: any) {
     return c.json(
@@ -31,7 +32,7 @@ notificationRouter.get('/unread-count', async (c) => {
 
 /**
  * GET /api/notifications - Fetch user's own notifications in the active workspace
- * RBAC: All roles (ADMIN, EMPLOYEE, INTERN) can access their own notifications.
+ * RBAC: Users can only access their own notifications.
  */
 notificationRouter.get('/', async (c) => {
   try {
@@ -46,7 +47,9 @@ notificationRouter.get('/', async (c) => {
     const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
     const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0;
 
-    const notifications = await NotificationRepository.getNotifications(workspace.id, user.id, {
+    const notifications = await NotificationService.getNotifications({
+      workspaceId: workspace.id,
+      recipientId: user.id,
       unreadOnly,
       limit,
       offset,
@@ -73,7 +76,7 @@ notificationRouter.patch('/read-all', async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const updatedCount = await NotificationRepository.markAllAsRead(workspace.id, user.id);
+    const updatedCount = await NotificationService.markAllRead(workspace.id, user.id);
     return c.json({ success: true, updatedCount }, 200);
   } catch (err: any) {
     return c.json(
@@ -96,7 +99,7 @@ notificationRouter.patch('/:id/read', async (c) => {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
-    const success = await NotificationRepository.markAsRead(workspace.id, user.id, id);
+    const success = await NotificationService.markRead(workspace.id, user.id, id);
     if (!success) {
       return c.json({ error: { code: 'NOT_FOUND', message: 'Notification not found.' } }, 404);
     }

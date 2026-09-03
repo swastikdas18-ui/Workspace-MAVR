@@ -157,6 +157,78 @@ export class NotificationRepository {
   }
 
   /**
+   * Get notification by ID with workspace scoping
+   */
+  static async getNotificationById(
+    workspaceId: string,
+    notificationId: string
+  ): Promise<NotificationEntity | null> {
+    const memoryItem = inMemoryDb.notifications.get(notificationId);
+    if (memoryItem && memoryItem.workspaceId === workspaceId) {
+      return {
+        id: memoryItem.id,
+        workspaceId: memoryItem.workspaceId,
+        recipientId: memoryItem.recipientId || memoryItem.userId,
+        userId: memoryItem.userId || memoryItem.recipientId,
+        actorId: memoryItem.actorId || null,
+        title: memoryItem.title,
+        message: memoryItem.message,
+        type: memoryItem.type,
+        priority: memoryItem.priority || 'medium',
+        entityType: memoryItem.entityType || null,
+        entityId: memoryItem.entityId || null,
+        link: memoryItem.link || null,
+        isRead: memoryItem.isRead,
+        archived: memoryItem.archived ?? false,
+        metadata: memoryItem.metadata || null,
+        createdAt: memoryItem.createdAt,
+      };
+    }
+
+    try {
+      const db = getDb();
+      if (db) {
+        const [row] = await db
+          .select()
+          .from(schema.notifications)
+          .where(
+            and(
+              eq(schema.notifications.id, notificationId),
+              eq(schema.notifications.workspaceId, workspaceId)
+            )
+          )
+          .limit(1);
+
+        if (row) {
+          const r = row as any;
+          return {
+            id: r.id,
+            workspaceId: r.workspaceId,
+            recipientId: r.recipientId || r.userId,
+            userId: r.userId || r.recipientId,
+            actorId: r.actorId || null,
+            title: r.title,
+            message: r.message,
+            type: r.type,
+            priority: r.priority || 'medium',
+            entityType: r.entityType || null,
+            entityId: r.entityId || null,
+            link: r.link || null,
+            isRead: r.isRead,
+            archived: r.archived ?? false,
+            metadata: (r.metadata as Record<string, any>) || null,
+            createdAt: r.createdAt,
+          };
+        }
+      }
+    } catch {
+      // Handled
+    }
+
+    return null;
+  }
+
+  /**
    * Create a new notification for a user in a workspace
    */
   static async createNotification(

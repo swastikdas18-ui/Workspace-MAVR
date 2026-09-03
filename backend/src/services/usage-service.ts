@@ -14,10 +14,13 @@
  * - Overage cost estimates
  */
 
-import { inMemoryDb } from '../../packages/database/index.js';
-import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
-import { PricingEngine } from './pricing-engine';
-import { BILLING_ENABLED } from '../config/features';
+import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository.js';
+import { WorkspaceRepository } from '../repositories/workspace-repository.js';
+import { ProjectRepository } from '../repositories/project-repository.js';
+import { DocumentRepository } from '../repositories/document-repository.js';
+import { AutomationRepository } from '../repositories/automation-repository.js';
+import { PricingEngine } from './pricing-engine.js';
+import { BILLING_ENABLED } from '../config/features.js';
 
 export type SeatWarningLevel = 'ok' | 'approaching' | 'critical' | 'exceeded';
 
@@ -124,48 +127,41 @@ export class UsageService {
     const planLimits = planDef.limits;
     const includedSeats = planDef.includedSeats;
 
-    // 1. Members count
-    let membersCount = 0;
-    for (const m of inMemoryDb.workspaceMembers.values()) {
-      if (m.workspaceId === workspaceId) membersCount++;
-    }
+    // 1. Members count via WorkspaceRepository
+    const memberEntities = await WorkspaceRepository.getWorkspaceMembers(workspaceId);
+    let membersCount = memberEntities.length;
     if (membersCount === 0) membersCount = 1;
 
-    // 2. Projects count
-    let projectsCount = 0;
-    for (const p of inMemoryDb.projects.values()) {
-      if (p.workspaceId === workspaceId) projectsCount++;
-    }
+    // 2. Projects count via ProjectRepository
+    const projectEntities = await ProjectRepository.listProjects(workspaceId);
+    const projectsCount = projectEntities.length;
 
-    // 3. Storage (MB)
+    // 3. Storage (MB) via DocumentRepository
     let totalBytes = 0;
-    for (const d of inMemoryDb.documents.values()) {
-      if (d.workspaceId === workspaceId) {
-        if (typeof d.fileSizeBytes === 'number') totalBytes += d.fileSizeBytes;
-        else if (typeof d.fileSize === 'number') totalBytes += d.fileSize;
-        else if (typeof d.fileSize === 'string') {
-          const match = d.fileSize.match(/([\d.]+)\s*(MB|KB|GB|B)/i);
-          if (match) {
-            const val = parseFloat(match[1]);
-            const unit = match[2].toUpperCase();
-            if (unit === 'MB') totalBytes += val * 1048576;
-            else if (unit === 'KB') totalBytes += val * 1024;
-            else if (unit === 'GB') totalBytes += val * 1073741824;
-            else totalBytes += val;
-          } else totalBytes += 102400;
+    const documentEntities = await DocumentRepository.listDocuments(workspaceId);
+    for (const d of documentEntities) {
+      if (typeof d.fileSizeBytes === 'number') totalBytes += d.fileSizeBytes;
+      else if (typeof (d as any).fileSize === 'number') totalBytes += (d as any).fileSize;
+      else if (typeof d.fileSize === 'string') {
+        const match = d.fileSize.match(/([\d.]+)\s*(MB|KB|GB|B)/i);
+        if (match) {
+          const val = parseFloat(match[1]);
+          const unit = match[2].toUpperCase();
+          if (unit === 'MB') totalBytes += val * 1048576;
+          else if (unit === 'KB') totalBytes += val * 1024;
+          else if (unit === 'GB') totalBytes += val * 1073741824;
+          else totalBytes += val;
         } else totalBytes += 102400;
-      }
+      } else totalBytes += 102400;
     }
     const storageMb = Number((totalBytes / 1048576).toFixed(2));
 
     // 4. API requests
     const apiRequests = this.apiRequestCounter.get(workspaceId) || 0;
 
-    // 5. Active automations
-    let automationsCount = 0;
-    for (const r of inMemoryDb.automationRules.values()) {
-      if (r.workspaceId === workspaceId && r.isActive !== false) automationsCount++;
-    }
+    // 5. Active automations via AutomationRepository
+    const allRules = await AutomationRepository.listRules(workspaceId);
+    const automationsCount = allRules.filter((r) => r.isActive !== false && r.enabled !== false).length;
 
     const calcPercent = (curr: number, limit: number) => {
       if (limit >= 9999) return 0;

@@ -37,12 +37,7 @@ import { env } from './config/env.js';
 import { requestLogger } from './middleware/logger.js';
 import { securityHeaders } from './middleware/security.js';
 import { csrfProtection } from './middleware/csrf.js';
-import {
-  authRateLimiter,
-  inviteRateLimiter,
-  workspaceRateLimiter,
-  apiRateLimiter,
-} from './middleware/rate-limiter';
+import { applyGlobalRateLimiting } from './middleware/rate-limiter.js';
 
 export const app = new Hono();
 console.log('[BOOT] Hono app instantiated');
@@ -181,21 +176,17 @@ app.get('/storage/health', async (c) => {
   return c.json(storageHealth, storageHealth.status === 'error' ? 503 : 200);
 });
 
-// Mount API routes with Rate Limiting
-app.use('/api/auth/*', authRateLimiter);
-app.use('/auth/*', authRateLimiter);
+// Phase 37 (HIGH-02): Single Source of Truth for Global Rate Limiting.
+// Protects ALL routes (/api/*, root-mounted routes, legacy aliases) with zero bypass.
+applyGlobalRateLimiting(app);
+console.log('[BOOT] global rate limiting registered');
+
 app.route('/api/auth', authRouter);
 app.route('/auth', authRouter);
 
-app.use('/api/invites/*', inviteRateLimiter);
-app.use('/invites/*', inviteRateLimiter);
 app.route('/api/invites', inviteRouter);
 app.route('/invites', inviteRouter);
 
-app.use('/api/workspace/*', workspaceRateLimiter);
-app.use('/workspace/*', workspaceRateLimiter);
-app.use('/api/workspaces/*', workspaceRateLimiter);
-app.use('/workspaces/*', workspaceRateLimiter);
 app.route('/api/workspace', workspaceRouter);
 app.route('/workspace', workspaceRouter);
 app.route('/api/workspaces', workspaceRouter);
@@ -253,8 +244,6 @@ const deleteDirectMemberHandler = async (c: any) => {
 app.delete('/api/members/:id', authMiddleware, deleteDirectMemberHandler);
 app.delete('/members/:id', authMiddleware, deleteDirectMemberHandler);
 
-
-app.use('/api/*', apiRateLimiter);
 
 app.route('/api/projects', projectRouter);
 app.route('/projects', projectRouter);

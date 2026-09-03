@@ -604,5 +604,31 @@ export class WorkspaceRepository {
       return true;
     }
   }
+
+
+
+  /**
+   * Update active workspace for a user session
+   */
+  static async updateSessionWorkspace(sessionToken: string, workspaceId: string): Promise<void> {
+    const session = inMemoryDb.sessions.get(sessionToken);
+    if (session) {
+      session.workspaceId = workspaceId;
+      session.lastActiveAt = new Date();
+      inMemoryDb.sessions.set(sessionToken, session);
+    }
+
+    try {
+      const db = getDb();
+      if (db && sessionToken) {
+        await db
+          .update(schema.sessions)
+          .set({ workspaceId, lastActiveAt: new Date() })
+          .where(eq(schema.sessions.token, sessionToken));
+      }
+    } catch (err: any) {
+      console.warn('[WorkspaceRepository.updateSessionWorkspace] DB note:', err?.message);
+    }
+  }
 }
 

@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { inMemoryDb, getDb, schema } from '../../packages/database/index.js';
-import { eq } from 'drizzle-orm';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { DashboardService } from '../services/dashboard-service';
+import { ProjectRepository } from '../repositories/project-repository';
+import { TaskRepository } from '../repositories/task-repository';
+import { WorkspaceRepository } from '../repositories/workspace-repository';
+import { CRMRepository } from '../repositories/crm-repository';
 
 export const dashboardRouter = new Hono();
 
@@ -37,44 +39,19 @@ dashboardRouter.get('/', async (c) => {
 
     const wsId = workspace.id;
 
-    // 1. Projects
-    let projectsCount = 0;
-    // 2. Tasks
-    let tasksCount = 0;
-    let completedTasksCount = 0;
-    // 3. Members
-    let membersCount = 0;
-    // 4. CRM
-    let crmLeadsCount = 0;
+    // Fetch via Repositories (PostgreSQL source of truth with graceful test isolation fallback)
+    const [projects, tasks, members, crmRecords] = await Promise.all([
+      ProjectRepository.listProjects(wsId),
+      TaskRepository.listTasks(wsId),
+      WorkspaceRepository.getWorkspaceMembers(wsId),
+      CRMRepository.listRecords(wsId),
+    ]);
 
-    const db = getDb();
-    if (db) {
-      try {
-        const [projRows, taskRows, memberRows, crmRows] = await Promise.all([
-          db.select().from(schema.projects).where(eq(schema.projects.workspaceId, wsId)),
-          db.select().from(schema.tasks).where(eq(schema.tasks.workspaceId, wsId)),
-          db.select().from(schema.workspaceMembers).where(eq(schema.workspaceMembers.workspaceId, wsId)),
-          db.select().from(schema.crmRecords).where(eq(schema.crmRecords.workspaceId, wsId)),
-        ]);
-
-        projectsCount = projRows.length;
-        tasksCount = taskRows.length;
-        completedTasksCount = taskRows.filter((t) => t.status === 'completed').length;
-        membersCount = memberRows.length;
-        crmLeadsCount = crmRows.length;
-      } catch (err: any) {
-        console.warn('[Dashboard API] DB aggregation fallback to memory:', err.message);
-      }
-    }
-
-    if (projectsCount === 0 && tasksCount === 0 && membersCount === 0) {
-      projectsCount = Array.from(inMemoryDb.projects.values()).filter((p) => p.workspaceId === wsId).length;
-      const memTasks = Array.from(inMemoryDb.tasks.values()).filter((t) => t.workspaceId === wsId);
-      tasksCount = memTasks.length;
-      completedTasksCount = memTasks.filter((t) => t.status === 'completed').length;
-      membersCount = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.workspaceId === wsId).length || 1;
-      crmLeadsCount = Array.from(inMemoryDb.crmRecords.values()).filter((r) => r.workspaceId === wsId).length;
-    }
+    const projectsCount = projects.length;
+    const tasksCount = tasks.length;
+    const completedTasksCount = tasks.filter((t) => t.status === 'completed' || t.status === 'done').length;
+    const membersCount = Math.max(1, members.length);
+    const crmLeadsCount = crmRecords.length;
 
     const engagement = await AnalyticsRepository.getEngagementSummary(wsId);
     const recentActivity = await AnalyticsRepository.getEvents(wsId, 10);

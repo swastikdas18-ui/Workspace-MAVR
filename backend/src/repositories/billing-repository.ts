@@ -420,14 +420,23 @@ export class BillingRepository {
   /**
    * Get all paid subscriptions across all workspaces (for founder console)
    */
-  public static getAllSubscriptions() {
+  public static async getAllSubscriptions() {
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db.select().from(subscriptions);
+        if (rows && rows.length > 0) return rows;
+      }
+    } catch {
+      // Fallback to in-memory
+    }
     return Array.from(inMemoryDb.subscriptions.values());
   }
 
   /**
    * Get all payment records (for MRR calculation)
    */
-  public static getAllPayments() {
+  public static async getAllPayments() {
     return Array.from(inMemoryDb.billingPayments?.values() || []);
   }
 }

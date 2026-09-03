@@ -56,6 +56,7 @@ export function normalizeRole(role: string | null | undefined): UserRole | 'gues
   if (lower === 'founder') return 'admin';
   if (lower === 'owner') return 'admin';
   if (lower === 'admin') return 'admin';
+  if (lower === 'lead' || lower === 'manager' || lower === 'dept_head') return 'lead';
   if (lower === 'intern') return 'intern';
   if (lower === 'guest') return 'guest';
   return 'employee';
@@ -72,6 +73,64 @@ export function can(
   // 1. ADMIN - Full System Access
   if (normalizedRole === 'admin') {
     return true;
+  }
+
+  // 1b. LEAD / Department Head — Employee permissions + team management + leave approval
+  if (normalizedRole === 'lead') {
+    switch (action) {
+      case 'workspace:read':
+      case 'members:read':
+      case 'projects:read':
+      case 'projects:create':
+      case 'projects:update':
+      case 'tasks:read':
+      case 'tasks:create':
+      case 'tasks:update':
+      case 'tasks:updateStatus':
+      case 'tasks:comment':
+      case 'teams:read':
+      case 'teams:update':
+      case 'documents:read':
+      case 'documents:download':
+      case 'documents:createPersonal':
+      case 'documents:createOrg':
+      case 'crm:read':
+      case 'crm:create':
+      case 'crm:update':
+      case 'crm:editNotes':
+      case 'wiki:read':
+      case 'wiki:create':
+      case 'wiki:update':
+      case 'wiki:comment':
+      case 'time:read':
+      case 'time:log':
+      case 'time:manage':
+      case 'portal:access':
+      case 'portal:approve':
+      case 'analytics:read':
+        return true;
+
+      // Cannot manage workspace-level admin, billing, or delete resources
+      case 'workspace:manage':
+      case 'workspace:update':
+      case 'workspace:delete':
+      case 'members:invite':
+      case 'members:manage':
+      case 'projects:delete':
+      case 'tasks:delete':
+      case 'teams:create':
+      case 'teams:delete':
+      case 'documents:delete':
+      case 'crm:delete':
+      case 'wiki:delete':
+      case 'billing:read':
+      case 'billing:manage':
+      case 'admin:tools':
+        return false;
+
+      default:
+        return false;
+    }
   }
 
   // 2. EMPLOYEE - Operational execution within assigned scope

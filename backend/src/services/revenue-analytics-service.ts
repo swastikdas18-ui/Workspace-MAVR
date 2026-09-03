@@ -5,7 +5,7 @@
  * captured payments. Zero fallback constants.
  */
 
-import { inMemoryDb } from '../../packages/database/index.js';
+import { BillingRepository } from '../repositories/billing-repository.js';
 
 export interface RevenueMetrics {
   mrr: number;
@@ -21,8 +21,8 @@ export interface RevenueMetrics {
 
 export class RevenueAnalyticsService {
   public static async calculateRevenue(): Promise<RevenueMetrics> {
-    const allSubscriptions = Array.from(inMemoryDb.subscriptions.values());
-    const allPayments = Array.from(inMemoryDb.billingPayments.values());
+    const allSubscriptions = await BillingRepository.getAllSubscriptions();
+    const allPayments = await BillingRepository.getAllPayments();
 
     let mrr = 0;
     let activePaidWorkspaces = 0;

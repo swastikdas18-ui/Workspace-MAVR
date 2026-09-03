@@ -782,6 +782,55 @@ export class PeopleRepository {
     workspaceId: string,
     options?: { userId?: string; status?: string; reviewerId?: string }
   ): Promise<LeaveRequestEntity[]> {
+    try {
+      const db = getDb();
+      if (db) {
+        const conditions = [eq(schema.leaveRequests.workspaceId, workspaceId)];
+        if (options?.userId) {
+          conditions.push(eq(schema.leaveRequests.userId, options.userId));
+        }
+        if (options?.status) {
+          conditions.push(eq(schema.leaveRequests.status, options.status));
+        }
+        if (options?.reviewerId) {
+          conditions.push(eq(schema.leaveRequests.reviewerId, options.reviewerId));
+        }
+
+        const rows = await db
+          .select()
+          .from(schema.leaveRequests)
+          .where(and(...conditions))
+          .orderBy(desc(schema.leaveRequests.createdAt));
+
+        if (rows && rows.length > 0) {
+          return rows.map((l: any) => ({
+            id: l.id,
+            workspaceId: l.workspaceId,
+            userId: l.userId,
+            user: inMemoryDb.users.get(l.userId)
+              ? { id: l.userId, name: inMemoryDb.users.get(l.userId)?.name, email: inMemoryDb.users.get(l.userId)?.email }
+              : undefined,
+            leaveType: l.leaveType,
+            startDate: new Date(l.startDate),
+            endDate: new Date(l.endDate),
+            daysCount: l.daysCount || 1,
+            reason: l.reason,
+            status: l.status,
+            reviewerId: l.reviewerId || null,
+            reviewer: l.reviewerId && inMemoryDb.users.get(l.reviewerId)
+              ? { id: l.reviewerId, name: inMemoryDb.users.get(l.reviewerId)?.name, email: inMemoryDb.users.get(l.reviewerId)?.email }
+              : null,
+            reviewedAt: l.reviewedAt ? new Date(l.reviewedAt) : null,
+            reviewNotes: l.reviewNotes || null,
+            createdAt: new Date(l.createdAt),
+            updatedAt: new Date(l.updatedAt),
+          }));
+        }
+      }
+    } catch (err: any) {
+      console.warn('[PeopleRepository.listLeaveRequests] DB error fallback:', err?.message);
+    }
+
     let list = Array.from(inMemoryDb.leaveRequests.values()).filter((l) => l.workspaceId === workspaceId);
 
     if (options?.userId) {
@@ -789,6 +838,9 @@ export class PeopleRepository {
     }
     if (options?.status) {
       list = list.filter((l) => l.status === options.status);
+    }
+    if (options?.reviewerId) {
+      list = list.filter((l) => l.reviewerId === options.reviewerId);
     }
 
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

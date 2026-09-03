@@ -1,27 +1,36 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth.js';
 import { PeopleService } from '../services/people-service.js';
+import { getAuthorizationContext } from '../middleware/rbac.js';
 
 export const peopleRouter = new Hono();
 
 // Enforce auth & session verification across all routes
 peopleRouter.use('*', authMiddleware);
 
+/**
+ * Phase 36 (HIGH-01): requireAdmin now resolves workspace membership role
+ * via getAuthorizationContext instead of trusting user.role.
+ */
 const requireAdmin = async (c: any, next: any) => {
-  const user = c.get('user');
-  const role = (user?.role || 'employee').toLowerCase();
-  if (role !== 'admin') {
+  const authCtx = await getAuthorizationContext(c);
+  if (authCtx.roleInWorkspace !== 'admin') {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Forbidden: Admin privilege required.' } }, 403);
   }
+  c.set('authContext', authCtx);
   return next();
 };
 
+/**
+ * Phase 36 (HIGH-01): requireLeadOrAdmin now resolves workspace membership role
+ * via getAuthorizationContext instead of trusting user.role.
+ */
 const requireLeadOrAdmin = async (c: any, next: any) => {
-  const user = c.get('user');
-  const role = (user?.role || 'employee').toLowerCase();
-  if (role !== 'admin' && role !== 'lead') {
+  const authCtx = await getAuthorizationContext(c);
+  if (authCtx.roleInWorkspace !== 'admin' && authCtx.roleInWorkspace !== 'lead') {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Forbidden: Manager or Admin privilege required.' } }, 403);
   }
+  c.set('authContext', authCtx);
   return next();
 };
 
@@ -79,13 +88,11 @@ peopleRouter.get('/profiles/:userId', async (c) => {
  */
 peopleRouter.put('/profiles/:userId', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
     const targetUserId = c.req.param('userId');
     const body = await c.req.json();
 
-    const profile = await PeopleService.updateProfile(workspace.id, targetUserId, user.id, role, body);
+    const profile = await PeopleService.updateProfile(authCtx.workspaceId, targetUserId, authCtx.userId, authCtx.roleInWorkspace, body);
     return c.json({ profile, message: 'Profile updated successfully.' }, 200);
   } catch (err: any) {
     const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 400);
@@ -241,17 +248,15 @@ peopleRouter.post('/org-chart/transfer', requireAdmin, async (c) => {
  */
 peopleRouter.get('/leaves', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
 
     const requestedUserId = c.req.query('userId');
     const status = c.req.query('status');
 
     // Employees and interns only see their own requests by default
-    const filterUserId = role === 'admin' || role === 'lead' ? requestedUserId : user.id;
+    const filterUserId = authCtx.roleInWorkspace === 'admin' || authCtx.roleInWorkspace === 'lead' ? requestedUserId : authCtx.userId;
 
-    const leaves = await PeopleService.listLeaves(workspace.id, { userId: filterUserId, status });
+    const leaves = await PeopleService.listLeaves(authCtx.workspaceId, { userId: filterUserId, status });
     return c.json({ leaves }, 200);
   } catch (err: any) {
     return c.json({ error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list leaves.' } }, 500);
@@ -283,13 +288,11 @@ peopleRouter.post('/leaves', async (c) => {
  */
 peopleRouter.patch('/leaves/:id/approve', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
     const leaveId = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
 
-    const leave = await PeopleService.reviewLeave(workspace.id, leaveId, user.id, role, 'approved', body.reviewNotes);
+    const leave = await PeopleService.reviewLeave(authCtx.workspaceId, leaveId, authCtx.userId, authCtx.roleInWorkspace, 'approved', body.reviewNotes);
     return c.json({ leave, message: 'Leave request approved.' }, 200);
   } catch (err: any) {
     const status = err.status || 400;
@@ -302,13 +305,11 @@ peopleRouter.patch('/leaves/:id/approve', async (c) => {
  */
 peopleRouter.patch('/leaves/:id/reject', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
     const leaveId = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
 
-    const leave = await PeopleService.reviewLeave(workspace.id, leaveId, user.id, role, 'rejected', body.reviewNotes);
+    const leave = await PeopleService.reviewLeave(authCtx.workspaceId, leaveId, authCtx.userId, authCtx.roleInWorkspace, 'rejected', body.reviewNotes);
     return c.json({ leave, message: 'Leave request rejected.' }, 200);
   } catch (err: any) {
     const status = err.status || 400;
@@ -384,14 +385,12 @@ peopleRouter.get('/attendance/today', async (c) => {
  */
 peopleRouter.get('/attendance/history', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
 
     const requestedUserId = c.req.query('userId');
-    const filterUserId = role === 'admin' ? requestedUserId : user.id;
+    const filterUserId = authCtx.roleInWorkspace === 'admin' ? requestedUserId : authCtx.userId;
 
-    const history = await PeopleService.listAttendance(workspace.id, {
+    const history = await PeopleService.listAttendance(authCtx.workspaceId, {
       userId: filterUserId,
       startDate: c.req.query('startDate'),
       endDate: c.req.query('endDate'),
@@ -422,18 +421,16 @@ peopleRouter.get('/attendance/metrics', async (c) => {
  */
 peopleRouter.get('/goals', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
 
     const requestedUserId = c.req.query('userId');
     const departmentId = c.req.query('departmentId');
     const category = c.req.query('category');
     const status = c.req.query('status');
 
-    const filterUserId = role === 'admin' || role === 'lead' ? requestedUserId : user.id;
+    const filterUserId = authCtx.roleInWorkspace === 'admin' || authCtx.roleInWorkspace === 'lead' ? requestedUserId : authCtx.userId;
 
-    const goals = await PeopleService.listGoals(workspace.id, {
+    const goals = await PeopleService.listGoals(authCtx.workspaceId, {
       userId: filterUserId,
       departmentId,
       category,
@@ -491,14 +488,12 @@ peopleRouter.patch('/goals/:id/progress', async (c) => {
  */
 peopleRouter.get('/performance/reviews', async (c) => {
   try {
-    const workspace = c.get('workspace');
-    const user = c.get('user');
-    const role = (user.role || 'employee').toLowerCase();
+    const authCtx = await getAuthorizationContext(c);
 
     const requestedUserId = c.req.query('userId');
-    const filterUserId = role === 'admin' ? requestedUserId : user.id;
+    const filterUserId = authCtx.roleInWorkspace === 'admin' ? requestedUserId : authCtx.userId;
 
-    const reviews = await PeopleService.listReviews(workspace.id, {
+    const reviews = await PeopleService.listReviews(authCtx.workspaceId, {
       userId: filterUserId,
       reviewerId: c.req.query('reviewerId'),
       cycle: c.req.query('cycle'),

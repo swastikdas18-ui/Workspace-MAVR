@@ -3,8 +3,6 @@ import { TeamRepository } from '../repositories/team-repository';
 import { ProjectRepository } from '../repositories/project-repository';
 import { TaskRepository } from '../repositories/task-repository';
 import { SafeWorkspace, SafeUser, UserRole } from '../types';
-import { getDb, schema, inMemoryDb, WorkspaceMember, Session } from '../../packages/database/index.js';
-import { eq } from 'drizzle-orm';
 
 export function sanitizeWorkspaceEntity(
   workspace: WorkspaceEntity,
@@ -93,33 +91,8 @@ export class WorkspaceService {
       plan: data.plan || 'free',
     });
 
-    // Create workspace membership for owner as ADMIN
-    const membershipId = crypto.randomUUID();
-    const now = new Date();
-    const membership: WorkspaceMember = {
-      id: membershipId,
-      workspaceId: workspace.id,
-      userId,
-      role: 'admin',
-      joinedAt: now,
-    };
-
-    inMemoryDb.workspaceMembers.set(membershipId, membership);
-
-    try {
-      const db = getDb();
-      if (db) {
-        await db.insert(schema.workspaceMembers).values({
-          id: membershipId,
-          workspaceId: workspace.id,
-          userId,
-          role: 'admin',
-          joinedAt: now,
-        });
-      }
-    } catch (err: any) {
-      console.warn('[WorkspaceService] Membership insert note:', err.message);
-    }
+    // Create workspace membership for owner as ADMIN via WorkspaceRepository
+    await WorkspaceRepository.addWorkspaceMember(workspace.id, userId, 'admin');
 
     return sanitizeWorkspaceEntity(workspace, 'admin', 1);
   }
@@ -135,25 +108,8 @@ export class WorkspaceService {
     // Verify membership in target workspace
     const workspace = await this.getWorkspace(userId, workspaceId);
 
-    // Update active session in memory and PostgreSQL
-    const session = inMemoryDb.sessions.get(sessionToken);
-    if (session) {
-      session.workspaceId = workspace.id;
-      session.lastActiveAt = new Date();
-      inMemoryDb.sessions.set(sessionToken, session);
-    }
-
-    try {
-      const db = getDb();
-      if (db && sessionToken) {
-        await db
-          .update(schema.sessions)
-          .set({ workspaceId: workspace.id, lastActiveAt: new Date() })
-          .where(eq(schema.sessions.token, sessionToken));
-      }
-    } catch (err: any) {
-      console.warn('[WorkspaceService] Session update note:', err.message);
-    }
+    // Update active session in memory and PostgreSQL via WorkspaceRepository
+    await WorkspaceRepository.updateSessionWorkspace(sessionToken, workspace.id);
 
     return workspace;
   }

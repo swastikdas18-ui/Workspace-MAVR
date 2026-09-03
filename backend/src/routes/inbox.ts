@@ -45,9 +45,12 @@ inboxRouter.post('/quick-action', async (c) => {
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'action is required.' } }, 400);
     }
 
+    const userRole = workspace.roleInWorkspace || user.role || 'employee';
+
     const result = await WorkInboxService.executeQuickAction(
       workspace.id,
       user.id,
+      userRole,
       action,
       payload || {}
     );
@@ -55,6 +58,10 @@ inboxRouter.post('/quick-action', async (c) => {
     return c.json(result, 200);
   } catch (err: any) {
     console.error('[inboxRouter.quickAction] Error:', err);
-    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to execute quick action.' } }, 400);
+    const status = err.status || (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED' ? 403 : 400);
+    return c.json(
+      { error: { code: err.code || (status === 403 ? 'FORBIDDEN' : 'BAD_REQUEST'), message: err.message || 'Failed to execute quick action.' } },
+      status
+    );
   }
 });

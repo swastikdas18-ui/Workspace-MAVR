@@ -1,8 +1,11 @@
-import { inMemoryDb } from '../../packages/database/index.js';
 import { ChatRepository } from '../repositories/chat-repository.js';
 import { TaskRepository } from '../repositories/task-repository.js';
+import { ProjectRepository } from '../repositories/project-repository.js';
 import { PeopleRepository } from '../repositories/people-repository.js';
+import { CRMRepository } from '../repositories/crm-repository.js';
 import { NotificationRepository } from '../repositories/notification-repository.js';
+import { AuditRepository } from '../repositories/audit-repository.js';
+import { normalizeRole } from '../lib/permissions.js';
 
 export interface WorkInboxItem {
   id: string;
@@ -112,28 +115,31 @@ export class WorkInboxService {
     // 2. ASSIGNED, OVERDUE & RECENTLY COMPLETED TASKS
     // =========================================================================
     try {
-      const allTasks = Array.from(inMemoryDb.tasks.values()).filter((t: any) => t.workspaceId === workspaceId);
+      const allTasks = await TaskRepository.listTasks(workspaceId, {
+        userId,
+        role: role as any,
+      });
 
       for (const t of allTasks) {
         // RBAC filtering:
         // Interns only see assigned learning tasks
-        if (isIntern && !t.isLearningTask && t.assigneeId !== userId && t.assignedTo !== userId) {
+        if (isIntern && !t.isLearningTask && (t as any).assigneeId !== userId && t.assignedTo !== userId) {
           continue;
         }
 
         // Check user assignment
         const isAssigned =
-          t.assigneeId === userId ||
+          (t as any).assigneeId === userId ||
           t.assignedTo === userId ||
-          (Array.isArray(t.assigneeIds) && t.assigneeIds.includes(userId)) ||
-          (isAdmin && !t.assigneeId && !t.assignedTo); // Unassigned tasks visible to admin
+          (Array.isArray((t as any).assigneeIds) && (t as any).assigneeIds.includes(userId)) ||
+          (isAdmin && !(t as any).assigneeId && !t.assignedTo); // Unassigned tasks visible to admin
 
         if (!isAssigned) continue;
 
         const isDone = t.status === 'done' || t.status === 'completed';
 
         if (isDone) {
-          const completionTime = t.completedAt ? new Date(t.completedAt) : t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt);
+          const completionTime = t.completedAt ? new Date(t.completedAt) : (t as any).updatedAt ? new Date((t as any).updatedAt) : new Date(t.createdAt);
           if (completionTime >= sevenDaysAgo) {
             completedRecently.push({
               id: `task-done-${t.id}`,
@@ -146,8 +152,10 @@ export class WorkInboxService {
               actionRoute: `/tasks/${t.id}`,
               status: t.status,
               timestamp: completionTime,
+              metadata: { taskId: t.id, priority: t.priority },
             });
           }
+          continue;
         } else {
           // Open task: evaluate due date
           const taskDueDate = t.dueDate ? new Date(t.dueDate) : null;
@@ -227,7 +235,7 @@ export class WorkInboxService {
     // =========================================================================
     if (!isIntern) {
       try {
-        const allProjects = Array.from(inMemoryDb.projects.values()).filter((p: any) => p.workspaceId === workspaceId);
+        const allProjects = await ProjectRepository.listProjects(workspaceId, userId, role);
 
         for (const p of allProjects) {
           const isAwaitingReview =
@@ -253,7 +261,7 @@ export class WorkInboxService {
               });
             }
           } else if (p.status === 'completed' || p.status === 'done' || p.approvedBy) {
-            const finishTime = p.completedAt ? new Date(p.completedAt) : p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
+            const finishTime = p.completedAt ? new Date(p.completedAt) : (p as any).updatedAt ? new Date((p as any).updatedAt) : new Date(p.createdAt);
             if (finishTime >= sevenDaysAgo) {
               completedRecently.push({
                 id: `initiative-done-${p.id}`,
@@ -292,11 +300,10 @@ export class WorkInboxService {
     // 4. LEAVE REQUESTS AWAITING APPROVAL
     // =========================================================================
     try {
-      const allLeaves = Array.from(inMemoryDb.leaveRequests.values()).filter((l: any) => l.workspaceId === workspaceId);
+      const allLeaves = await PeopleRepository.listLeaveRequests(workspaceId);
 
       for (const l of allLeaves) {
-        const applicant = inMemoryDb.users.get(l.userId);
-        const applicantName = applicant?.name || 'Team Member';
+        const applicantName = l.user?.name || 'Team Member';
 
         if (l.status === 'pending') {
           // If Admin, show all pending leave approvals in urgent
@@ -347,9 +354,7 @@ export class WorkInboxService {
     // =========================================================================
     if (isAdmin || role === 'employee') {
       try {
-        const allLeads = Array.from(inMemoryDb.crmRecords.values()).filter(
-          (r: any) => r.workspaceId === workspaceId && (isAdmin || r.ownerId === userId)
-        );
+        const allLeads = await CRMRepository.listRecords(workspaceId, isAdmin ? undefined : { ownerId: userId });
 
         for (const lead of allLeads) {
           if (lead.status === 'new' || lead.status === 'contacted' || lead.status === 'negotiation') {
@@ -380,9 +385,10 @@ export class WorkInboxService {
     // 6. HIGH-PRIORITY SYSTEM NOTIFICATIONS
     // =========================================================================
     try {
-      const allNotifs = Array.from(inMemoryDb.notifications.values()).filter(
-        (n: any) => n.workspaceId === workspaceId && n.recipientId === userId && !n.isRead && !n.archived
-      );
+      const allNotifs = await NotificationRepository.getNotifications(workspaceId, userId, {
+        unreadOnly: true,
+        limit: 100,
+      });
 
       for (const notif of allNotifs) {
         // Skip chat mentions if already aggregated under chat section
@@ -447,43 +453,193 @@ export class WorkInboxService {
   }
 
   /**
-   * Execute in-line quick action directly from an inbox card
+   * Execute in-line quick action directly from an inbox card with strict enterprise authorization & audit logging
    */
   public static async executeQuickAction(
     workspaceId: string,
     userId: string,
+    rawRole: string,
     action: string,
     payload: Record<string, any>
   ): Promise<{ success: boolean; message: string }> {
+    const role = normalizeRole(rawRole);
+    const isAdmin = role === 'admin';
+
+    // Helper for audit logging
+    const recordAudit = async (resource: string, targetId: string, result: 'allowed' | 'denied', details?: any) => {
+      try {
+        await AuditRepository.logAudit({
+          workspaceId,
+          userId,
+          action: `inbox.quick_action.${action}`,
+          resource,
+          resourceId: targetId,
+          newValues: { result, details, timestamp: new Date() },
+        });
+      } catch (auditErr: any) {
+        console.warn('[WorkInboxService.executeQuickAction] Audit log warning:', auditErr?.message);
+      }
+    };
+
     switch (action) {
       case 'mark_task_complete': {
         const { taskId } = payload;
         if (!taskId) throw new Error('taskId is required.');
-        const updated = await TaskRepository.updateTask(workspaceId, taskId, { status: 'done', completedAt: new Date() });
+
+        // 1. Fetch task and verify workspace boundary
+        const task = await TaskRepository.getTaskById(workspaceId, taskId);
+        if (!task || task.workspaceId !== workspaceId) {
+          await recordAudit('task', taskId, 'denied', { reason: 'not_found_or_boundary_mismatch' });
+          const error: any = new Error('Task not found in this workspace.');
+          error.code = 'NOT_FOUND';
+          error.status = 404;
+          throw error;
+        }
+
+        // 2. Authorization: Assigned user OR Admin only
+        const isAssigned =
+          task.assignedTo === userId ||
+          (task as any).assigneeId === userId ||
+          (Array.isArray((task as any).assigneeIds) && (task as any).assigneeIds.includes(userId));
+
+        if (!isAdmin && !isAssigned) {
+          await recordAudit('task', taskId, 'denied', { reason: 'not_assigned_and_not_admin', role });
+          const error: any = new Error('Forbidden: Only the assigned user or a workspace administrator can mark this task complete.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+
+        // 3. Mutation
+        const updated = await TaskRepository.updateTask(workspaceId, taskId, {
+          status: 'done',
+          completedAt: new Date(),
+        });
         if (!updated) throw new Error('Task not found.');
+
+        await recordAudit('task', taskId, 'allowed', { previousStatus: task.status, newStatus: 'done' });
         return { success: true, message: 'Task marked as complete.' };
       }
 
-      case 'approve_leave': {
-        const { leaveId } = payload;
-        if (!leaveId) throw new Error('leaveId is required.');
-        const updated = await PeopleRepository.reviewLeaveRequest(workspaceId, leaveId, userId, 'approved');
-        if (!updated) throw new Error('Leave request not found.');
-        return { success: true, message: 'Leave request approved successfully.' };
-      }
-
+      case 'approve_leave':
       case 'reject_leave': {
-        const { leaveId } = payload;
+        const { leaveId, reviewNotes } = payload;
         if (!leaveId) throw new Error('leaveId is required.');
-        const updated = await PeopleRepository.reviewLeaveRequest(workspaceId, leaveId, userId, 'rejected');
+        const decision = action === 'approve_leave' ? 'approved' : 'rejected';
+
+        // 1. Fetch leave request and verify workspace boundary
+        const leave = await PeopleRepository.getLeaveRequestById(workspaceId, leaveId);
+        if (!leave || leave.workspaceId !== workspaceId) {
+          await recordAudit('leave_request', leaveId, 'denied', { reason: 'not_found_or_boundary_mismatch' });
+          const error: any = new Error('Leave request not found in this workspace.');
+          error.code = 'NOT_FOUND';
+          error.status = 404;
+          throw error;
+        }
+
+        // 2. Authorization Rules:
+        // - Intern: Denied
+        // - Employee: Denied (cannot approve self or others)
+        // - Department Head: Allowed ONLY for their department
+        // - Workspace Admin: Allowed
+        if (role === 'intern') {
+          await recordAudit('leave_request', leaveId, 'denied', { reason: 'intern_role_forbidden', applicantId: leave.userId });
+          const error: any = new Error('Forbidden: Interns are not authorized to review leave requests.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+
+        let isAuthorized = false;
+
+        if (isAdmin) {
+          isAuthorized = true;
+        } else {
+          // Check if caller is Department Head of the applicant's department
+          const applicantProfile = await PeopleRepository.getProfileByUserId(workspaceId, leave.userId);
+          const applicantDeptId = applicantProfile?.departmentId || applicantProfile?.department?.id;
+
+          if (applicantDeptId) {
+            const department = await PeopleRepository.getDepartmentById(workspaceId, applicantDeptId);
+            if (department && department.headId === userId) {
+              isAuthorized = true;
+            }
+          }
+        }
+
+        if (!isAuthorized) {
+          await recordAudit('leave_request', leaveId, 'denied', { reason: 'insufficient_privileges', role, applicantId: leave.userId });
+          const error: any = new Error('Forbidden: Only workspace administrators or the department head of the applicant can review this leave request.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+
+        // 3. Mutation
+        const updated = await PeopleRepository.reviewLeaveRequest(
+          workspaceId,
+          leaveId,
+          userId,
+          decision,
+          reviewNotes
+        );
         if (!updated) throw new Error('Leave request not found.');
-        return { success: true, message: 'Leave request rejected.' };
+
+        // 4. Side-effects: Notify applicant & emit events if approved
+        try {
+          const reviewerProfile = await PeopleRepository.getProfileByUserId(workspaceId, userId);
+          const reviewerName = reviewerProfile?.user?.name || (isAdmin ? 'Admin' : 'Department Head');
+          const notifType = decision === 'approved' ? 'leave_approved' : 'leave_rejected';
+          const title = decision === 'approved' ? 'Leave Request Approved' : 'Leave Request Rejected';
+          const message = `Your ${leave.leaveType} leave request was ${decision} by ${reviewerName}.`;
+
+          await NotificationRepository.createNotification({
+            workspaceId,
+            recipientId: leave.userId,
+            userId: leave.userId,
+            actorId: userId,
+            type: notifType,
+            title,
+            message,
+            entityType: 'leave_request',
+            entityId: leave.id,
+            link: '/people',
+          });
+        } catch (notifErr: any) {
+          console.warn('[WorkInboxService] Leave review notification warning:', notifErr?.message);
+        }
+
+        await recordAudit('leave_request', leaveId, 'allowed', { decision, applicantId: leave.userId });
+        return { success: true, message: `Leave request ${decision} successfully.` };
       }
 
       case 'mark_notification_read': {
         const { notificationId } = payload;
         if (!notificationId) throw new Error('notificationId is required.');
+
+        // 1. Fetch notification to verify ownership & workspace boundary
+        const notification = await NotificationRepository.getNotificationById(workspaceId, notificationId);
+        if (!notification || notification.workspaceId !== workspaceId) {
+          await recordAudit('notification', notificationId, 'denied', { reason: 'not_found_or_boundary_mismatch' });
+          const error: any = new Error('Notification not found in this workspace.');
+          error.code = 'NOT_FOUND';
+          error.status = 404;
+          throw error;
+        }
+
+        // 2. Authorization: Owner only
+        const isOwner = notification.recipientId === userId || notification.userId === userId;
+        if (!isOwner) {
+          await recordAudit('notification', notificationId, 'denied', { reason: 'not_owner', recipientId: notification.recipientId });
+          const error: any = new Error('Forbidden: You can only mark your own notifications as read.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+
+        // 3. Mutation
         await NotificationRepository.markAsRead(workspaceId, notificationId, userId);
+        await recordAudit('notification', notificationId, 'allowed');
         return { success: true, message: 'Notification marked as read.' };
       }
 

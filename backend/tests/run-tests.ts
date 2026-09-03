@@ -33,6 +33,10 @@ import { runNotificationsEnhancementTests } from './notifications-enhancement.te
 import { runChatSystemTests } from './chat-system.test';
 import { runChatV2Tests } from './chat-v2.test';
 import { runWorkInboxTests } from './work-inbox.test';
+import { runSecurityAuditRbacTests } from './security-audit-rbac.test';
+import { runProductionSplitBrainTests } from './production-split-brain.test';
+import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
+import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 
 async function main() {
   try {
@@ -102,7 +106,15 @@ async function main() {
     await runChatV2Tests();
     console.log('\n>>> Starting Suite 33: Workspace OS — Phase 33 Work Inbox (Action Center & Priority Engine)');
     await runWorkInboxTests();
-    console.log('\n🌟 ALL 33 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 34: Workspace OS — Quick Action RBAC & Security Boundaries');
+    await runSecurityAuditRbacTests();
+    console.log('\n>>> Starting Suite 35: Workspace OS — Production Data Architecture & Split-Brain Remediation');
+    await runProductionSplitBrainTests();
+    console.log('\n>>> Starting Suite 36: Workspace OS — Tenant Role Isolation & People OS Authorization (HIGH-01)');
+    await runTenantRoleIsolationTests();
+    console.log('\n>>> Starting Suite 37: Workspace OS — Global API Rate Limiter Protection (HIGH-02)');
+    await runRateLimitProtectionTests();
+    console.log('\n🌟 ALL 37 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

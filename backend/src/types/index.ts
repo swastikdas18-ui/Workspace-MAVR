@@ -1,6 +1,6 @@
 export type PlatformRole = 'founder' | 'platform_admin' | 'support' | 'none';
 export type WorkspaceRole = 'admin' | 'employee' | 'intern';
-export type UserRole = 'founder' | 'platform_admin' | 'admin' | 'employee' | 'intern' | 'guest';
+export type UserRole = 'founder' | 'platform_admin' | 'admin' | 'lead' | 'employee' | 'intern' | 'guest';
 
 export interface SafeUser {
   id: string;
@@ -24,6 +24,18 @@ export interface SafeWorkspace {
   createdAt: Date | string;
   roleInWorkspace?: UserRole;
   memberCount?: number;
+}
+
+/**
+ * AuthorizationContext — Single source of truth for workspace-scoped authorization.
+ * All People OS authorization decisions MUST use roleInWorkspace from this context,
+ * never user.role (which is a global/registration default).
+ * Phase 36: HIGH-01 Tenant Role Confusion Remediation.
+ */
+export interface AuthorizationContext {
+  userId: string;
+  workspaceId: string;
+  roleInWorkspace: UserRole;
 }
 
 export interface AuthSessionResponse {

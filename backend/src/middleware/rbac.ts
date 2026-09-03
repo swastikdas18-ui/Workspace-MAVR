@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { can, Action, normalizeRole } from '../lib/permissions';
-import { UserRole } from '../types';
+import { UserRole, AuthorizationContext } from '../types';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
 import { WorkspaceRepository } from '../repositories/workspace-repository';
 
@@ -62,6 +62,28 @@ export async function resolveMembershipRole(c: Context): Promise<{ role: UserRol
 
   // If no active workspace context exists on request, use the global role as last resort
   return { role: normalizeRole(user.role), workspaceId: workspace?.id || null };
+}
+
+/**
+ * Build a verified AuthorizationContext from the current Hono request context.
+ * This is the ONLY function People OS routes should use for authorization decisions.
+ * Phase 36: HIGH-01 Tenant Role Confusion Remediation.
+ */
+export async function getAuthorizationContext(c: Context): Promise<AuthorizationContext> {
+  const user = c.get('user');
+  const workspace = c.get('workspace');
+  if (!user || !workspace?.id) {
+    throw Object.assign(new Error('Unauthorized: missing user or workspace context'), {
+      code: 'UNAUTHORIZED',
+      status: 401,
+    });
+  }
+  const { role } = await resolveMembershipRole(c);
+  return {
+    userId: user.id,
+    workspaceId: workspace.id,
+    roleInWorkspace: role,
+  };
 }
 
 function unauthorized(c: Context) {

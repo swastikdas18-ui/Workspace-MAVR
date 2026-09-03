@@ -150,7 +150,7 @@ export const NotificationsView: React.FC = () => {
 
   const handleArchive = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    await fetch(`/api/notifications/${id}/archive`, { method: 'PATCH' }).catch(() => null);
+    await api.archiveNotification(id).catch(() => null);
   };
 
   const handleMarkAllRead = async () => {
@@ -162,11 +162,12 @@ export const NotificationsView: React.FC = () => {
     if (!notif.entityId) return;
     setActionInProgress(notif.id);
     try {
-      await fetch(`/api/people/leaves/${notif.entityId}/${action}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewNotes: `${action === 'approve' ? 'Approved' : 'Rejected'} via Notification Center.` }),
-      });
+      const reviewNotes = `${action === 'approve' ? 'Approved' : 'Rejected'} via Notification Center.`;
+      if (action === 'approve') {
+        await api.approveLeaveRequest(notif.entityId, reviewNotes);
+      } else {
+        await api.rejectLeaveRequest(notif.entityId, reviewNotes);
+      }
       await handleMarkRead(notif.id);
       fetchNotifications();
     } catch (err) {

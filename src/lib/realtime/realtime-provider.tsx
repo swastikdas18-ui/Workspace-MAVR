@@ -28,13 +28,18 @@ export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({
   const [lastMessage, setLastMessage] = useState<RealtimeMessage | null>(null);
 
   useEffect(() => {
+    console.log('[Realtime] RealtimeProvider mounted for workspace:', workspaceId || 'global');
     const activeToken = token || getStoredSessionToken();
     if (activeToken) {
+      console.log('[Realtime] WebSocket connecting...');
       realtimeClient.connect(activeToken, workspaceId);
     }
 
     const unsubState = realtimeClient.onStateChange((connected) => {
       setIsConnected(connected);
+      if (connected) {
+        console.log('[Realtime] WebSocket connected');
+      }
     });
 
     const unsubAll = realtimeClient.on('*', (payload, msg) => {

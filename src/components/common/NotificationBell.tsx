@@ -214,7 +214,7 @@ export const NotificationBell: React.FC = () => {
 
   const archiveNotification = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    await fetch(`/api/notifications/${id}/archive`, { method: 'PATCH' }).catch(() => null);
+    await api.archiveNotification(id).catch(() => null);
   };
 
   // Direct action executor for leave requests
@@ -222,11 +222,12 @@ export const NotificationBell: React.FC = () => {
     if (!notif.entityId) return;
     setActionInProgress(notif.id);
     try {
-      await fetch(`/api/people/leaves/${notif.entityId}/${action}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewNotes: `${action === 'approve' ? 'Approved' : 'Rejected'} directly via Notification inbox.` }),
-      });
+      const reviewNotes = `${action === 'approve' ? 'Approved' : 'Rejected'} directly via Notification inbox.`;
+      if (action === 'approve') {
+        await api.approveLeaveRequest(notif.entityId, reviewNotes);
+      } else {
+        await api.rejectLeaveRequest(notif.entityId, reviewNotes);
+      }
       await markAsRead(notif.id);
       fetchNotifications();
     } catch (err) {

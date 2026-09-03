@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { useRealtime } from '../../lib/realtime/useRealtime';
+import { useRealtime } from '../../lib/realtime';
 import { api } from '../../lib/api';
 import { Conversation, ChatMessage, ConversationMember, User } from '../../types';
 import { UserAvatar } from '../common/UserAvatar';

@@ -138,7 +138,6 @@ export async function runTenantIsolationSecurityTests() {
     id: `doc-beta-${Date.now()}`,
     workspaceId: wsBetaId,
     title: 'Beta Proprietary Roadmap 2026',
-    description: 'Classified roadmap document',
     fileUrl: `/api/documents/vault/${wsBetaId}/roadmap.pdf`,
     fileType: 'pdf',
     mimeType: 'application/pdf',
@@ -146,7 +145,7 @@ export async function runTenantIsolationSecurityTests() {
     fileSizeBytes: 2621440,
     category: 'Legal',
     visibility: 'workspace',
-    uploadedBy: userBetaId,
+    ownerId: userBetaId,
   });
 
   // Beta Chat Conversation & Message

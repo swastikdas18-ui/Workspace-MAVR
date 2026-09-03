@@ -6,15 +6,16 @@
 export const DEFAULT_API_URL = 'https://workspace-mavr.onrender.com';
 
 export const API_BASE_URL: string =
-  ((import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || DEFAULT_API_URL) as string).replace(/\/$/, '');
+  ((import.meta?.env?.VITE_API_URL || import.meta?.env?.VITE_BACKEND_URL || process?.env?.VITE_API_URL || DEFAULT_API_URL) as string).replace(/\/$/, '');
 
 /**
  * Centrally construct authoritative WebSocket URLs targeting the backend server origin.
  */
 export function getWebSocketUrl(token?: string, workspaceId?: string): string {
   const backend =
-    (import.meta.env.VITE_API_URL as string | undefined) ||
-    (import.meta.env.VITE_BACKEND_URL as string | undefined) ||
+    (import.meta?.env?.VITE_API_URL as string | undefined) ||
+    (import.meta?.env?.VITE_BACKEND_URL as string | undefined) ||
+    (process?.env?.VITE_API_URL as string | undefined) ||
     DEFAULT_API_URL;
 
   let wsBase = backend;
@@ -39,8 +40,8 @@ export function getWebSocketUrl(token?: string, workspaceId?: string): string {
  */
 export function getFrontendUrl(path: string = ''): string {
   const frontend =
-    (import.meta.env.VITE_FRONTEND_URL as string | undefined) ||
-    (import.meta.env.VITE_APP_URL as string | undefined) ||
+    (import.meta?.env?.VITE_FRONTEND_URL as string | undefined) ||
+    (import.meta?.env?.VITE_APP_URL as string | undefined) ||
     (typeof window !== 'undefined' ? window.location.origin : '');
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
   return `${frontend.replace(/\/$/, '')}${cleanPath}`;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
+import { RealtimeProvider } from './lib/realtime';
 import { LandingPage } from './components/landing/LandingPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { AdminDashboard } from './components/dashboard/AdminDashboard';
@@ -529,12 +530,22 @@ const MainAppContent: React.FC = () => {
   );
 };
 
+const AppWithRealtime: React.FC = () => {
+  const { currentWorkspace } = useWorkspace();
+  return (
+    <RealtimeProvider workspaceId={currentWorkspace?.id}>
+      <MainAppContent />
+    </RealtimeProvider>
+  );
+};
+
 export default function App() {
   return (
     <ErrorBoundary fallbackTitle="Application Error" onReset={() => window.location.reload()}>
       <WorkspaceProvider>
-        <MainAppContent />
+        <AppWithRealtime />
       </WorkspaceProvider>
     </ErrorBoundary>
   );
 }
+

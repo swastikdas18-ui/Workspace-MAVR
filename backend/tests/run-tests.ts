@@ -37,6 +37,8 @@ import { runSecurityAuditRbacTests } from './security-audit-rbac.test';
 import { runProductionSplitBrainTests } from './production-split-brain.test';
 import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
 import { runRateLimitProtectionTests } from './rate-limit-protection.test';
+import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
+import { runChatRealtimeProviderRegressionTest } from './chat-realtime-provider.test';
 
 async function main() {
   try {
@@ -114,7 +116,11 @@ async function main() {
     await runTenantRoleIsolationTests();
     console.log('\n>>> Starting Suite 37: Workspace OS — Global API Rate Limiter Protection (HIGH-02)');
     await runRateLimitProtectionTests();
-    console.log('\n🌟 ALL 37 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 38: Workspace OS — Cross-Tenant Isolation Security Regression');
+    await runTenantIsolationSecurityTests();
+    console.log('\n>>> Starting Suite 39: Workspace OS — Chat Route Realtime Provider Regression');
+    await runChatRealtimeProviderRegressionTest();
+    console.log('\n🌟 ALL 39 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

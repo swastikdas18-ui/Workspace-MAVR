@@ -30,6 +30,9 @@ import { runDocumentsVisibilityTests } from './documents-visibility.test';
 import { runNotificationsTests } from './notifications.test';
 import { runNotificationsMvpCompleteTests } from './notifications-mvp-complete.test';
 import { runNotificationsEnhancementTests } from './notifications-enhancement.test';
+import { runChatSystemTests } from './chat-system.test';
+import { runChatV2Tests } from './chat-v2.test';
+import { runWorkInboxTests } from './work-inbox.test';
 
 async function main() {
   try {
@@ -93,7 +96,13 @@ async function main() {
     await runNotificationsMvpCompleteTests();
     console.log('\n>>> Starting Suite 30: Notifications MVP Enhancements (Priority, Preferences, Mentions, Actions, Retention, RBAC)');
     await runNotificationsEnhancementTests();
-    console.log('\n🌟 ALL 30 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 31: Workspace Chat & Internal Communication (DMs, Departments, Projects, Announcements, Mentions)');
+    await runChatSystemTests();
+    console.log('\n>>> Starting Suite 32: Workspace OS — Chat V2 (Unread Engine, Mentions Inbox, Real-Time, Typing, Pagination)');
+    await runChatV2Tests();
+    console.log('\n>>> Starting Suite 33: Workspace OS — Phase 33 Work Inbox (Action Center & Priority Engine)');
+    await runWorkInboxTests();
+    console.log('\n🌟 ALL 33 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

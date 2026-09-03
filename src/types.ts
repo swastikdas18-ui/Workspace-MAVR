@@ -325,3 +325,106 @@ export interface EmailLogItemType {
   direction: 'inbound' | 'outbound';
   timestamp: string;
 }
+
+// ==========================================
+// CHAT & COMMUNICATION SYSTEM
+// ==========================================
+export type ConversationType = 'dm' | 'department' | 'project' | 'announcement';
+
+export interface ConversationMember {
+  id: string;
+  conversationId: string;
+  workspaceId: string;
+  userId: string;
+  role: 'admin' | 'member';
+  lastReadAt: string | null;
+  joinedAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string | null;
+    role: string;
+  } | null;
+}
+
+export interface MessageReaction {
+  id: string;
+  messageId: string;
+  conversationId: string;
+  userId: string;
+  emoji: string;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  workspaceId: string;
+  senderId: string;
+  content: string;
+  mentions: string[];
+  isEdited: boolean;
+  isDeleted: boolean;
+  reactions?: MessageReaction[];
+  sender?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string | null;
+    role: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  workspaceId: string;
+  type: ConversationType;
+  title: string | null;
+  description: string | null;
+  departmentId: string | null;
+  projectId: string | null;
+  createdById: string;
+  isArchived: boolean;
+  lastMessageAt: string | null;
+  unreadCount?: number;
+  hasUnreadMention?: boolean;
+  members?: ConversationMember[];
+  lastMessage?: ChatMessage | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Phase 33: Work Inbox (Action Center)
+export interface WorkInboxItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  entityType: 'task' | 'leave' | 'initiative' | 'mention' | 'chat' | 'lead' | 'deal' | 'notification';
+  entityId: string;
+  priority: 'urgent' | 'today' | 'upcoming' | 'completed';
+  actionLabel: string;
+  actionRoute: string;
+  dueDate?: string | null;
+  timestamp: string;
+  status?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface WorkInboxPayload {
+  urgent: WorkInboxItem[];
+  today: WorkInboxItem[];
+  upcoming: WorkInboxItem[];
+  completedRecently: WorkInboxItem[];
+  summary: {
+    totalUrgent: number;
+    totalToday: number;
+    totalUpcoming: number;
+    totalCompletedRecently: number;
+    totalUnresolved: number;
+  };
+}
+
+

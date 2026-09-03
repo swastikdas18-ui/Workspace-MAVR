@@ -81,6 +81,13 @@ export class InMemoryDatabase {
   public goalUpdates: Map<string, any> = new Map();
   public performanceReviews: Map<string, any> = new Map();
 
+  // Phase 18 (Chat & Communication System) Maps
+  public conversations: Map<string, any> = new Map();
+  public conversationMembers: Map<string, any> = new Map();
+  public messages: Map<string, any> = new Map();
+  public messageReactions: Map<string, any> = new Map();
+  public conversationReads: Map<string, any> = new Map();
+
   public reset() {
     this.users.clear();
     this.workspaces.clear();
@@ -157,6 +164,13 @@ export class InMemoryDatabase {
     this.goals.clear();
     this.goalUpdates.clear();
     this.performanceReviews.clear();
+
+    // Phase 18 Chat resets
+    this.conversations.clear();
+    this.conversationMembers.clear();
+    this.messages.clear();
+    this.messageReactions.clear();
+    this.conversationReads.clear();
   }
 }
 

@@ -303,7 +303,7 @@ export class TimeTrackingRepository {
   }): Promise<TaskTimeEntry> {
     const profile = await this.getEmployeeBillingProfile(data.workspaceId, data.userId);
 
-    const id = `time-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id = `time-${crypto.randomUUID()}`;
     const endTime = new Date(data.startTime.getTime() + data.durationMinutes * 60000);
     const now = new Date();
 

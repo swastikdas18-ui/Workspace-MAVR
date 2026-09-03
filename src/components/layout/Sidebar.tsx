@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { api } from '../../lib/api';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock, Zap
+  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock, Zap, MessageSquare, Inbox
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
@@ -26,12 +27,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCommandPalette,
 }) => {
   const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser, logout, systemLogs } = useWorkspace();
+  const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
+  const [inboxUnresolvedCount, setInboxUnresolvedCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBadges = async () => {
+      try {
+        const [chatRes, inboxRes] = await Promise.allSettled([
+          api.getChatUnreadCount(),
+          api.getWorkInbox(),
+        ]);
+
+        if (isMounted && chatRes.status === 'fulfilled' && typeof chatRes.value?.unreadCount === 'number') {
+          setChatUnreadCount(chatRes.value.unreadCount);
+        }
+        if (isMounted && inboxRes.status === 'fulfilled' && typeof inboxRes.value?.summary?.totalUnresolved === 'number') {
+          setInboxUnresolvedCount(inboxRes.value.summary.totalUnresolved);
+        }
+      } catch {}
+    };
+
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 8000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [currentWorkspace?.id, activeTab]);
+
+  const chatBadge = chatUnreadCount > 0 ? String(chatUnreadCount) : null;
+  const chatLabel = chatUnreadCount > 0 ? `Communication Hub (${chatUnreadCount})` : 'Communication Hub';
+  const chatBadgeClass = chatUnreadCount > 0 ? 'bg-red-500 text-white font-bold rounded-full px-2 py-0.2' : undefined;
+
+  const inboxBadge = inboxUnresolvedCount > 0 ? String(inboxUnresolvedCount) : null;
+  const inboxBadgeClass = inboxUnresolvedCount > 0 ? 'bg-rose-500 text-white font-bold rounded-full px-2 py-0.2' : undefined;
 
   // 7 Core Navigation Pillars mapped to role specifications
   const getCoreNavItems = () => {
     if (currentRole === 'admin') {
       return [
         { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, badge: null },
+        { id: 'inbox', label: 'Work Inbox', icon: Inbox, badge: inboxBadge, badgeClass: inboxBadgeClass },
+        { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
         { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
         { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
         { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
@@ -43,9 +81,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     if (currentRole === 'employee') {
       return [
+        { id: 'inbox', label: 'Work Inbox', icon: Inbox, badge: inboxBadge, badgeClass: inboxBadgeClass },
         { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
-        { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
+        { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
         { id: 'tasks', label: 'Tasks & Board', icon: CheckSquare, badge: 'Flow' },
+        { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
         { id: 'teams', label: 'People OS', icon: Users, badge: null },
         { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'Docs' },
         { id: 'settings', label: 'Settings', icon: Settings, badge: null },
@@ -58,9 +98,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Intern Role: strictly Command Sandbox, Learning Tasks, Knowledge Center, Time
+    // Intern Role: strictly Work Inbox, Command Sandbox, Communication Hub, Learning Tasks, Knowledge Center, Time
     return [
+      { id: 'inbox', label: 'Work Inbox', icon: Inbox, badge: inboxBadge, badgeClass: inboxBadgeClass },
       { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
+      { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
       { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
       { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'SOPs' },
       { id: 'time', label: 'Time Logs', icon: Clock, badge: null },
@@ -129,9 +171,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {item.badge && (
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                  isActive
+                  (item as any).badgeClass || (isActive
                     ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30'
-                    : 'bg-slate-800 text-slate-400'
+                    : 'bg-slate-800 text-slate-400')
                 }`}
               >
                 {item.badge}

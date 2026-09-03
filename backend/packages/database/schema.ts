@@ -1558,3 +1558,107 @@ export const performanceReviewsRelations = relations(performanceReviews, ({ one 
     references: [users.id],
   }),
 }));
+
+// ==========================================
+// CHAT & INTERNAL COMMUNICATION SYSTEM (Phase 18)
+// ==========================================
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // 'dm' | 'department' | 'project' | 'announcement'
+    title: text('title'),
+    description: text('description'),
+    departmentId: text('department_id'),
+    projectId: text('project_id'),
+    createdById: text('created_by_id').notNull(),
+    isArchived: boolean('is_archived').default(false).notNull(),
+    lastMessageAt: timestamp('last_message_at').defaultNow(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_conversations_workspace_id').on(table.workspaceId),
+    typeIdx: index('idx_conversations_type').on(table.type),
+    departmentIdx: index('idx_conversations_department_id').on(table.departmentId),
+    projectIdx: index('idx_conversations_project_id').on(table.projectId),
+    lastMessageIdx: index('idx_conversations_last_message_at').on(table.lastMessageAt),
+  })
+);
+
+export const conversationMembers = pgTable(
+  'conversation_members',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    role: text('role').default('member').notNull(), // 'admin' | 'member'
+    lastReadAt: timestamp('last_read_at').defaultNow(),
+    joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    convUserUnique: uniqueIndex('idx_conv_members_unique').on(table.conversationId, table.userId),
+    convIdx: index('idx_conv_members_conv_id').on(table.conversationId),
+    userIdx: index('idx_conv_members_user_id').on(table.userId),
+    workspaceIdx: index('idx_conv_members_workspace_id').on(table.workspaceId),
+  })
+);
+
+export const messages = pgTable(
+  'messages',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull(),
+    senderId: text('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    content: text('content').notNull(),
+    mentions: jsonb('mentions').$type<string[]>().default([]),
+    isEdited: boolean('is_edited').default(false).notNull(),
+    isDeleted: boolean('is_deleted').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    convIdx: index('idx_messages_conversation_id').on(table.conversationId),
+    senderIdx: index('idx_messages_sender_id').on(table.senderId),
+    workspaceIdx: index('idx_messages_workspace_id').on(table.workspaceId),
+    createdIdx: index('idx_messages_created_at').on(table.createdAt),
+  })
+);
+
+export const messageReactions = pgTable(
+  'message_reactions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    messageId: text('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+    conversationId: text('conversation_id').notNull(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    msgUserEmojiUnique: uniqueIndex('idx_msg_reactions_unique').on(table.messageId, table.userId, table.emoji),
+    messageIdx: index('idx_msg_reactions_message_id').on(table.messageId),
+    userIdx: index('idx_msg_reactions_user_id').on(table.userId),
+  })
+);
+
+export const conversationReads = pgTable(
+  'conversation_reads',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    lastReadMessageId: text('last_read_message_id'),
+    lastReadAt: timestamp('last_read_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    convUserUnique: uniqueIndex('idx_conv_reads_unique').on(table.conversationId, table.userId),
+    convIdx: index('idx_conv_reads_conv_id').on(table.conversationId),
+    userIdx: index('idx_conv_reads_user_id').on(table.userId),
+  })
+);
+

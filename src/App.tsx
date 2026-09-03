@@ -26,6 +26,8 @@ import { NotificationsView } from './components/notifications/NotificationsView'
 import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
+import { ChatView } from './components/chat/ChatView';
+import { WorkInboxView } from './components/inbox/WorkInboxView';
 import { RoleGuard } from './components/common/RoleGuard';
 import { RequireRole } from './components/common/RequireRole';
 import { ForbiddenPage } from './components/common/ForbiddenPage';
@@ -79,6 +81,10 @@ const pathToTabMap: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/onboarding': 'onboarding',
   '/notifications': 'notifications',
+  '/chat': 'chat',
+  '/communication': 'chat',
+  '/inbox': 'inbox',
+  '/work-inbox': 'inbox',
 };
 
 const tabToPathMap: Record<string, string> = {
@@ -101,6 +107,8 @@ const tabToPathMap: Record<string, string> = {
   onboarding: '/onboarding',
   workspaces: '/workspaces',
   notifications: '/notifications',
+  chat: '/chat',
+  inbox: '/inbox',
 };
 
 const MainAppContent: React.FC = () => {
@@ -115,6 +123,7 @@ const MainAppContent: React.FC = () => {
   const [documentIdParam, setDocumentIdParam] = useState<string | null>(null);
   const [openCreateWiki, setOpenCreateWiki] = useState(false);
   const [openUploadDoc, setOpenUploadDoc] = useState(false);
+  const [hasSetInitialRoleTab, setHasSetInitialRoleTab] = useState(false);
 
   // Check URL on initial load and handle invite tokens or deep paths
   useEffect(() => {
@@ -180,6 +189,12 @@ const MainAppContent: React.FC = () => {
     // Check for standard top-level routes
     if (pathToTabMap[path]) {
       setActiveTab(pathToTabMap[path]);
+    } else if (path === '/' || !path) {
+      if (currentRole === 'employee' || currentRole === 'intern') {
+        setActiveTab('inbox');
+      } else {
+        setActiveTab('dashboard');
+      }
     }
 
     const handlePopState = () => {
@@ -216,7 +231,22 @@ const MainAppContent: React.FC = () => {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [setActiveTab]);
+  }, [setActiveTab, currentRole]);
+
+  // Phase 33: Role-aware initial landing default
+  useEffect(() => {
+    if (!isAuthBootstrapping && !isLandingPage && !hasSetInitialRoleTab) {
+      const path = window.location.pathname;
+      if (path === '/' || path === '' || path === '/dashboard') {
+        if (currentRole === 'employee' || currentRole === 'intern') {
+          setActiveTab('inbox');
+        } else {
+          setActiveTab('dashboard');
+        }
+      }
+      setHasSetInitialRoleTab(true);
+    }
+  }, [isAuthBootstrapping, isLandingPage, currentRole, hasSetInitialRoleTab, setActiveTab]);
 
   // Synchronize browser URL with activeTab & deep entity params
   useEffect(() => {
@@ -316,6 +346,8 @@ const MainAppContent: React.FC = () => {
 
     // Role-Guarded Views
     switch (activeTab) {
+      case 'inbox':
+        return <WorkInboxView />;
       case 'workspaces':
         return <WorkspacesSelectionPage />;
       case 'onboarding':
@@ -376,6 +408,14 @@ const MainAppContent: React.FC = () => {
               setWikiPageIdParam(id || null);
             }}
           />
+        );
+
+      case 'chat':
+      case 'communication':
+        return (
+          <RoleGuard allowedRoles={['admin', 'employee', 'intern']} fallback={<ForbiddenPage requiredRole="ADMIN, EMPLOYEE, or INTERN" message="Communication Hub is restricted to workspace members." />}>
+            <ChatView />
+          </RoleGuard>
         );
 
       case 'time':

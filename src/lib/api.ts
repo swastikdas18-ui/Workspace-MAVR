@@ -1140,6 +1140,88 @@ export const api = {
     }
   },
 
+  // Phase 18 & Chat V2: Workspace Chat & Communication System
+  async getChatConversations(filter?: 'all' | 'unread' | 'mentions') {
+    const query = filter && filter !== 'all' ? `?filter=${filter}` : '';
+    return await fetchApi<{ conversations: any[] }>(`/api/chat/conversations${query}`);
+  },
+
+  async createChatDm(targetUserId: string) {
+    return await fetchApi<{ conversation: any }>('/api/chat/conversations/dm', {
+      method: 'POST',
+      body: JSON.stringify({ targetUserId }),
+    });
+  },
+
+  async getChatConversation(id: string) {
+    return await fetchApi<{ conversation: any }>(`/api/chat/conversations/${id}`);
+  },
+
+  async getChatMessages(id: string, params?: { limit?: number; before?: string; offset?: number }) {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    return await fetchApi<{ messages: any[] }>(`/api/chat/conversations/${id}/messages${query ? `?${query}` : ''}`);
+  },
+
+  async sendChatMessage(conversationId: string, content: string) {
+    return await fetchApi<{ message: any }>(`/api/chat/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async editChatMessage(messageId: string, content: string) {
+    return await fetchApi<{ message: any }>(`/api/chat/messages/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async deleteChatMessage(messageId: string) {
+    return await fetchApi<{ success: boolean; message: string }>(`/api/chat/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async toggleChatMessageReaction(messageId: string, emoji: string) {
+    return await fetchApi<{ added: boolean; reaction?: any }>(`/api/chat/messages/${messageId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    });
+  },
+
+  async markChatConversationRead(conversationId: string, lastReadMessageId?: string) {
+    return await fetchApi<{ success: boolean }>(`/api/chat/conversations/${conversationId}/read`, {
+      method: 'POST',
+      body: JSON.stringify({ lastReadMessageId }),
+    });
+  },
+
+  async getChatUnreadCount() {
+    return await fetchApi<{ unreadCount: number }>('/api/chat/unread-count');
+  },
+
+  async getChatUnreadCounts() {
+    return await fetchApi<{ unreadCounts: Record<string, number> }>('/api/chat/unread-counts');
+  },
+
+  async sendChatTyping(conversationId: string) {
+    return await fetchApi<{ success: boolean }>(`/api/chat/conversations/${conversationId}/typing`, {
+      method: 'POST',
+    });
+  },
+
+  // Phase 33: Work Inbox (Action Center)
+  async getWorkInbox() {
+    return await fetchApi<import('../types').WorkInboxPayload>('/api/inbox');
+  },
+
+  async executeInboxQuickAction(action: string, payload: Record<string, any>) {
+    return await fetchApi<{ success: boolean; message: string }>('/api/inbox/quick-action', {
+      method: 'POST',
+      body: JSON.stringify({ action, payload }),
+    });
+  },
 };
+
 
 

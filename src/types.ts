@@ -11,6 +11,8 @@ export interface User {
   title?: string;
   teamId?: string;
   team_id?: string;
+  departmentId?: string;
+  department_id?: string;
   created_at?: string;
 }
 

@@ -7,8 +7,8 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Copy, CheckCircle2, UserPlus } from 'lucide-react';
-import { getFrontendUrl } from '../../lib/api';
-import { UserRole, WorkspaceInvite, TaskPriority } from '../../types';
+import { getFrontendUrl, api } from '../../lib/api';
+import { UserRole, WorkspaceInvite, TaskPriority, Department } from '../../types';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -35,7 +35,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const { 
-    activeTab, currentUser, users, teams, departments, projects, 
+    activeTab, currentUser, users, teams, projects, 
     createTeam, inviteMember, createTask, createProject, addToast 
   } = useWorkspace();
 
@@ -44,6 +44,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+
+  useEffect(() => {
+    const fetchDepts = async () => {
+      try {
+        const res = await api.getDepartments();
+        if (res?.departments) {
+          setDepartments(res.departments);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch departments in AppLayout:', err);
+      }
+    };
+    fetchDepts();
+  }, []);
 
   // Create Team Form State
   const [teamName, setTeamName] = useState('');

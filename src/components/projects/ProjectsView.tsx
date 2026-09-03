@@ -204,12 +204,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
     );
   };
 
-  const toggleTeamSelection = (teamId: string) => {
-    setSelectedTeams((prev) =>
-      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
-    );
-  };
-
   const getStatusBadge = (status: ProjectStatus) => {
     switch (status) {
       case 'completed':
@@ -340,7 +334,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                 <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
                   {columnProjects.map((project) => {
                     const projectMembers = users.filter((u) => project.member_ids?.includes(u.id));
-                    const projectTeams = teams.filter((t) => project.team_ids?.includes(t.id));
+                    const assignedDept = departments.find(
+                      (d) => d.id === project.department_id || d.id === project.departmentId
+                    );
                     const isLead = isTeamLeadForProject(project);
                     const isAssigned = isAssignedToProject(project);
 
@@ -378,15 +374,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             {project.description}
                           </p>
 
-                          {/* Assigned Teams Badges */}
-                          {projectTeams.length > 0 && (
+                          {/* Assigned Department Badge */}
+                          {assignedDept && (
                             <div className="flex flex-wrap gap-1.5 mb-3">
-                              {projectTeams.map((t) => (
-                                <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-medium">
-                                  <Users className="w-2.5 h-2.5" />
-                                  {t.name}
-                                </span>
-                              ))}
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
+                                <Building2 className="w-2.5 h-2.5" />
+                                {assignedDept.name}
+                              </span>
                             </div>
                           )}
 
@@ -511,7 +505,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                   <th className="py-3.5 px-4">Initiative</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Progress</th>
-                  <th className="py-3.5 px-4">Assigned Teams</th>
+                  <th className="py-3.5 px-4">Department</th>
                   <th className="py-3.5 px-4">Members</th>
                   <th className="py-3.5 px-4">Target Date</th>
                   <th className="py-3.5 px-4">Budget</th>
@@ -521,7 +515,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
               <tbody className="divide-y divide-white/[0.04] text-slate-300">
                 {visibleProjects.map((project) => {
                   const projectMembers = users.filter((u) => project.member_ids?.includes(u.id));
-                  const projectTeams = teams.filter((t) => project.team_ids?.includes(t.id));
+                  const assignedDept = departments.find(
+                    (d) => d.id === project.department_id || d.id === project.departmentId
+                  );
                   const isLead = isTeamLeadForProject(project);
                   const isAssigned = isAssignedToProject(project);
 
@@ -554,17 +550,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {projectTeams.length > 0 ? (
-                            projectTeams.map((t) => (
-                              <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px]">
-                                {t.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-slate-500 text-[11px]">—</span>
-                          )}
-                        </div>
+                        {assignedDept ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
+                            <Building2 className="w-2.5 h-2.5" />
+                            {assignedDept.name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 text-[11px]">—</span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="flex -space-x-1.5 overflow-hidden">
@@ -635,11 +628,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-white">{project.title}</span>
-                      {project.team_ids && project.team_ids.length > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono">
-                          {project.team_ids.length} Team{project.team_ids.length > 1 ? 's' : ''}
-                        </span>
-                      )}
+                      {(() => {
+                        const assignedDept = departments.find(
+                          (d) => d.id === project.department_id || d.id === project.departmentId
+                        );
+                        return assignedDept ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                            <Building2 className="w-2.5 h-2.5" />
+                            {assignedDept.name}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
                       <span>{project.start_date}</span>
@@ -1064,6 +1063,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                       <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono border ${getStatusBadge(selectedProjectModal.status)}`}>
                         {selectedProjectModal.status.replace('_', ' ')}
                       </span>
+                      {assignedDept && (
+                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono border bg-purple-500/10 text-purple-300 border-purple-500/20 inline-flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          {assignedDept.name}
+                        </span>
+                      )}
                       <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono border ${healthBadgeStyle} flex items-center gap-1`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
                         Health: {healthStatus} ({overdueTasksCount} Overdue)
@@ -1165,7 +1170,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         <div className="flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-purple-400" />
                           <span className="font-semibold text-slate-200">
-                            {assignedDepts.map((d) => d.name).join(', ') || 'General Organization'}
+                            {assignedDept ? assignedDept.name : 'General Organization'}
                           </span>
                         </div>
                       </div>
@@ -1251,19 +1256,18 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                 {projectModalTab === 'team' && (
                   <div className="space-y-4 text-xs">
                     <div>
-                      <h4 className="text-slate-400 font-semibold mb-2 uppercase tracking-wider text-[10px]">Assigned Departments</h4>
+                      <h4 className="text-slate-400 font-semibold mb-2 uppercase tracking-wider text-[10px]">Assigned Department</h4>
                       <div className="flex flex-wrap gap-2">
-                        {assignedDepts.map((d) => {
-                          const dHead = users.find((u) => u.id === d.headId);
-                          return (
-                            <div key={d.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold">
-                              <Building2 className="w-4 h-4 text-purple-400" />
-                              <span>{d.name}</span>
-                              {dHead?.name && <span className="text-slate-400 text-[10px]">(Head: {dHead.name})</span>}
-                            </div>
-                          );
-                        })}
-                        {assignedDepts.length === 0 && (
+                        {assignedDept ? (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold">
+                            <Building2 className="w-4 h-4 text-purple-400" />
+                            <span>{assignedDept.name}</span>
+                            {(() => {
+                              const dHead = users.find((u) => u.id === assignedDept.headId);
+                              return dHead?.name ? <span className="text-slate-400 text-[10px] font-normal">(Head: {dHead.name})</span> : null;
+                            })()}
+                          </div>
+                        ) : (
                           <span className="text-slate-500 italic text-[11px]">No department assigned.</span>
                         )}
                       </div>

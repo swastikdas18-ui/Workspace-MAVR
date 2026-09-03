@@ -115,13 +115,33 @@ export class InviteService {
       }
     }
 
-    // Send invitation email
     try {
       const inviteUrl = `${process.env.FRONTEND_URL || 'https://workspace-mavr.onrender.com'}/invites/accept?token=${token}`;
       await EmailService.sendWorkspaceInvite(normalizedEmail, workspace.name, inviteUrl);
     } catch (emailErr) {
       console.warn('[InviteService] Email dispatch warning:', emailErr);
     }
+
+    // Dispatch employee_invited notification to recipient if user account exists
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      let recipientUser = Array.from(inMemoryDb.users.values()).find(
+        (u) => u.email.toLowerCase() === normalizedEmail
+      );
+      if (recipientUser) {
+        await NotificationService.createNotification({
+          workspaceId: input.workspaceId,
+          recipientId: recipientUser.id,
+          actorId: input.invitedBy,
+          type: 'employee_invited',
+          title: 'Workspace Invitation Received',
+          message: `You have been invited to join ${workspace.name} as ${assignedRole}.`,
+          entityType: 'invite',
+          entityId: newInvite.id,
+          link: `/invites/accept?token=${token}`,
+        }).catch(() => null);
+      }
+    } catch {}
 
     return {
       id: newInvite.id,
@@ -593,9 +613,10 @@ export class InviteService {
 
       if (!existingMembership) {
         const membershipId = crypto.randomUUID();
+        const wsId = invite.workspace_id || invite.workspaceId;
         const membership: WorkspaceMember = {
           id: membershipId,
-          workspaceId: invite.workspace_id,
+          workspaceId: wsId,
           userId,
           role: assignedRole,
           joinedAt: now,
@@ -606,7 +627,7 @@ export class InviteService {
           try {
             await db.insert(schema.workspaceMembers).values({
               id: membershipId,
-              workspaceId: invite.workspace_id,
+              workspaceId: wsId,
               userId,
               role: assignedRole,
               joinedAt: now,
@@ -666,9 +687,10 @@ export class InviteService {
 
       // Create workspace membership
       const membershipId = crypto.randomUUID();
+      const wsId = invite.workspace_id || invite.workspaceId;
       const membership: WorkspaceMember = {
         id: membershipId,
-        workspaceId: invite.workspace_id,
+        workspaceId: wsId,
         userId,
         role: assignedRole,
         joinedAt: now,
@@ -679,7 +701,7 @@ export class InviteService {
         try {
           await db.insert(schema.workspaceMembers).values({
             id: membershipId,
-            workspaceId: invite.workspace_id,
+            workspaceId: wsId,
             userId,
             role: assignedRole,
             joinedAt: now,
@@ -777,6 +799,26 @@ export class InviteService {
         teamId: invite.team_id,
       }
     );
+
+    // Dispatch employee_joined notification to inviting admin / workspace admins
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const inviterId = invite.invited_by || (invite as any).invitedBy;
+      const targetAdminId = inviterId || workspace.ownerId;
+      if (targetAdminId) {
+        await NotificationService.createNotification({
+          workspaceId: invite.workspace_id,
+          recipientId: targetAdminId,
+          actorId: userId,
+          type: 'employee_joined',
+          title: 'New Member Joined Workspace',
+          message: `${user.name} (${user.email}) accepted the invitation and joined the workspace.`,
+          entityType: 'user',
+          entityId: userId,
+          link: '/people',
+        }).catch(() => null);
+      }
+    } catch {}
 
     let fullWorkspace = inMemoryDb.workspaces.get(invite.workspace_id);
     if (!fullWorkspace) {

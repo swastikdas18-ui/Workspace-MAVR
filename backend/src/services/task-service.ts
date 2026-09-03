@@ -570,6 +570,33 @@ export class TaskService {
             assignedTo: updatedTask.assignedTo,
           }
         );
+
+        // Notify task creator and workspace admins
+        try {
+          const { inMemoryDb } = await import('../../packages/database/index.js');
+          const completer = inMemoryDb.users.get(userId);
+          const admins = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+            (wm) => wm.workspaceId === workspaceId && wm.role === 'admin' && wm.userId !== userId
+          );
+          const notifyList = new Set<string>(admins.map((a) => a.userId));
+          if (updatedTask.createdBy && updatedTask.createdBy !== userId) {
+            notifyList.add(updatedTask.createdBy);
+          }
+
+          for (const recipientId of notifyList) {
+            await NotificationService.createNotification({
+              workspaceId,
+              recipientId,
+              actorId: userId,
+              type: 'task_completed',
+              title: 'Task Completed',
+              message: `Task "${updatedTask.title}" was completed by ${completer?.name || 'a team member'}.`,
+              entityType: 'task',
+              entityId: updatedTask.id,
+              link: `/tasks/${updatedTask.id}`,
+            }).catch(() => null);
+          }
+        } catch {}
       }
 
       // Dispatch Notification for status change
@@ -818,6 +845,34 @@ export class TaskService {
           priority: updatedTask.priority,
         }
       );
+
+      // Notify creator & admins of task completion
+      try {
+        const { NotificationService } = await import('./notification-service.js');
+        const { inMemoryDb } = await import('../../packages/database/index.js');
+        const completer = inMemoryDb.users.get(existing.assignedTo || userId);
+        const admins = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+          (wm) => wm.workspaceId === workspaceId && wm.role === 'admin' && wm.userId !== existing.assignedTo
+        );
+        const notifyList = new Set<string>(admins.map((a) => a.userId));
+        if (existing.createdBy && existing.createdBy !== existing.assignedTo) {
+          notifyList.add(existing.createdBy);
+        }
+
+        for (const recipientId of notifyList) {
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId,
+            actorId: existing.assignedTo || userId,
+            type: 'task_completed',
+            title: 'Task Completed',
+            message: `Task "${existing.title}" was completed by ${completer?.name || 'a team member'}.`,
+            entityType: 'task',
+            entityId: taskId,
+            link: `/tasks/${taskId}`,
+          }).catch(() => null);
+        }
+      } catch {}
     }
 
     return this.getTaskById(workspaceId, userId, rawRole, taskId);
@@ -1080,6 +1135,19 @@ export class TaskService {
     }
 
     const comment = await TaskRepository.addComment(taskId, userId, content.trim(), workspaceId);
+
+    // Scan and dispatch @mentions
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      await NotificationService.dispatchMentions({
+        workspaceId,
+        actorId: userId,
+        text: content.trim(),
+        entityType: 'task',
+        entityId: taskId,
+        link: `/tasks/${taskId}`,
+      });
+    } catch {}
 
     return {
       id: comment.id,

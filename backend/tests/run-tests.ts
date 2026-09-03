@@ -28,6 +28,8 @@ import { runAutomationEngineV2Tests } from './automation-engine-v2.test';
 import { runPeopleOsTests } from './people-os.test';
 import { runDocumentsVisibilityTests } from './documents-visibility.test';
 import { runNotificationsTests } from './notifications.test';
+import { runNotificationsMvpCompleteTests } from './notifications-mvp-complete.test';
+import { runNotificationsEnhancementTests } from './notifications-enhancement.test';
 
 async function main() {
   try {
@@ -87,7 +89,11 @@ async function main() {
     await runDocumentsVisibilityTests();
     console.log('\n>>> Starting Suite 28: Real-Time Notification System (MVP)');
     await runNotificationsTests();
-    console.log('\n🌟 ALL 28 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 29: Notifications MVP Complete Contract (16 Events, 5 Scenarios, Deduplication)');
+    await runNotificationsMvpCompleteTests();
+    console.log('\n>>> Starting Suite 30: Notifications MVP Enhancements (Priority, Preferences, Mentions, Actions, Retention, RBAC)');
+    await runNotificationsEnhancementTests();
+    console.log('\n🌟 ALL 30 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

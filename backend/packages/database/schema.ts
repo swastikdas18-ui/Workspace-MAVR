@@ -385,11 +385,13 @@ export const notifications = pgTable(
     actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
     title: text('title').notNull(),
     message: text('message').notNull(),
-    type: text('type').notNull(), // 'task_assigned' | 'task_status_changed' | 'comment_mentioned' | 'leave_submitted' | 'leave_approved' | 'leave_rejected' | 'wiki_created' | 'document_uploaded'
+    type: text('type').notNull(), // 'task_assigned' | 'task_status_changed' | 'leave_submitted' | etc.
+    priority: text('priority').default('medium').notNull(), // 'low' | 'medium' | 'high' | 'urgent'
     entityType: text('entity_type'),
     entityId: text('entity_id'),
     link: text('link'),
     isRead: boolean('is_read').default(false).notNull(),
+    archived: boolean('archived').default(false).notNull(),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -397,8 +399,37 @@ export const notifications = pgTable(
     workspaceIdx: index('idx_notifications_workspace_id').on(table.workspaceId),
     recipientIdx: index('idx_notifications_recipient_id').on(table.recipientId),
     userIdx: index('idx_notifications_user_id').on(table.userId),
+    priorityIdx: index('idx_notifications_priority').on(table.priority),
     isReadIdx: index('idx_notifications_is_read').on(table.isRead),
+    archivedIdx: index('idx_notifications_archived').on(table.archived),
     createdAtIdx: index('idx_notifications_created_at').on(table.createdAt),
+  })
+);
+
+// Notification Preferences table (User Toggles per Category)
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    peopleEmployeeInvites: boolean('people_employee_invites').default(true).notNull(),
+    peopleEmployeeJoined: boolean('people_employee_joined').default(true).notNull(),
+    peopleLeaveRequests: boolean('people_leave_requests').default(true).notNull(),
+    projectsInitiativeUpdates: boolean('projects_initiative_updates').default(true).notNull(),
+    projectsReviewRequests: boolean('projects_review_requests').default(true).notNull(),
+    projectsAssignments: boolean('projects_assignments').default(true).notNull(),
+    tasksAssignments: boolean('tasks_assignments').default(true).notNull(),
+    tasksCompletions: boolean('tasks_completions').default(true).notNull(),
+    tasksOverdueAlerts: boolean('tasks_overdue_alerts').default(true).notNull(),
+    crmLeadAssignment: boolean('crm_lead_assignment').default(true).notNull(),
+    crmDealUpdates: boolean('crm_deal_updates').default(true).notNull(),
+    mentions: boolean('mentions').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceUserIdx: uniqueIndex('idx_notification_prefs_workspace_user').on(table.workspaceId, table.userId),
   })
 );
 
@@ -1100,28 +1131,6 @@ export const onboardingState = pgTable(
   })
 );
 
-export const notificationPreferences = pgTable(
-  'notification_preferences',
-  {
-    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-    emailDigest: boolean('email_digest').default(true).notNull(),
-    taskAssigned: boolean('task_assigned').default(true).notNull(),
-    taskDue: boolean('task_due').default(true).notNull(),
-    taskCompleted: boolean('task_completed').default(true).notNull(),
-    projectUpdated: boolean('project_updated').default(true).notNull(),
-    documentMention: boolean('document_mention').default(true).notNull(),
-    crmStageChanged: boolean('crm_stage_changed').default(true).notNull(),
-    automationExecuted: boolean('automation_executed').default(true).notNull(),
-    invoicePaid: boolean('invoice_paid').default(true).notNull(),
-    workspaceInvite: boolean('workspace_invite').default(true).notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    userWsIdx: uniqueIndex('idx_notif_pref_user_ws').on(table.userId, table.workspaceId),
-  })
-);
 
 export const betaFeedback = pgTable(
   'beta_feedback',

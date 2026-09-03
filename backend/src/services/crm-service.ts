@@ -144,6 +144,24 @@ export class CrmService {
       notes: input.notes?.trim() || '',
     });
 
+    // Dispatch lead_assigned notification if assigned to another user
+    if (assignedOwner && assignedOwner !== userId) {
+      try {
+        const { NotificationService } = await import('./notification-service.js');
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: assignedOwner,
+          actorId: userId,
+          type: 'lead_assigned',
+          title: 'New Lead Assigned',
+          message: `You have been assigned to lead "${newRecord.customerName}" (${newRecord.company}).`,
+          entityType: 'crm',
+          entityId: newRecord.id,
+          link: '/crm',
+        }).catch(() => null);
+      } catch {}
+    }
+
     return {
       id: newRecord.id,
       customer_name: newRecord.customerName,
@@ -212,6 +230,24 @@ export class CrmService {
       throw error;
     }
 
+    // Lead reassignment notification
+    if (updates.ownerId && updates.ownerId !== existing.ownerId && updates.ownerId !== userId) {
+      try {
+        const { NotificationService } = await import('./notification-service.js');
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: updates.ownerId,
+          actorId: userId,
+          type: 'lead_assigned',
+          title: 'Lead Assigned to You',
+          message: `You have been assigned to lead "${updated.customerName}" (${updated.company}).`,
+          entityType: 'crm',
+          entityId: updated.id,
+          link: '/crm',
+        }).catch(() => null);
+      } catch {}
+    }
+
     // Emit event: CRM Status / Stage Changed
     if (updates.status && updates.status !== existing.status) {
       await EventService.emitCrmStageChanged(
@@ -226,6 +262,24 @@ export class CrmService {
           ownerId: updated.ownerId,
         }
       );
+
+      const targetOwner = updated.ownerId || existing.ownerId;
+      if (targetOwner && targetOwner !== userId) {
+        try {
+          const { NotificationService } = await import('./notification-service.js');
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: targetOwner,
+            actorId: userId,
+            type: 'deal_stage_changed',
+            title: 'Deal Stage Updated',
+            message: `Lead "${updated.customerName}" stage changed to ${updated.status}.`,
+            entityType: 'crm',
+            entityId: updated.id,
+            link: '/crm',
+          }).catch(() => null);
+        } catch {}
+      }
     }
 
     return {

@@ -371,6 +371,41 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS recipient_id TEXT REFERENCES users(id) ON DELETE CASCADE;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_id TEXT REFERENCES users(id) ON DELETE SET NULL;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS entity_type TEXT;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS entity_id TEXT;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link TEXT;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium';`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_notifications_entity_id ON notifications(entity_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_notifications_archived ON notifications(archived);`;
+
+    // 14b. Notification Preferences table
+    await sql`
+      CREATE TABLE IF NOT EXISTS notification_preferences (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        people_employee_invites BOOLEAN NOT NULL DEFAULT TRUE,
+        people_employee_joined BOOLEAN NOT NULL DEFAULT TRUE,
+        people_leave_requests BOOLEAN NOT NULL DEFAULT TRUE,
+        projects_initiative_updates BOOLEAN NOT NULL DEFAULT TRUE,
+        projects_review_requests BOOLEAN NOT NULL DEFAULT TRUE,
+        projects_assignments BOOLEAN NOT NULL DEFAULT TRUE,
+        tasks_assignments BOOLEAN NOT NULL DEFAULT TRUE,
+        tasks_completions BOOLEAN NOT NULL DEFAULT TRUE,
+        tasks_overdue_alerts BOOLEAN NOT NULL DEFAULT TRUE,
+        crm_lead_assignment BOOLEAN NOT NULL DEFAULT TRUE,
+        crm_deal_updates BOOLEAN NOT NULL DEFAULT TRUE,
+        mentions BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_prefs_workspace_user ON notification_preferences(workspace_id, user_id);`;
 
     // 15. Activity Logs table
     await sql`

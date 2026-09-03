@@ -74,7 +74,7 @@ export class ProjectService {
     if (departmentId) {
       try {
         const { PeopleRepository } = await import('../repositories/people-repository.js');
-        const dept = await PeopleRepository.getDepartmentById(departmentId);
+        const dept = await PeopleRepository.getDepartmentById('', departmentId);
         if (dept?.headId === userId) return true;
       } catch {}
     }
@@ -214,15 +214,25 @@ export class ProjectService {
 
       // 1. Notify assigned department lead
       if (departmentId) {
-        const { PeopleRepository } = await import('../repositories/people-repository.js');
-        const dept = await PeopleRepository.getDepartmentById(departmentId);
-        if (dept?.headId && dept.headId !== userId) {
-          notifiedRecipients.add(dept.headId);
+        let deptHeadId: string | undefined;
+        try {
+          const { PeopleRepository } = await import('../repositories/people-repository.js');
+          const depts = await PeopleRepository.listDepartments(workspaceId);
+          const dept = depts.find((d: any) => d.id === departmentId);
+          deptHeadId = dept?.headId;
+        } catch {
+          const { inMemoryDb } = await import('../../packages/database/index.js');
+          const dept = inMemoryDb.departments.get(departmentId);
+          deptHeadId = dept?.headId;
+        }
+
+        if (deptHeadId && deptHeadId !== userId) {
+          notifiedRecipients.add(deptHeadId);
           await NotificationService.createNotification({
             workspaceId,
-            recipientId: dept.headId,
+            recipientId: deptHeadId,
             actorId: userId,
-            type: 'task_assigned',
+            type: 'initiative_created',
             title: 'New Department Initiative Created',
             message: `${creator?.name || 'A team member'} launched initiative "${created.title}" in your department.`,
             entityType: 'project',
@@ -241,7 +251,7 @@ export class ProjectService {
             workspaceId,
             recipientId: mId,
             actorId: userId,
-            type: 'task_assigned',
+            type: 'initiative_assigned',
             title: 'Assigned to New Initiative',
             message: `${creator?.name || 'A team member'} assigned you to initiative "${created.title}".`,
             entityType: 'project',
@@ -355,6 +365,27 @@ export class ProjectService {
       error.status = 500;
       throw error;
     }
+
+    // Dispatch initiative_started notification to assigned members
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const members = updated.memberIds || [updated.createdBy];
+      for (const mId of members) {
+        if (mId !== userId) {
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: mId,
+            actorId: userId,
+            type: 'initiative_started',
+            title: 'Initiative Started',
+            message: `Work has started on initiative "${updated.title}".`,
+            entityType: 'project',
+            entityId: updated.id,
+            link: `/projects/${updated.id}`,
+          }).catch(() => null);
+        }
+      }
+    } catch {}
 
     const projectPayload = this.formatProject(updated);
     return { project: projectPayload, ...projectPayload };
@@ -473,6 +504,31 @@ export class ProjectService {
       throw error;
     }
 
+    // Dispatch initiative_review_requested notification to reviewer / admins / creator
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const { inMemoryDb } = await import('../../packages/database/index.js');
+      const admins = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+        (wm) => wm.workspaceId === workspaceId && wm.role === 'admin' && wm.userId !== userId
+      );
+      const recipientIds = new Set<string>(admins.map((a) => a.userId));
+      if (updated.createdBy !== userId) recipientIds.add(updated.createdBy);
+
+      for (const recId of recipientIds) {
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: recId,
+          actorId: userId,
+          type: 'initiative_review_requested',
+          title: 'Initiative Review Requested',
+          message: `Initiative "${updated.title}" was submitted for review.`,
+          entityType: 'project',
+          entityId: updated.id,
+          link: `/projects/${updated.id}`,
+        }).catch(() => null);
+      }
+    } catch {}
+
     const projectPayload = this.formatProject(updated);
     return { project: projectPayload, ...projectPayload };
   }
@@ -525,6 +581,29 @@ export class ProjectService {
       error.status = 500;
       throw error;
     }
+
+    // Dispatch initiative_approved notification to assigned members & creator
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const recipients = new Set<string>(updated.memberIds || [updated.createdBy]);
+      recipients.add(updated.createdBy);
+
+      for (const recId of recipients) {
+        if (recId !== userId) {
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: recId,
+            actorId: userId,
+            type: 'initiative_approved',
+            title: 'Initiative Approved',
+            message: `Initiative "${updated.title}" has been approved and completed.`,
+            entityType: 'project',
+            entityId: updated.id,
+            link: `/projects/${updated.id}`,
+          }).catch(() => null);
+        }
+      }
+    } catch {}
 
     const projectPayload = this.formatProject(updated);
     return { project: projectPayload, ...projectPayload };
@@ -586,6 +665,29 @@ export class ProjectService {
       error.status = 500;
       throw error;
     }
+
+    // Dispatch initiative_rejected notification to creator & assigned members
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      const recipients = new Set<string>(updated.memberIds || [updated.createdBy]);
+      recipients.add(updated.createdBy);
+
+      for (const recId of recipients) {
+        if (recId !== userId) {
+          await NotificationService.createNotification({
+            workspaceId,
+            recipientId: recId,
+            actorId: userId,
+            type: 'initiative_rejected',
+            title: 'Initiative Changes Requested',
+            message: `Changes requested on initiative "${updated.title}": ${feedback.trim()}`,
+            entityType: 'project',
+            entityId: updated.id,
+            link: `/projects/${updated.id}`,
+          }).catch(() => null);
+        }
+      }
+    } catch {}
 
     const projectPayload = this.formatProject(updated);
     return { project: projectPayload, ...projectPayload };

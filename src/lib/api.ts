@@ -688,20 +688,49 @@ export const api = {
     });
   },
 
-  // Notifications Center API
-  async getNotifications() {
-    return await fetchApi<{ notifications: any[] }>('/api/notifications');
+  // Notifications MVP & Enhancements
+  async getNotifications(options?: { unreadOnly?: boolean; limit?: number; offset?: number; tab?: string; search?: string; category?: string }) {
+    const params = new URLSearchParams();
+    if (options?.unreadOnly) params.set('unreadOnly', 'true');
+    if (options?.limit) params.set('limit', options.limit.toString());
+    if (options?.offset) params.set('offset', options.offset.toString());
+    if (options?.tab) params.set('tab', options.tab);
+    if (options?.search) params.set('search', options.search);
+    if (options?.category) params.set('category', options.category);
+    const qs = params.toString();
+    return await fetchApi<{ notifications: any[] }>(`/api/notifications${qs ? `?${qs}` : ''}`);
+  },
+
+  async getNotificationUnreadCount() {
+    return await fetchApi<{ count: number; unreadCount: number }>('/api/notifications/unread-count');
   },
 
   async markNotificationRead(id: string) {
     return await fetchApi<{ success: boolean }>(`/api/notifications/${id}/read`, {
-      method: 'PATCH',
+      method: 'POST',
     });
   },
 
   async markAllNotificationsRead() {
-    return await fetchApi<{ success: boolean; count: number }>('/api/notifications/read-all', {
+    return await fetchApi<{ success: boolean; updatedCount: number }>('/api/notifications/read-all', {
+      method: 'POST',
+    });
+  },
+
+  async archiveNotification(id: string) {
+    return await fetchApi<{ success: boolean }>(`/api/notifications/${id}/archive`, {
       method: 'PATCH',
+    });
+  },
+
+  async getNotificationPreferences() {
+    return await fetchApi<{ preferences: any }>('/api/notifications/preferences');
+  },
+
+  async updateNotificationPreferences(preferences: Record<string, boolean>) {
+    return await fetchApi<{ success: boolean; preferences: any }>('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
     });
   },
 
@@ -1110,6 +1139,7 @@ export const api = {
       return { success: false };
     }
   },
+
 };
 
 

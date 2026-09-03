@@ -6,6 +6,7 @@ import {
   Users, UserPlus, FolderKanban, CheckSquare, ChevronDown, BookOpen, FileText
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
+import { NotificationBell } from '../common/NotificationBell';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface HeaderProps {
@@ -225,75 +226,8 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Role Badge */}
         <RoleBadge role={currentRole} size="md" />
 
-        {/* Notifications Popover */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent hover:border-white/[0.08] transition-colors cursor-pointer"
-            title="System Activity & Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {systemLogs.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse" />
-            )}
-          </button>
-
-          <AnimatePresence>
-            {showNotifications && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowNotifications(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-4 z-50 text-xs"
-                >
-                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white">Live Activity Stream</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
-                        {systemLogs.length} events
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowNotifications(false)}
-                      className="text-slate-400 hover:text-white p-1"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                    {systemLogs.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-slate-500">
-                        No recent workspace activities logged.
-                      </div>
-                    ) : (
-                      systemLogs.slice(0, 6).map((log) => (
-                        <div
-                          key={log.id}
-                          className="p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-white/[0.12] transition-colors"
-                        >
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                            <span className="font-semibold text-slate-200">{log.user_name}</span>
-                            <span className="font-mono text-slate-500">
-                              {log.timestamp.includes(' ') ? log.timestamp.split(' ')[1] : log.timestamp}
-                            </span>
-                          </div>
-                          <p className="text-slate-300 text-xs leading-relaxed">{log.action}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* Real-time Notification Center Bell & Drawer */}
+        <NotificationBell />
       </div>
     </header>
   );

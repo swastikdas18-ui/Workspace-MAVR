@@ -21,7 +21,7 @@ notificationRouter.get('/unread-count', async (c) => {
     }
 
     const count = await NotificationService.getUnreadCount(workspace.id, user.id);
-    return c.json({ count }, 200);
+    return c.json({ count, unreadCount: count }, 200);
   } catch (err: any) {
     return c.json(
       { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get unread count.' } },
@@ -46,6 +46,9 @@ notificationRouter.get('/', async (c) => {
     const unreadOnly = c.req.query('unreadOnly') === 'true';
     const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
     const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0;
+    const tab = c.req.query('tab') as 'unread' | 'read' | 'archived' | 'all' | undefined;
+    const search = c.req.query('search') || undefined;
+    const category = c.req.query('category') || undefined;
 
     const notifications = await NotificationService.getNotifications({
       workspaceId: workspace.id,
@@ -53,6 +56,9 @@ notificationRouter.get('/', async (c) => {
       unreadOnly,
       limit,
       offset,
+      tab,
+      search,
+      category,
     });
 
     return c.json({ notifications }, 200);
@@ -65,9 +71,9 @@ notificationRouter.get('/', async (c) => {
 });
 
 /**
- * PATCH /api/notifications/read-all - Mark all notifications as read
+ * PATCH /api/notifications/read-all and POST /api/notifications/read-all - Mark all notifications as read
  */
-notificationRouter.patch('/read-all', async (c) => {
+const markAllReadHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -84,12 +90,14 @@ notificationRouter.patch('/read-all', async (c) => {
       500
     );
   }
-});
+};
+notificationRouter.patch('/read-all', markAllReadHandler);
+notificationRouter.post('/read-all', markAllReadHandler);
 
 /**
- * PATCH /api/notifications/:id/read - Mark specific notification as read
+ * PATCH /api/notifications/:id/read and POST /api/notifications/:id/read - Mark specific notification as read
  */
-notificationRouter.patch('/:id/read', async (c) => {
+const markSingleReadHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -108,6 +116,57 @@ notificationRouter.patch('/:id/read', async (c) => {
   } catch (err: any) {
     return c.json(
       { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to mark notification read.' } },
+      500
+    );
+  }
+};
+notificationRouter.patch('/:id/read', markSingleReadHandler);
+notificationRouter.post('/:id/read', markSingleReadHandler);
+
+/**
+ * PATCH /api/notifications/:id/archive and POST /api/notifications/:id/archive - Archive specific notification
+ */
+const archiveSingleHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    const id = c.req.param('id');
+
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const success = await NotificationService.archiveNotification(workspace.id, user.id, id);
+    if (!success) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Notification not found.' } }, 404);
+    }
+
+    return c.json({ success: true }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to archive notification.' } },
+      500
+    );
+  }
+};
+notificationRouter.patch('/:id/archive', archiveSingleHandler);
+notificationRouter.post('/:id/archive', archiveSingleHandler);
+
+/**
+ * POST /api/notifications/retention/run - Trigger retention archive for notifications older than 90 days
+ */
+notificationRouter.post('/retention/run', async (c) => {
+  try {
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const archivedCount = await NotificationService.archiveOldNotifications(workspace.id, 90);
+    return c.json({ success: true, archivedCount }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to execute retention policy.' } },
       500
     );
   }
@@ -144,60 +203,45 @@ notificationRouter.delete('/:id', async (c) => {
  * GET /api/notifications/preferences - Fetch user notification preferences
  */
 notificationRouter.get('/preferences', async (c) => {
-  const user = c.get('user');
-  const workspace = c.get('workspace');
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
 
-  if (!workspace) {
-    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const prefs = await NotificationService.getPreferences(workspace.id, user.id);
+    return c.json({ preferences: prefs }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to fetch preferences.' } },
+      500
+    );
   }
-
-  const key = `${user.id}:${workspace.id}`;
-  const prefs = inMemoryDb.notificationPreferences?.get(key) || {
-    userId: user.id,
-    workspaceId: workspace.id,
-    emailDigest: true,
-    taskAssigned: true,
-    taskDue: true,
-    taskCompleted: true,
-    projectUpdated: true,
-    documentMention: true,
-    crmStageChanged: true,
-    automationExecuted: true,
-    invoicePaid: true,
-    workspaceInvite: true,
-  };
-
-  return c.json({ preferences: prefs }, 200);
 });
 
 /**
  * PUT /api/notifications/preferences - Update user notification preferences
  */
 notificationRouter.put('/preferences', async (c) => {
-  const user = c.get('user');
-  const workspace = c.get('workspace');
-  const body = await c.req.json().catch(() => ({}));
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    const body = await c.req.json().catch(() => ({}));
 
-  if (!workspace) {
-    return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const updated = await NotificationService.updatePreferences(workspace.id, user.id, body);
+    return c.json({ success: true, preferences: updated }, 200);
+  } catch (err: any) {
+    return c.json(
+      { error: { code: 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to update preferences.' } },
+      500
+    );
   }
-
-  const key = `${user.id}:${workspace.id}`;
-  const existing = inMemoryDb.notificationPreferences?.get(key) || {
-    userId: user.id,
-    workspaceId: workspace.id,
-  };
-
-  const updated = {
-    ...existing,
-    ...body,
-    userId: user.id,
-    workspaceId: workspace.id,
-    updatedAt: new Date(),
-  };
-
-  inMemoryDb.notificationPreferences?.set(key, updated);
-  return c.json({ success: true, preferences: updated }, 200);
 });
 
 /**

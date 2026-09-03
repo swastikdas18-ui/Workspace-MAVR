@@ -85,6 +85,8 @@ export class EventService {
             title: 'New Task Assigned',
             message: `You have been assigned to task "${task.title}".`,
             type: 'task_assigned',
+            entityType: 'task',
+            entityId: task.id,
             metadata: { taskId: task.id, projectId: task.projectId },
           },
           tx
@@ -184,6 +186,8 @@ export class EventService {
             title: 'Task Assigned To You',
             message: `You were assigned to "${task.title}".`,
             type: 'task_assigned',
+            entityType: 'task',
+            entityId: task.id,
             metadata: { taskId: task.id, projectId: task.projectId },
           },
           tx

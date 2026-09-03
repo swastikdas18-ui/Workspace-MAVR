@@ -1,7 +1,8 @@
 import { PeopleRepository, EmployeeProfileEntity, DepartmentEntity, LeaveRequestEntity, GoalEntity, PerformanceReviewEntity } from '../repositories/people-repository';
-import { NotificationRepository } from '../repositories/notification-repository';
+import { NotificationService } from './notification-service';
 import { EventService } from './event-service';
 import { AuditRepository } from '../repositories/audit-repository';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export class PeopleService {
   // 1. Directory & Profiles
@@ -168,18 +169,24 @@ export class PeopleService {
   ) {
     const leave = await PeopleRepository.createLeaveRequest(workspaceId, userId, data);
 
-    // Notify Manager or Admin
-    const profile = await PeopleRepository.getProfileByUserId(workspaceId, userId);
-    const reviewerId = profile?.managerId || 'admin';
-
-    await NotificationRepository.createNotification({
-      workspaceId,
-      userId: reviewerId,
-      title: 'New Leave Request',
-      message: `${profile?.user?.name || 'An employee'} submitted a ${leave.leaveType} leave request for ${leave.daysCount} day(s).`,
-      type: 'leave_requested',
-      metadata: { leaveId: leave.id, userId },
-    });
+    // Notify Workspace Admin(s) and/or Manager
+    const applicant = inMemoryDb.users.get(userId);
+    const admins = Array.from(inMemoryDb.workspaceMembers.values()).filter(
+      (wm) => wm.workspaceId === workspaceId && wm.role === 'admin' && wm.userId !== userId
+    );
+    for (const admin of admins) {
+      await NotificationService.createNotification({
+        workspaceId,
+        recipientId: admin.userId,
+        actorId: userId,
+        type: 'leave_submitted',
+        title: 'New Leave Request Submitted',
+        message: `${applicant?.name || 'An employee'} submitted a ${leave.leaveType} leave request.`,
+        entityType: 'leave_request',
+        entityId: leave.id,
+        link: '/people',
+      }).catch(() => null);
+    }
 
     return leave;
   }
@@ -212,14 +219,22 @@ export class PeopleService {
     }
 
     // Notify Employee
-    await NotificationRepository.createNotification({
+    const reviewer = inMemoryDb.users.get(reviewerId);
+    const notifType = decision === 'approved' ? 'leave_approved' : 'leave_rejected';
+    const title = decision === 'approved' ? 'Leave Request Approved' : 'Leave Request Rejected';
+    const message = `Your ${leave.leaveType} leave request was ${decision} by ${reviewer?.name || 'Admin'}.`;
+
+    await NotificationService.createNotification({
       workspaceId,
-      userId: leave.userId,
-      title: `Leave Request ${decision === 'approved' ? 'Approved' : 'Rejected'}`,
-      message: `Your ${leave.leaveType} leave request from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()} was ${decision}.`,
-      type: `leave_${decision}`,
-      metadata: { leaveId: leave.id, decision },
-    });
+      recipientId: leave.userId,
+      actorId: reviewerId,
+      type: notifType,
+      title,
+      message,
+      entityType: 'leave_request',
+      entityId: leave.id,
+      link: '/people',
+    }).catch(() => null);
 
     // If approved, trigger automation event
     if (decision === 'approved') {

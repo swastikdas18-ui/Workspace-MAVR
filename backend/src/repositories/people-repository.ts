@@ -773,26 +773,7 @@ export class PeopleRepository {
       // Handled
     }
 
-    // Trigger leave_submitted notification to workspace admins
-    try {
-      const applicant = inMemoryDb.users.get(userId);
-      const admins = Array.from(inMemoryDb.workspaceMembers.values()).filter(
-        (wm) => wm.workspaceId === workspaceId && wm.role === 'admin' && wm.userId !== userId
-      );
-      for (const admin of admins) {
-        await NotificationService.createNotification({
-          workspaceId,
-          recipientId: admin.userId,
-          actorId: userId,
-          type: 'leave_submitted',
-          title: 'New Leave Request Submitted',
-          message: `${applicant?.name || 'An employee'} requested ${data.leaveType} leave.`,
-          entityType: 'leave_request',
-          entityId: id,
-          link: '/people',
-        }).catch(() => null);
-      }
-    } catch {}
+    // Notification dispatch handled at service level (PeopleService)
 
     return (await this.getLeaveRequestById(workspaceId, id))!;
   }
@@ -875,25 +856,7 @@ export class PeopleRepository {
       // Handled
     }
 
-    // Trigger leave_approved / leave_rejected notification to applicant
-    try {
-      const reviewer = inMemoryDb.users.get(reviewerId);
-      const notifType = status === 'approved' ? 'leave_approved' : 'leave_rejected';
-      const title = status === 'approved' ? 'Leave Request Approved' : 'Leave Request Rejected';
-      const message = `Your ${existing.leaveType} leave request was ${status} by ${reviewer?.name || 'Admin'}.`;
-
-      await NotificationService.createNotification({
-        workspaceId,
-        recipientId: existing.userId,
-        actorId: reviewerId,
-        type: notifType,
-        title,
-        message,
-        entityType: 'leave_request',
-        entityId: leaveId,
-        link: '/people',
-      }).catch(() => null);
-    } catch {}
+    // Notification dispatch handled at service level (PeopleService)
 
     return await this.getLeaveRequestById(workspaceId, leaveId);
   }

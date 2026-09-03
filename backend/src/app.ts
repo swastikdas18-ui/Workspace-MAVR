@@ -378,4 +378,10 @@ app.notFound((c) => {
 });
 console.log('[BOOT] 404 handler registered');
 
+// Start Background Workers
+import { TaskOverdueWorker } from './workers/task-overdue-worker.js';
+if (process.env.NODE_ENV !== 'test') {
+  TaskOverdueWorker.start(60000);
+}
+
 export default app;

@@ -39,6 +39,7 @@ import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
 import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
 import { runChatRealtimeProviderRegressionTest } from './chat-realtime-provider.test';
+import { runChatV2FoundationTests } from './chat-v2-foundation.test';
 
 async function main() {
   try {
@@ -120,7 +121,9 @@ async function main() {
     await runTenantIsolationSecurityTests();
     console.log('\n>>> Starting Suite 39: Workspace OS — Chat Route Realtime Provider Regression');
     await runChatRealtimeProviderRegressionTest();
-    console.log('\n🌟 ALL 39 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 40: Workspace OS — Chat V2 Foundation (Phase 1)');
+    await runChatV2FoundationTests();
+    console.log('\n🌟 ALL 40 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

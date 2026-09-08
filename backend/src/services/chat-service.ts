@@ -258,6 +258,108 @@ export class ChatService {
   }
 
   /**
+   * Create a public or organizational channel (Admin only)
+   */
+  static async createChannel(
+    workspaceId: string,
+    title: string,
+    description: string | null = null,
+    userId: string,
+    rawRole: string = 'employee'
+  ): Promise<ConversationEntity> {
+    const role = (rawRole || 'employee').toLowerCase();
+    if (role !== 'admin') {
+      const error: any = new Error('Forbidden: Only workspace admins can create channels.');
+      error.status = 403;
+      throw error;
+    }
+
+    if (!title || !title.trim()) {
+      const error: any = new Error('Channel name is required.');
+      error.status = 400;
+      throw error;
+    }
+
+    const cleanTitle = title.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const channel = await ChatRepository.createConversation({
+      workspaceId,
+      type: 'channel',
+      title: cleanTitle,
+      description: description ? description.trim() : null,
+      createdById: userId,
+    });
+
+    // Add creator as member
+    await ChatRepository.addConversationMember({
+      conversationId: channel.id,
+      workspaceId,
+      userId,
+      role: 'admin',
+    });
+
+    // Broadcast new channel creation
+    try {
+      EventBus.publishWorkspaceEvent(workspaceId, 'chat.channel.created', {
+        channel,
+      }, {
+        actorId: userId,
+        entityType: 'chat',
+        entityId: channel.id,
+      });
+    } catch {}
+
+    return channel;
+  }
+
+  /**
+   * Create a group conversation (Admin or Employee)
+   */
+  static async createGroup(
+    workspaceId: string,
+    title: string,
+    memberUserIds: string[],
+    userId: string,
+    rawRole: string = 'employee'
+  ): Promise<ConversationEntity> {
+    const role = (rawRole || 'employee').toLowerCase();
+    if (role !== 'admin' && role !== 'employee') {
+      const error: any = new Error('Forbidden: Interns cannot create groups.');
+      error.status = 403;
+      throw error;
+    }
+
+    if (!title || !title.trim()) {
+      const error: any = new Error('Group name is required.');
+      error.status = 400;
+      throw error;
+    }
+
+    const group = await ChatRepository.createConversation({
+      workspaceId,
+      type: 'group',
+      title: title.trim(),
+      createdById: userId,
+    });
+
+    // Add creator and all requested members
+    const allMemberIds = new Set<string>([userId, ...(memberUserIds || [])]);
+    await ChatRepository.addConversationMembers(group.id, workspaceId, Array.from(allMemberIds));
+
+    // Broadcast group creation
+    try {
+      EventBus.publishWorkspaceEvent(workspaceId, 'chat.group.created', {
+        group,
+      }, {
+        actorId: userId,
+        entityType: 'chat',
+        entityId: group.id,
+      });
+    } catch {}
+
+    return group;
+  }
+
+  /**
    * List all conversations for a user
    */
   static async getConversations(

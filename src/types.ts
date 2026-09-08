@@ -329,7 +329,8 @@ export interface EmailLogItemType {
 // ==========================================
 // CHAT & COMMUNICATION SYSTEM
 // ==========================================
-export type ConversationType = 'dm' | 'department' | 'project' | 'announcement';
+export type ConversationType = 'dm' | 'channel' | 'group' | 'department' | 'project' | 'announcement';
+
 
 export interface ConversationMember {
   id: string;

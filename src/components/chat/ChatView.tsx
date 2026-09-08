@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { useRealtime } from '../../lib/realtime';
+import { useRealtime, usePresence } from '../../lib/realtime';
 import { api } from '../../lib/api';
 import { Conversation, ChatMessage, ConversationMember, User } from '../../types';
 import { UserAvatar } from '../common/UserAvatar';
@@ -8,7 +8,7 @@ import {
   MessageSquare, Hash, Megaphone, Users, FolderKanban, Building2,
   Search, Send, Smile, MoreVertical, Edit3, Trash2, Plus,
   Shield, Check, Clock, AlertCircle, X, ChevronRight, Info, CheckCheck,
-  ChevronDown, ArrowUp
+  ChevronDown, ArrowUp, CheckSquare, Square
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -17,6 +17,9 @@ const QUICK_EMOJIS = ['👍', '❤️', '🔥', '🚀', '👀', '🎉'];
 export const ChatView: React.FC = () => {
   const { currentUser, currentRole, users, addToast } = useWorkspace();
   const isAdmin = currentRole === 'admin';
+  const canCreateGroup = currentRole === 'admin' || currentRole === 'employee';
+
+  const { presenceList } = usePresence();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -45,10 +48,27 @@ export const ChatView: React.FC = () => {
 
   // Modals & Panels
   const [isNewDmOpen, setIsNewDmOpen] = useState<boolean>(false);
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState<boolean>(false);
+  const [channelTitle, setChannelTitle] = useState<string>('');
+  const [channelDescription, setChannelDescription] = useState<string>('');
+  const [creatingChannel, setCreatingChannel] = useState<boolean>(false);
+
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState<boolean>(false);
+  const [groupTitle, setGroupTitle] = useState<string>('');
+  const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState<boolean>(false);
+
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Helper for presence: only 'online' | 'offline'
+  const isUserOnline = (userId: string): boolean => {
+    if (userId === currentUser.id) return true;
+    const found = presenceList.find((p) => p.userId === userId);
+    return found?.status === 'online';
+  };
 
   // 1. Fetch conversations with optional filter
   const fetchConversations = async () => {
@@ -103,7 +123,7 @@ export const ChatView: React.FC = () => {
     }
   }, [activeConvId]);
 
-  // Load older 50 messages
+  // Load older 50 messages (cursor pagination)
   const handleLoadOlderMessages = async () => {
     if (!activeConvId || messages.length === 0 || loadingOlder) return;
     try {
@@ -178,6 +198,21 @@ export const ChatView: React.FC = () => {
     }
   }, [activeConvId, currentUser]);
 
+  // Real-time: Listen for channel or group creation
+  useRealtime('chat.channel.created', (payload: any) => {
+    const conv = payload?.conversation || payload;
+    if (conv?.id) {
+      setConversations((prev) => (prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]));
+    }
+  }, []);
+
+  useRealtime('chat.group.created', (payload: any) => {
+    const conv = payload?.conversation || payload;
+    if (conv?.id) {
+      setConversations((prev) => (prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]));
+    }
+  }, []);
+
   // Real-time: Listen for typing indicators (chat.user.typing)
   useRealtime('chat.user.typing', (payload: any) => {
     if (payload?.conversationId === activeConvId && payload?.userId !== currentUser.id) {
@@ -203,21 +238,23 @@ export const ChatView: React.FC = () => {
       return otherMember?.user?.name || 'Direct Message';
     }
     if (conv.type === 'announcement') {
-      return 'Announcements';
+      return 'announcements';
     }
-    return conv.title || 'Channel';
+    return conv.title || 'channel';
   };
 
   // Helper to format conversation subtitle
   const getConversationSubtitle = (conv: Conversation): string => {
     if (conv.type === 'dm') {
       const otherMember = conv.members?.find((m) => m.userId !== currentUser.id);
-      return otherMember?.user?.role ? `Direct Message • ${otherMember.user.role.toUpperCase()}` : 'Direct Message';
+      const online = otherMember ? isUserOnline(otherMember.userId) : false;
+      return `${online ? 'Online' : 'Offline'} • Direct Message`;
     }
     if (conv.type === 'announcement') return 'Official Company Broadcast';
     if (conv.type === 'department') return 'Department Channel';
     if (conv.type === 'project') return 'Initiative Discussion';
-    return '';
+    if (conv.type === 'group') return `Group • ${conv.members?.length || 0} members`;
+    return 'Channel Discussion';
   };
 
   // Helper icon for conversation type
@@ -229,6 +266,10 @@ export const ChatView: React.FC = () => {
         return <Building2 className="w-4 h-4 text-purple-400" />;
       case 'project':
         return <FolderKanban className="w-4 h-4 text-blue-400" />;
+      case 'group':
+        return <Users className="w-4 h-4 text-amber-400" />;
+      case 'channel':
+        return <Hash className="w-4 h-4 text-purple-400" />;
       case 'dm':
       default:
         return <MessageSquare className="w-4 h-4 text-emerald-400" />;
@@ -336,17 +377,66 @@ export const ChatView: React.FC = () => {
     }
   };
 
+  // Create Channel (Admin only)
+  const handleCreateChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!channelTitle.trim()) return;
+
+    try {
+      setCreatingChannel(true);
+      const res = await api.createChatChannel(channelTitle.trim(), channelDescription.trim() || undefined);
+      if (res?.conversation) {
+        setConversations((prev) => {
+          const exists = prev.some((c) => c.id === res.conversation.id);
+          return exists ? prev : [res.conversation, ...prev];
+        });
+        setActiveConvId(res.conversation.id);
+        setIsCreateChannelOpen(false);
+        setChannelTitle('');
+        setChannelDescription('');
+        addToast({ type: 'success', title: 'Channel Created', message: `#${res.conversation.title} created successfully.` });
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Channel Error', message: err.message || 'Failed to create channel.' });
+    } finally {
+      setCreatingChannel(false);
+    }
+  };
+
+  // Create Group (Admin and Employee)
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupTitle.trim()) return;
+
+    try {
+      setCreatingGroup(true);
+      const res = await api.createChatGroup(groupTitle.trim(), selectedGroupMemberIds);
+      if (res?.conversation) {
+        setConversations((prev) => {
+          const exists = prev.some((c) => c.id === res.conversation.id);
+          return exists ? prev : [res.conversation, ...prev];
+        });
+        setActiveConvId(res.conversation.id);
+        setIsCreateGroupOpen(false);
+        setGroupTitle('');
+        setSelectedGroupMemberIds([]);
+        addToast({ type: 'success', title: 'Group Created', message: `${res.conversation.title} group created successfully.` });
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Group Error', message: err.message || 'Failed to create group.' });
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
   // Filter conversations
   const filteredConvs = conversations.filter((c) => {
-    // 1. Filter Tab
     if (activeFilterTab === 'unread' && (!c.unreadCount || c.unreadCount <= 0)) {
       return false;
     }
     if (activeFilterTab === 'mentions' && !c.hasUnreadMention) {
       return false;
     }
-
-    // 2. Search Query
     if (searchQuery) {
       const title = getConversationTitle(c).toLowerCase();
       return title.includes(searchQuery.toLowerCase());
@@ -354,10 +444,12 @@ export const ChatView: React.FC = () => {
     return true;
   });
 
-  const announcementConvs = filteredConvs.filter((c) => c.type === 'announcement');
+  // Slack-style categorized collections
+  const channelConvs = filteredConvs.filter(
+    (c) => c.type === 'channel' || c.type === 'announcement' || c.type === 'department' || c.type === 'project'
+  );
+  const groupConvs = filteredConvs.filter((c) => c.type === 'group');
   const dmConvs = filteredConvs.filter((c) => c.type === 'dm');
-  const departmentConvs = filteredConvs.filter((c) => c.type === 'department');
-  const projectConvs = filteredConvs.filter((c) => c.type === 'project');
 
   // Input change for @mentions & typing indicator
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -399,6 +491,7 @@ export const ChatView: React.FC = () => {
     const isDM = c.type === 'dm';
     const other = isDM ? c.members?.find((m) => m.userId !== currentUser.id) : null;
     const isActive = activeConvId === c.id;
+    const isOnline = isDM && other ? isUserOnline(other.userId) : false;
 
     return (
       <button
@@ -406,19 +499,27 @@ export const ChatView: React.FC = () => {
         onClick={() => setActiveConvId(c.id)}
         className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
           isActive
-            ? 'bg-purple-600/20 border border-purple-500/40 text-white'
+            ? 'bg-purple-600/20 border border-purple-500/40 text-white font-medium'
             : 'text-slate-300 hover:bg-white/[0.04] border border-transparent'
         }`}
       >
         <div className="flex items-center gap-2.5 truncate min-w-0 flex-1">
           {isDM ? (
-            other?.user ? (
-              <UserAvatar user={other.user as any} size="sm" />
-            ) : (
-              <MessageSquare className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            )
+            <div className="relative flex-shrink-0">
+              {other?.user ? (
+                <UserAvatar user={other.user as any} size="sm" />
+              ) : (
+                <MessageSquare className="w-4 h-4 text-emerald-400" />
+              )}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0F172A] ${
+                  isOnline ? 'bg-emerald-500' : 'bg-slate-500'
+                }`}
+                title={isOnline ? 'Online' : 'Offline'}
+              />
+            </div>
           ) : (
-            getConversationIcon(c.type)
+            <div className="flex-shrink-0">{getConversationIcon(c.type)}</div>
           )}
           <div className="truncate flex-1">
             <div className="flex items-center gap-1.5 truncate">
@@ -437,7 +538,7 @@ export const ChatView: React.FC = () => {
           {c.hasUnreadMention && (
             <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.2 rounded-full font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Mentioned You
+              Mention
             </span>
           )}
           {c.unreadCount && c.unreadCount > 0 ? (
@@ -453,7 +554,7 @@ export const ChatView: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-[#0B0F17] text-slate-100 overflow-hidden rounded-2xl border border-white/[0.08] shadow-2xl">
       {/* ========================================================================= */}
-      {/* 1. LEFT SIDEBAR: CONVERSATIONS DIRECTORY */}
+      {/* 1. LEFT SIDEBAR: SLACK-STYLE CHANNELS, GROUPS & DIRECT MESSAGES */}
       {/* ========================================================================= */}
       <div className="w-80 border-r border-white/[0.08] bg-[#0F172A]/70 backdrop-blur-xl flex flex-col flex-shrink-0">
         {/* Header, Search & Filter Tabs */}
@@ -464,18 +565,38 @@ export const ChatView: React.FC = () => {
                 <MessageSquare className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white tracking-tight">Communication Hub</h2>
-                <p className="text-[10px] text-slate-400 font-mono">Workspace Discussions</p>
+                <h2 className="text-sm font-bold text-white tracking-tight">Workspace Chat</h2>
+                <p className="text-[10px] text-slate-400 font-mono">Channels & Messaging</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setIsNewDmOpen(true)}
-              className="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-colors cursor-pointer"
-              title="New Direct Message"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isAdmin && (
+                <button
+                  onClick={() => setIsCreateChannelOpen(true)}
+                  className="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-colors cursor-pointer"
+                  title="Create Channel (Admin Only)"
+                >
+                  <Hash className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {canCreateGroup && (
+                <button
+                  onClick={() => setIsCreateGroupOpen(true)}
+                  className="p-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-600 text-white transition-colors cursor-pointer"
+                  title="Create Group"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => setIsNewDmOpen(true)}
+                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer"
+                title="New Direct Message"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Search bar */}
@@ -518,27 +639,67 @@ export const ChatView: React.FC = () => {
             <div className="p-8 text-center text-xs text-slate-500">Loading channels...</div>
           ) : (
             <>
-              {/* SECTION: ANNOUNCEMENTS */}
-              {announcementConvs.length > 0 && (
-                <div>
-                  <span className="px-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-rose-400/80">
-                    Announcements
-                  </span>
-                  <div className="mt-1 space-y-1">
-                    {announcementConvs.map(renderConversationItem)}
-                  </div>
-                </div>
-              )}
-
-              {/* SECTION: DIRECT MESSAGES */}
+              {/* SECTION 1: CHANNELS */}
               <div>
                 <div className="flex items-center justify-between px-2 mb-1">
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-purple-400/80 flex items-center gap-1.5">
+                    <Hash className="w-3 h-3" />
+                    Channels ({channelConvs.length})
+                  </span>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setIsCreateChannelOpen(true)}
+                      className="text-[10px] text-purple-400 hover:text-purple-300 font-mono font-semibold cursor-pointer"
+                      title="Add Channel (Admin only)"
+                    >
+                      + Add
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {channelConvs.map(renderConversationItem)}
+                  {channelConvs.length === 0 && (
+                    <p className="px-3 py-1 text-[11px] text-slate-500 italic">No channels available.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* SECTION 2: GROUPS */}
+              <div>
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-400/80 flex items-center gap-1.5">
+                    <Users className="w-3 h-3" />
+                    Groups ({groupConvs.length})
+                  </span>
+                  {canCreateGroup && (
+                    <button
+                      onClick={() => setIsCreateGroupOpen(true)}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 font-mono font-semibold cursor-pointer"
+                      title="Create Group"
+                    >
+                      + Add
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {groupConvs.map(renderConversationItem)}
+                  {groupConvs.length === 0 && (
+                    <p className="px-3 py-1 text-[11px] text-slate-500 italic">No group chats yet.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* SECTION 3: DIRECT MESSAGES */}
+              <div>
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-emerald-400/80 flex items-center gap-1.5">
+                    <MessageSquare className="w-3 h-3" />
                     Direct Messages ({dmConvs.length})
                   </span>
                   <button
                     onClick={() => setIsNewDmOpen(true)}
-                    className="text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer"
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 font-mono font-semibold cursor-pointer"
+                    title="New Direct Message"
                   >
                     + New
                   </button>
@@ -547,32 +708,6 @@ export const ChatView: React.FC = () => {
                   {dmConvs.map(renderConversationItem)}
                   {dmConvs.length === 0 && (
                     <p className="px-3 py-1 text-[11px] text-slate-500 italic">No direct messages.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* SECTION: DEPARTMENTS */}
-              <div>
-                <span className="px-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-purple-400/80">
-                  Departments ({departmentConvs.length})
-                </span>
-                <div className="mt-1 space-y-1">
-                  {departmentConvs.map(renderConversationItem)}
-                  {departmentConvs.length === 0 && (
-                    <p className="px-3 py-1 text-[11px] text-slate-500 italic">No department channels.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* SECTION: PROJECTS */}
-              <div>
-                <span className="px-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-blue-400/80">
-                  Projects & Initiatives ({projectConvs.length})
-                </span>
-                <div className="mt-1 space-y-1">
-                  {projectConvs.map(renderConversationItem)}
-                  {projectConvs.length === 0 && (
-                    <p className="px-3 py-1 text-[11px] text-slate-500 italic">No project channels.</p>
                   )}
                 </div>
               </div>
@@ -596,7 +731,7 @@ export const ChatView: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. CENTER PANE: MESSAGES & COMPOSER */}
+      {/* 2. CENTER PANEL: HEADER, MESSAGES & COMPOSER */}
       {/* ========================================================================= */}
       <div className="flex-1 flex flex-col bg-[#0B0F17] overflow-hidden">
         {activeConversation ? (
@@ -604,21 +739,41 @@ export const ChatView: React.FC = () => {
             {/* Conversation Header */}
             <div className="p-4 border-b border-white/[0.08] bg-[#0F172A]/40 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
                   {getConversationIcon(activeConversation.type)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-bold text-white tracking-tight">
-                      {getConversationTitle(activeConversation)}
+                      {activeConversation.type === 'dm'
+                        ? getConversationTitle(activeConversation)
+                        : `#${getConversationTitle(activeConversation)}`}
                     </h3>
                     <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">
                       {activeConversation.type}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate max-w-md">
-                    {activeConversation.description || getConversationSubtitle(activeConversation)}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {/* Presence display for DM */}
+                    {activeConversation.type === 'dm' && (() => {
+                      const other = activeConversation.members?.find((m) => m.userId !== currentUser.id);
+                      const online = other ? isUserOnline(other.userId) : false;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}
+                          />
+                          <span className={`text-[11px] font-medium font-mono ${online ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {online ? 'Online' : 'Offline'}
+                          </span>
+                          <span className="text-slate-600">•</span>
+                        </div>
+                      );
+                    })()}
+                    <p className="text-xs text-slate-400 truncate max-w-md">
+                      {activeConversation.description || getConversationSubtitle(activeConversation)}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -668,7 +823,7 @@ export const ChatView: React.FC = () => {
 
             {/* Messages Feed */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Load older messages button */}
+              {/* Cursor pagination: Load older messages button */}
               {hasMoreOlder && (
                 <div className="text-center py-2">
                   <button
@@ -805,7 +960,6 @@ export const ChatView: React.FC = () => {
                       {/* Action Menu on Hover */}
                       {!msg.isDeleted && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-2 flex items-center gap-1 bg-[#1E293B] border border-white/[0.08] rounded-xl p-1 shadow-lg">
-                          {/* Quick Reactions */}
                           {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
                             <button
                               key={emoji}
@@ -891,7 +1045,7 @@ export const ChatView: React.FC = () => {
                   <textarea
                     ref={inputRef}
                     rows={2}
-                    placeholder={`Message ${getConversationTitle(activeConversation)} (type @ to mention)...`}
+                    placeholder={`Message #${getConversationTitle(activeConversation)} (type @ to mention)...`}
                     value={messageInput}
                     onChange={handleInputChange}
                     onKeyDown={(e) => {
@@ -925,7 +1079,7 @@ export const ChatView: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-500">
             <MessageSquare className="w-8 h-8 text-slate-600 mb-2" />
             <p className="text-sm font-medium text-slate-300">Select a conversation to begin</p>
-            <p className="text-xs">Choose a channel or direct message from the left sidebar.</p>
+            <p className="text-xs">Choose a channel, group, or direct message from the left sidebar.</p>
           </div>
         )}
       </div>
@@ -955,7 +1109,7 @@ export const ChatView: React.FC = () => {
             </p>
           </div>
 
-          {/* Members List */}
+          {/* Members List with Presence Status */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-slate-500 font-mono uppercase">
@@ -964,30 +1118,228 @@ export const ChatView: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {activeConversation.members?.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.02] border border-white/[0.04]"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <UserAvatar user={m.user as any} size="sm" />
-                    <div className="truncate text-xs">
-                      <p className="font-semibold text-slate-200 truncate">{m.user?.name || 'User'}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{m.user?.email}</p>
+              {activeConversation.members?.map((m) => {
+                const online = isUserOnline(m.userId);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <div className="relative flex-shrink-0">
+                        <UserAvatar user={m.user as any} size="sm" />
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0F172A] ${
+                            online ? 'bg-emerald-500' : 'bg-slate-500'
+                          }`}
+                          title={online ? 'Online' : 'Offline'}
+                        />
+                      </div>
+                      <div className="truncate text-xs">
+                        <p className="font-semibold text-slate-200 truncate">{m.user?.name || 'User'}</p>
+                        <p className={`text-[10px] font-mono capitalize ${online ? 'text-emerald-400' : 'text-slate-500'}`}>
+                          {online ? 'Online' : 'Offline'}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-400 flex-shrink-0">
+                      {m.user?.role || m.role}
+                    </span>
                   </div>
-                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-400">
-                    {m.user?.role || m.role}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* NEW DIRECT MESSAGE MODAL */}
+      {/* MODAL 1: CREATE CHANNEL (ADMIN ONLY) */}
+      {/* ========================================================================= */}
+      {isCreateChannelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsCreateChannelOpen(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Hash className="w-4 h-4 text-purple-400" />
+                Create Channel
+              </h3>
+              <button
+                onClick={() => setIsCreateChannelOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateChannel} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Channel Name <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">#</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. team-sync, marketing"
+                    value={channelTitle}
+                    onChange={(e) => setChannelTitle(e.target.value)}
+                    className="w-full bg-[#111827] border border-white/[0.08] focus:border-purple-500/50 rounded-xl pl-7 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="What is this channel about?"
+                  value={channelDescription}
+                  onChange={(e) => setChannelDescription(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-purple-500/50 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateChannelOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingChannel || !channelTitle.trim()}
+                  className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 cursor-pointer"
+                >
+                  {creatingChannel ? 'Creating...' : 'Create Channel'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: CREATE GROUP (ADMIN & EMPLOYEE) */}
+      {/* ========================================================================= */}
+      {isCreateGroupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsCreateGroupOpen(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-amber-400" />
+                Create Group Chat
+              </h3>
+              <button
+                onClick={() => setIsCreateGroupOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGroup} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Group Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Design Sync, Sprint Squad"
+                  value={groupTitle}
+                  onChange={(e) => setGroupTitle(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-amber-500/50 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Select Members ({selectedGroupMemberIds.length} selected)
+                  </label>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-[#111827] rounded-xl border border-white/[0.06]">
+                  {users
+                    .filter((u) => u.id !== currentUser.id)
+                    .map((u) => {
+                      const isSelected = selectedGroupMemberIds.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => {
+                            setSelectedGroupMemberIds((prev) =>
+                              isSelected ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                            );
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                            isSelected ? 'bg-amber-500/15 border border-amber-500/30' : 'hover:bg-white/[0.04]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <UserAvatar user={u} size="sm" />
+                            <div>
+                              <p className="text-xs font-medium text-white">{u.name}</p>
+                              <p className="text-[10px] text-slate-400">{u.email}</p>
+                            </div>
+                          </div>
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-amber-400" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-500" />
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateGroupOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingGroup || !groupTitle.trim()}
+                  className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-amber-600/20 cursor-pointer"
+                >
+                  {creatingGroup ? 'Creating...' : 'Create Group'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: START DIRECT MESSAGE */}
       {/* ========================================================================= */}
       {isNewDmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1003,7 +1355,7 @@ export const ChatView: React.FC = () => {
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-purple-400" />
+                <MessageSquare className="w-4 h-4 text-emerald-400" />
                 Start Direct Message
               </h3>
               <button
@@ -1019,24 +1371,41 @@ export const ChatView: React.FC = () => {
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {users
                 .filter((u) => u.id !== currentUser.id)
-                .map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleStartDm(u.id)}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-purple-500/40 text-left transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <UserAvatar user={u} size="md" />
-                      <div>
-                        <p className="text-xs font-semibold text-white">{u.name}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{u.email}</p>
+                .map((u) => {
+                  const online = isUserOnline(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => handleStartDm(u.id)}
+                      className="w-full flex items-center justify-between p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-emerald-500/40 text-left transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative flex-shrink-0">
+                          <UserAvatar user={u} size="md" />
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111827] ${
+                              online ? 'bg-emerald-500' : 'bg-slate-500'
+                            }`}
+                            title={online ? 'Online' : 'Offline'}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-white">{u.name}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            {online ? (
+                              <span className="text-emerald-400">Online</span>
+                            ) : (
+                              <span>{u.email}</span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                      {u.role}
-                    </span>
-                  </button>
-                ))}
+                      <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                        {u.role}
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
           </motion.div>
         </div>

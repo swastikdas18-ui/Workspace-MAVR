@@ -89,6 +89,54 @@ chatRouter.post('/conversations/dm', async (c) => {
 });
 
 /**
+ * POST /api/chat/conversations/channel - Create a public/workspace channel (Admin only)
+ */
+chatRouter.post('/conversations/channel', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+    const { title, description } = body;
+
+    const channel = await ChatService.createChannel(workspace.id, title, description, user.id, role);
+    const members = await ChatRepository.getConversationMembers(channel.id);
+    return c.json({ conversation: { ...channel, members } }, 201);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/chat/conversations/group - Create a group conversation (Admin/Employee)
+ */
+chatRouter.post('/conversations/group', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+    const { title, memberUserIds } = body;
+
+    const group = await ChatService.createGroup(workspace.id, title, memberUserIds || [], user.id, role);
+    const members = await ChatRepository.getConversationMembers(group.id);
+    return c.json({ conversation: { ...group, members } }, 201);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
  * GET /api/chat/conversations/:id - Get conversation details & members
  */
 chatRouter.get('/conversations/:id', async (c) => {

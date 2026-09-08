@@ -4,7 +4,7 @@ import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
 export interface ConversationEntity {
   id: string;
   workspaceId: string;
-  type: 'dm' | 'department' | 'project' | 'announcement';
+  type: 'dm' | 'channel' | 'group' | 'department' | 'project' | 'announcement';
   title: string | null;
   description: string | null;
   departmentId: string | null;
@@ -86,7 +86,7 @@ export class ChatRepository {
    */
   static async createConversation(data: {
     workspaceId: string;
-    type: 'dm' | 'department' | 'project' | 'announcement';
+    type: 'dm' | 'channel' | 'group' | 'department' | 'project' | 'announcement';
     title?: string | null;
     description?: string | null;
     departmentId?: string | null;

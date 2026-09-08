@@ -1153,6 +1153,20 @@ export const api = {
     });
   },
 
+  async createChatChannel(title: string, description?: string) {
+    return await fetchApi<{ conversation: any }>('/api/chat/conversations/channel', {
+      method: 'POST',
+      body: JSON.stringify({ title, description }),
+    });
+  },
+
+  async createChatGroup(title: string, memberUserIds?: string[]) {
+    return await fetchApi<{ conversation: any }>('/api/chat/conversations/group', {
+      method: 'POST',
+      body: JSON.stringify({ title, memberUserIds }),
+    });
+  },
+
   async getChatConversation(id: string) {
     return await fetchApi<{ conversation: any }>(`/api/chat/conversations/${id}`);
   },

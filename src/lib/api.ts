@@ -1176,10 +1176,14 @@ export const api = {
     return await fetchApi<{ messages: any[] }>(`/api/chat/conversations/${id}/messages${query ? `?${query}` : ''}`);
   },
 
-  async sendChatMessage(conversationId: string, content: string) {
+  async sendChatMessage(
+    conversationId: string,
+    content: string,
+    options?: { parentId?: string; attachments?: any[] }
+  ) {
     return await fetchApi<{ message: any }>(`/api/chat/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, parentId: options?.parentId, attachments: options?.attachments }),
     });
   },
 
@@ -1197,9 +1201,59 @@ export const api = {
   },
 
   async toggleChatMessageReaction(messageId: string, emoji: string) {
-    return await fetchApi<{ added: boolean; reaction?: any }>(`/api/chat/messages/${messageId}/reactions`, {
+    return await fetchApi<{ added: boolean; reaction?: any }>(`/api/chat/messages/${messageId}/react`, {
       method: 'POST',
       body: JSON.stringify({ emoji }),
+    });
+  },
+
+  async togglePinChatMessage(messageId: string) {
+    return await fetchApi<{ message: any; isPinned: boolean }>(`/api/chat/messages/${messageId}/pin`, {
+      method: 'POST',
+    });
+  },
+
+  async getChatThread(messageId: string) {
+    return await fetchApi<{ parent: any; replies: any[] }>(`/api/chat/messages/${messageId}/thread`);
+  },
+
+  async sendChatThreadReply(messageId: string, content: string) {
+    return await fetchApi<{ reply: any }>(`/api/chat/messages/${messageId}/thread`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async getChatPinnedMessages(conversationId: string) {
+    return await fetchApi<{ pinned: any[] }>(`/api/chat/conversations/${conversationId}/pinned`);
+  },
+
+  async getChatConversationFiles(conversationId: string) {
+    return await fetchApi<{ files: any[] }>(`/api/chat/conversations/${conversationId}/files`);
+  },
+
+  async getChatReaders(conversationId: string, messageId?: string) {
+    const query = messageId ? `?conversationId=${conversationId}&messageId=${messageId}` : `?conversationId=${conversationId}`;
+    return await fetchApi<{ readers: any[] }>(`/api/chat/readers${query}`);
+  },
+
+  async searchChat(query: string, filters?: { channel?: string; from?: string; hasFile?: boolean; before?: string; after?: string }) {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (filters?.channel) params.set('channel', filters.channel);
+    if (filters?.from) params.set('from', filters.from);
+    if (filters?.hasFile) params.set('hasFile', 'true');
+    if (filters?.before) params.set('before', filters.before);
+    if (filters?.after) params.set('after', filters.after);
+    return await fetchApi<{ messages: any[]; conversations: any[] }>(`/api/chat/search?${params.toString()}`);
+  },
+
+  async uploadChatAttachment(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return await fetchApi<{ success: boolean; attachment: any }>('/api/chat/upload', {
+      method: 'POST',
+      body: formData,
     });
   },
 
@@ -1218,10 +1272,50 @@ export const api = {
     return await fetchApi<{ unreadCounts: Record<string, number> }>('/api/chat/unread-counts');
   },
 
-  async sendChatTyping(conversationId: string) {
+  async sendChatTyping(conversationId: string, isTyping: boolean = true) {
     return await fetchApi<{ success: boolean }>(`/api/chat/conversations/${conversationId}/typing`, {
       method: 'POST',
+      body: JSON.stringify({ isTyping }),
     });
+  },
+
+  async createChatMessageTask(
+    messageId: string,
+    data: {
+      title?: string;
+      description?: string;
+      projectId?: string;
+      assignedTo?: string;
+      priority?: string;
+      dueDate?: string;
+    }
+  ) {
+    return await fetchApi<{ messageTask: any; task: any }>(`/api/chat/messages/${messageId}/create-task`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async executeChatSlashCommand(conversationId: string, command: string) {
+    return await fetchApi<{
+      slashCommand: { id?: string; command: string; args: string; result: any };
+      command: string;
+      args: string;
+      result: any;
+      message?: any;
+    }>(
+      `/api/chat/conversations/${conversationId}/slash-command`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ command }),
+      }
+    );
+  },
+
+  async getChatSlashCommandHistory(conversationId: string) {
+    return await fetchApi<{ history: any[] }>(
+      `/api/chat/conversations/${conversationId}/slash-commands`
+    );
   },
 
   // Phase 33: Work Inbox (Action Center)

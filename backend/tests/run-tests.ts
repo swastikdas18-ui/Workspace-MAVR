@@ -40,6 +40,10 @@ import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
 import { runChatRealtimeProviderRegressionTest } from './chat-realtime-provider.test';
 import { runChatV2FoundationTests } from './chat-v2-foundation.test';
+import { runChatV2ProductionTests } from './chat-v2-production.test';
+import { runChatMessageTaskTests } from './chat-message-task.test';
+import { runChatMentionsTests } from './chat-mentions.test';
+import { runChatSlashCommandsTests } from './chat-slash-commands.test';
 
 async function main() {
   try {
@@ -123,7 +127,15 @@ async function main() {
     await runChatRealtimeProviderRegressionTest();
     console.log('\n>>> Starting Suite 40: Workspace OS — Chat V2 Foundation (Phase 1)');
     await runChatV2FoundationTests();
-    console.log('\n🌟 ALL 40 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 41: Workspace OS — Chat V2 Production (Slack-Grade Communication Hub)');
+    await runChatV2ProductionTests();
+    console.log('\n>>> Starting Suite 42: Workspace OS — Chat Message To Task Conversion (Phase 2A)');
+    await runChatMessageTaskTests();
+    console.log('\n>>> Starting Suite 43: Workspace OS — Chat Mentions & Notification Engine (Phase 2B)');
+    await runChatMentionsTests();
+    console.log('\n>>> Starting Suite 44: Workspace OS — Chat Slash Command System (Phase 2C)');
+    await runChatSlashCommandsTests();
+    console.log('\n🌟 ALL 44 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

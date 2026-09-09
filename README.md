@@ -52,11 +52,15 @@ workspace-os/
 │       ├── auth-rbac.test.ts     # End-to-end authentication & RBAC test suite
 │       └── run-tests.ts          # Test runner script
 ├── docs/                         # Mandatory System Architecture Specifications
+│   ├── README.md                 # Engineering documentation index & catalog
 │   ├── 01-architecture.md        # Target backend architecture & security pipeline
 │   ├── 02-database.md            # Drizzle ORM schema specification
 │   ├── 03-permission-matrix.md   # Role-based permission matrix
 │   ├── 04-auth-flow.md           # Authentication flow & session lifecycle
-│   └── 05-feature-matrix.md      # Module-level scoping rules
+│   ├── 05-feature-matrix.md      # Module-level scoping rules
+│   ├── 06-api-reference.md       # API endpoints, envelopes, and status codes
+│   ├── 07-security-and-isolation.md # Tenant isolation, CSRF, and rate limiting
+│   └── 08-developer-guide.md     # Setup, testing, migrations, and deployment
 ├── src/                          # React Frontend Application
 │   ├── components/               # Modular UI components by domain
 │   │   ├── admin/                # Admin-specific management controls

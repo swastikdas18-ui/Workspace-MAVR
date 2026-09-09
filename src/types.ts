@@ -358,16 +358,44 @@ export interface MessageReaction {
   createdAt: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface MessageTask {
+  id: string;
+  workspaceId: string;
+  messageId: string;
+  taskId: string;
+  createdBy: string;
+  createdAt: string;
+  task?: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+  } | null;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
   workspaceId: string;
   senderId: string;
   content: string;
+  parentId?: string | null;
+  isPinned: boolean;
+  attachments?: ChatAttachment[];
   mentions: string[];
   isEdited: boolean;
   isDeleted: boolean;
   reactions?: MessageReaction[];
+  replyCount?: number;
+  linkedTasks?: MessageTask[];
   sender?: {
     id: string;
     name: string;

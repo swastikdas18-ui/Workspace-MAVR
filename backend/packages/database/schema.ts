@@ -1131,7 +1131,24 @@ export const onboardingState = pgTable(
   })
 );
 
-
+export const messageTasks = pgTable(
+  'message_tasks',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    messageId: text('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    createdBy: text('created_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    msgTaskUnique: uniqueIndex('idx_message_tasks_unique').on(table.messageId, table.taskId),
+    workspaceIdx: index('idx_message_tasks_workspace_id').on(table.workspaceId),
+    messageIdx: index('idx_message_tasks_message_id').on(table.messageId),
+    taskIdx: index('idx_message_tasks_task_id').on(table.taskId),
+    createdByIdx: index('idx_message_tasks_created_by').on(table.createdBy),
+  })
+);
 export const betaFeedback = pgTable(
   'beta_feedback',
   {
@@ -1607,6 +1624,14 @@ export const conversationMembers = pgTable(
   })
 );
 
+export interface MessageAttachment {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
 export const messages = pgTable(
   'messages',
   {
@@ -1615,6 +1640,9 @@ export const messages = pgTable(
     workspaceId: text('workspace_id').notNull(),
     senderId: text('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
+    parentId: text('parent_id'),
+    isPinned: boolean('is_pinned').default(false).notNull(),
+    attachments: jsonb('attachments').$type<MessageAttachment[]>().default([]),
     mentions: jsonb('mentions').$type<string[]>().default([]),
     isEdited: boolean('is_edited').default(false).notNull(),
     isDeleted: boolean('is_deleted').default(false).notNull(),
@@ -1626,6 +1654,8 @@ export const messages = pgTable(
     senderIdx: index('idx_messages_sender_id').on(table.senderId),
     workspaceIdx: index('idx_messages_workspace_id').on(table.workspaceId),
     createdIdx: index('idx_messages_created_at').on(table.createdAt),
+    parentIdx: index('idx_messages_parent_id').on(table.parentId),
+    pinnedIdx: index('idx_messages_is_pinned').on(table.isPinned),
   })
 );
 
@@ -1659,6 +1689,47 @@ export const conversationReads = pgTable(
     convUserUnique: uniqueIndex('idx_conv_reads_unique').on(table.conversationId, table.userId),
     convIdx: index('idx_conv_reads_conv_id').on(table.conversationId),
     userIdx: index('idx_conv_reads_user_id').on(table.userId),
+  })
+);
+
+
+export const messageMentions = pgTable(
+  'message_mentions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    messageId: text('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+    mentionedUserId: text('mentioned_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    mentionType: text('mention_type').notNull(), // 'user' | 'team' | 'admins' | 'everyone'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    msgMentionUnique: uniqueIndex('idx_message_mentions_unique').on(table.messageId, table.mentionedUserId, table.mentionType),
+    workspaceIdx: index('idx_message_mentions_workspace_id').on(table.workspaceId),
+    messageIdx: index('idx_message_mentions_message_id').on(table.messageId),
+    mentionedUserIdx: index('idx_message_mentions_user_id').on(table.mentionedUserId),
+    mentionTypeIdx: index('idx_message_mentions_type').on(table.mentionType),
+  })
+);
+
+export const chatSlashCommands = pgTable(
+  'chat_slash_commands',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    command: text('command').notNull(), // 'task' | 'project' | 'sop' | 'remind' | 'poll'
+    rawInput: text('raw_input').notNull(),
+    args: text('args').notNull(),
+    result: jsonb('result').notNull().default({}),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    workspaceIdx: index('idx_chat_slash_commands_workspace_id').on(table.workspaceId),
+    convIdx: index('idx_chat_slash_commands_conv_id').on(table.conversationId),
+    userIdx: index('idx_chat_slash_commands_user_id').on(table.userId),
+    commandIdx: index('idx_chat_slash_commands_command').on(table.command),
   })
 );
 

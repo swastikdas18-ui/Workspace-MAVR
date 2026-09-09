@@ -87,6 +87,10 @@ export class InMemoryDatabase {
   public messages: Map<string, any> = new Map();
   public messageReactions: Map<string, any> = new Map();
   public conversationReads: Map<string, any> = new Map();
+  public messageTasks: Map<string, any> = new Map();
+  public messageMentions: Map<string, any> = new Map();
+  public chatSlashCommands: Map<string, any> = new Map();
+  public chatPolls: Map<string, any> = new Map();
 
   public reset() {
     this.users.clear();
@@ -171,6 +175,10 @@ export class InMemoryDatabase {
     this.messages.clear();
     this.messageReactions.clear();
     this.conversationReads.clear();
+    this.messageTasks.clear();
+    this.messageMentions.clear();
+    this.chatSlashCommands.clear();
+    this.chatPolls.clear();
   }
 }
 

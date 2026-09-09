@@ -48,16 +48,60 @@ export interface MessageReactionEntity {
   createdAt: Date;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface MessageTaskEntity {
+  id: string;
+  workspaceId: string;
+  messageId: string;
+  taskId: string;
+  createdBy: string;
+  createdAt: Date;
+  task?: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+  } | null;
+}
+
+export interface MessageMentionEntity {
+  id: string;
+  workspaceId: string;
+  messageId: string;
+  mentionedUserId: string;
+  mentionType: string;
+  createdAt: Date;
+  mentionedUser?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string | null;
+    role: string;
+  } | null;
+}
+
 export interface MessageEntity {
   id: string;
   conversationId: string;
   workspaceId: string;
   senderId: string;
   content: string;
+  parentId?: string | null;
+  isPinned: boolean;
+  attachments?: ChatAttachment[];
   mentions: string[];
   isEdited: boolean;
   isDeleted: boolean;
   reactions?: MessageReactionEntity[];
+  replyCount?: number;
+  linkedTasks?: MessageTaskEntity[];
   sender?: { id: string; name: string; email: string; avatar?: string | null; role: string } | null;
   createdAt: Date;
   updatedAt: Date;
@@ -623,6 +667,9 @@ export class ChatRepository {
     workspaceId: string;
     senderId: string;
     content: string;
+    parentId?: string | null;
+    isPinned?: boolean;
+    attachments?: ChatAttachment[];
     mentions?: string[];
   }): Promise<MessageEntity> {
     const id = crypto.randomUUID();
@@ -662,10 +709,14 @@ export class ChatRepository {
       workspaceId: data.workspaceId,
       senderId: data.senderId,
       content: data.content,
+      parentId: data.parentId || null,
+      isPinned: data.isPinned || false,
+      attachments: data.attachments || [],
       mentions: data.mentions || [],
       isEdited: false,
       isDeleted: false,
       reactions: [],
+      replyCount: 0,
       sender: this.getUserDetails(data.senderId),
       createdAt: msgDate,
       updatedAt: msgDate,
@@ -693,6 +744,9 @@ export class ChatRepository {
           workspaceId: record.workspaceId,
           senderId: record.senderId,
           content: record.content,
+          parentId: record.parentId,
+          isPinned: record.isPinned,
+          attachments: record.attachments,
           mentions: record.mentions,
           isEdited: record.isEdited,
           isDeleted: record.isDeleted,
@@ -713,16 +767,33 @@ export class ChatRepository {
   }
 
   /**
+   * Get reply count for a parent message
+   */
+  static async getReplyCount(messageId: string): Promise<number> {
+    let count = 0;
+    for (const m of inMemoryDb.messages.values()) {
+      if (m.parentId === messageId && !m.isDeleted) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * Get message by ID
    */
   static async getMessageById(messageId: string): Promise<MessageEntity | null> {
     const inMem = inMemoryDb.messages.get(messageId);
     if (inMem) {
       const reactions = await this.getMessageReactions(messageId);
+      const replyCount = await this.getReplyCount(messageId);
+      const linkedTasks = await this.getMessageLinkedTasks(messageId);
       return {
         ...inMem,
         sender: this.getUserDetails(inMem.senderId),
         reactions,
+        replyCount,
+        linkedTasks,
       };
     }
 
@@ -732,16 +803,23 @@ export class ChatRepository {
         const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, messageId));
         if (row) {
           const reactions = await this.getMessageReactions(messageId);
+          const replyCount = await this.getReplyCount(messageId);
+          const linkedTasks = await this.getMessageLinkedTasks(messageId);
           return {
             id: row.id,
             conversationId: row.conversationId,
             workspaceId: row.workspaceId,
             senderId: row.senderId,
             content: row.content,
+            parentId: row.parentId,
+            isPinned: row.isPinned,
+            attachments: (row.attachments as any[]) || [],
             mentions: (row.mentions as string[]) || [],
             isEdited: row.isEdited,
             isDeleted: row.isDeleted,
             reactions,
+            replyCount,
+            linkedTasks,
             sender: this.getUserDetails(row.senderId),
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
@@ -790,14 +868,208 @@ export class ChatRepository {
     const enriched: MessageEntity[] = [];
     for (const m of msgList) {
       const reactions = await this.getMessageReactions(m.id);
+      const replyCount = await this.getReplyCount(m.id);
+      const linkedTasks = await this.getMessageLinkedTasks(m.id);
       enriched.push({
         ...m,
+        replyCount,
+        sender: this.getUserDetails(m.senderId),
+        reactions,
+        linkedTasks,
+      });
+    }
+
+    return enriched;
+  }
+
+  /**
+   * List replies in a thread (messages where parentId = :parentId)
+   */
+  static async listThreadReplies(parentId: string): Promise<MessageEntity[]> {
+    let replies = Array.from(inMemoryDb.messages.values()).filter(
+      (m: any) => m.parentId === parentId && !m.isDeleted
+    );
+
+    replies.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const enriched: MessageEntity[] = [];
+    for (const r of replies) {
+      const reactions = await this.getMessageReactions(r.id);
+      const linkedTasks = await this.getMessageLinkedTasks(r.id);
+      enriched.push({
+        ...r,
+        sender: this.getUserDetails(r.senderId),
+        reactions,
+        linkedTasks,
+      });
+    }
+
+    return enriched;
+  }
+
+  /**
+   * Toggle pinned state for a message
+   */
+  static async togglePinMessage(messageId: string): Promise<MessageEntity | null> {
+    const msg = inMemoryDb.messages.get(messageId);
+    if (!msg) return null;
+
+    msg.isPinned = !msg.isPinned;
+    msg.updatedAt = new Date();
+    inMemoryDb.messages.set(messageId, msg);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db
+          .update(schema.messages)
+          .set({ isPinned: msg.isPinned, updatedAt: msg.updatedAt })
+          .where(eq(schema.messages.id, messageId));
+      }
+    } catch (err: any) {
+      console.warn('[ChatRepository.togglePinMessage] DB error:', err.message);
+    }
+
+    return await this.getMessageById(messageId);
+  }
+
+  /**
+   * List pinned messages in a conversation
+   */
+  static async listPinnedMessages(conversationId: string): Promise<MessageEntity[]> {
+    const list = Array.from(inMemoryDb.messages.values()).filter(
+      (m: any) => m.conversationId === conversationId && m.isPinned && !m.isDeleted
+    );
+
+    list.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const enriched: MessageEntity[] = [];
+    for (const m of list) {
+      const reactions = await this.getMessageReactions(m.id);
+      const replyCount = await this.getReplyCount(m.id);
+      enriched.push({
+        ...m,
+        replyCount,
         sender: this.getUserDetails(m.senderId),
         reactions,
       });
     }
 
     return enriched;
+  }
+
+  /**
+   * List all attachments across a conversation
+   */
+  static async listConversationAttachments(conversationId: string): Promise<ChatAttachment[]> {
+    const attachments: ChatAttachment[] = [];
+    for (const m of inMemoryDb.messages.values()) {
+      if (m.conversationId === conversationId && !m.isDeleted && Array.isArray(m.attachments)) {
+        for (const att of m.attachments) {
+          attachments.push(att);
+        }
+      }
+    }
+    return attachments;
+  }
+
+  /**
+   * Get readers who have read a specific message or conversation
+   */
+  static async getReaders(conversationId: string, messageId?: string): Promise<any[]> {
+    const readers: any[] = [];
+    const members = await this.getConversationMembers(conversationId);
+
+    for (const m of members) {
+      const r = inMemoryDb.conversationReads.get(`${conversationId}:${m.userId}`);
+      let readAt: Date | null = null;
+      let lastMsgId: string | null = null;
+
+      if (r) {
+        readAt = r.lastReadAt ? new Date(r.lastReadAt) : null;
+        lastMsgId = r.lastReadMessageId || null;
+      } else if (m.lastReadAt) {
+        readAt = new Date(m.lastReadAt);
+      }
+
+      if (readAt) {
+        readers.push({
+          id: m.userId,
+          userId: m.userId,
+          name: m.user?.name || 'User',
+          avatar: m.user?.avatar,
+          role: m.user?.role,
+          user: m.user,
+          lastReadAt: readAt,
+          lastReadMessageId: lastMsgId,
+        });
+      }
+    }
+
+    return readers;
+  }
+
+  /**
+   * Global Search across messages and accessible conversations
+   */
+  static async searchChat(
+    workspaceId: string,
+    userId: string,
+    role: string,
+    queryText: string,
+    filters?: {
+      conversationId?: string;
+      fromUserId?: string;
+      hasFile?: boolean;
+      before?: string;
+      after?: string;
+    }
+  ): Promise<{ messages: MessageEntity[]; conversations: ConversationEntity[] }> {
+    const accessibleConvs = await this.listUserConversations(workspaceId, userId, role);
+    const accessibleConvIds = new Set(accessibleConvs.map((c) => c.id));
+
+    const q = (queryText || '').toLowerCase().trim();
+
+    // 1. Search matching conversations
+    const matchedConvs = accessibleConvs.filter(
+      (c) => (c.title && c.title.toLowerCase().includes(q)) || (c.description && c.description.toLowerCase().includes(q))
+    );
+
+    // 2. Search matching messages
+    let matchedMsgs = Array.from(inMemoryDb.messages.values()).filter((m: any) => {
+      if (!accessibleConvIds.has(m.conversationId)) return false;
+      if (m.isDeleted) return false;
+
+      if (filters?.conversationId && m.conversationId !== filters.conversationId) return false;
+      if (filters?.fromUserId && m.senderId !== filters.fromUserId) return false;
+      if (filters?.hasFile && (!m.attachments || m.attachments.length === 0)) return false;
+
+      if (filters?.before && new Date(m.createdAt) >= new Date(filters.before)) return false;
+      if (filters?.after && new Date(m.createdAt) <= new Date(filters.after)) return false;
+
+      if (q && !m.content.toLowerCase().includes(q)) return false;
+
+      return true;
+    });
+
+    matchedMsgs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const enrichedMsgs: MessageEntity[] = [];
+    for (const m of matchedMsgs.slice(0, 50)) {
+      const reactions = await this.getMessageReactions(m.id);
+      const replyCount = await this.getReplyCount(m.id);
+      enrichedMsgs.push({
+        ...m,
+        replyCount,
+        sender: this.getUserDetails(m.senderId),
+        reactions,
+      });
+    }
+
+    return {
+      messages: enrichedMsgs,
+      conversations: matchedConvs,
+    };
   }
 
   /**
@@ -1125,5 +1397,218 @@ export class ChatRepository {
       total += count;
     }
     return total;
+  }
+
+  /**
+   * Get all tasks linked to a message
+   */
+  static async getMessageLinkedTasks(messageId: string): Promise<MessageTaskEntity[]> {
+    const linked: MessageTaskEntity[] = [];
+
+    // Check in-memory first
+    for (const mt of inMemoryDb.messageTasks.values()) {
+      if (mt.messageId === messageId) {
+        const task = inMemoryDb.tasks.get(mt.taskId);
+        linked.push({
+          id: mt.id,
+          workspaceId: mt.workspaceId,
+          messageId: mt.messageId,
+          taskId: mt.taskId,
+          createdBy: mt.createdBy,
+          createdAt: mt.createdAt,
+          task: task ? {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            priority: task.priority,
+          } : null,
+        });
+      }
+    }
+
+    if (linked.length > 0) return linked;
+
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select({
+            id: schema.messageTasks.id,
+            workspaceId: schema.messageTasks.workspaceId,
+            messageId: schema.messageTasks.messageId,
+            taskId: schema.messageTasks.taskId,
+            createdBy: schema.messageTasks.createdBy,
+            createdAt: schema.messageTasks.createdAt,
+            taskTitle: schema.tasks.title,
+            taskStatus: schema.tasks.status,
+            taskPriority: schema.tasks.priority,
+          })
+          .from(schema.messageTasks)
+          .leftJoin(schema.tasks, eq(schema.messageTasks.taskId, schema.tasks.id))
+          .where(eq(schema.messageTasks.messageId, messageId));
+
+        return rows.map((r) => ({
+          id: r.id,
+          workspaceId: r.workspaceId,
+          messageId: r.messageId,
+          taskId: r.taskId,
+          createdBy: r.createdBy,
+          createdAt: r.createdAt,
+          task: r.taskId ? {
+            id: r.taskId,
+            title: r.taskTitle || 'Task',
+            status: r.taskStatus || 'todo',
+            priority: r.taskPriority || 'medium',
+          } : null,
+        }));
+      }
+    } catch (err: any) {
+      console.warn('[ChatRepository.getMessageLinkedTasks] DB query error:', err.message);
+    }
+
+    return linked;
+  }
+
+  /**
+   * Link a message to a task
+   */
+  static async linkMessageToTask(data: {
+    workspaceId: string;
+    messageId: string;
+    taskId: string;
+    createdBy: string;
+  }): Promise<MessageTaskEntity> {
+    const id = crypto.randomUUID();
+    const now = new Date();
+
+    const record: MessageTaskEntity = {
+      id,
+      workspaceId: data.workspaceId,
+      messageId: data.messageId,
+      taskId: data.taskId,
+      createdBy: data.createdBy,
+      createdAt: now,
+    };
+
+    inMemoryDb.messageTasks.set(id, record);
+
+    try {
+      const db = getDb();
+      if (db) {
+        await db.insert(schema.messageTasks).values({
+          id,
+          workspaceId: data.workspaceId,
+          messageId: data.messageId,
+          taskId: data.taskId,
+          createdBy: data.createdBy,
+          createdAt: now,
+        });
+      }
+    } catch (err: any) {
+      console.warn('[ChatRepository.linkMessageToTask] DB error:', err.message);
+    }
+
+    // Resolve task details
+    const task = inMemoryDb.tasks.get(data.taskId);
+    if (task) {
+      record.task = {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+      };
+    }
+
+    return record;
+  }
+
+  /**
+   * Record message mentions
+   */
+  static async recordMentions(
+    mentions: Array<{
+      workspaceId: string;
+      messageId: string;
+      mentionedUserId: string;
+      mentionType: 'user' | 'team' | 'admins' | 'everyone';
+    }>
+  ): Promise<MessageMentionEntity[]> {
+    if (mentions.length === 0) return [];
+    const created: MessageMentionEntity[] = [];
+    const now = new Date();
+
+    for (const m of mentions) {
+      const id = crypto.randomUUID();
+      const entity: MessageMentionEntity = {
+        id,
+        workspaceId: m.workspaceId,
+        messageId: m.messageId,
+        mentionedUserId: m.mentionedUserId,
+        mentionType: m.mentionType,
+        createdAt: now,
+        mentionedUser: this.getUserDetails(m.mentionedUserId),
+      };
+
+      inMemoryDb.messageMentions.set(id, entity);
+      created.push(entity);
+
+      try {
+        const db = getDb();
+        if (db) {
+          await db.insert(schema.messageMentions).values({
+            id,
+            workspaceId: m.workspaceId,
+            messageId: m.messageId,
+            mentionedUserId: m.mentionedUserId,
+            mentionType: m.mentionType,
+            createdAt: now,
+          });
+        }
+      } catch (err: any) {
+        console.warn('[ChatRepository.recordMentions] DB insert error:', err.message);
+      }
+    }
+
+    return created;
+  }
+
+  /**
+   * Get mentions for a specific message
+   */
+  static async getMessageMentions(messageId: string): Promise<MessageMentionEntity[]> {
+    const list: MessageMentionEntity[] = [];
+    for (const mm of inMemoryDb.messageMentions.values()) {
+      if (mm.messageId === messageId) {
+        list.push({
+          ...mm,
+          mentionedUser: this.getUserDetails(mm.mentionedUserId),
+        });
+      }
+    }
+
+    if (list.length > 0) return list;
+
+    try {
+      const db = getDb();
+      if (db) {
+        const rows = await db
+          .select()
+          .from(schema.messageMentions)
+          .where(eq(schema.messageMentions.messageId, messageId));
+        return rows.map((r) => ({
+          id: r.id,
+          workspaceId: r.workspaceId,
+          messageId: r.messageId,
+          mentionedUserId: r.mentionedUserId,
+          mentionType: r.mentionType,
+          createdAt: r.createdAt,
+          mentionedUser: this.getUserDetails(r.mentionedUserId),
+        }));
+      }
+    } catch (err: any) {
+      console.warn('[ChatRepository.getMessageMentions] DB error:', err.message);
+    }
+
+    return list;
   }
 }

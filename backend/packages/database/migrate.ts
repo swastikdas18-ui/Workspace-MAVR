@@ -21,6 +21,23 @@ export async function runMigrations() {
   const sql = neon(databaseUrl);
 
   try {
+    // 0. Ensure legacy Community/Discord-style tables are purged if present (Idempotent cleanup)
+    await sql`
+      DROP TABLE IF EXISTS community_reactions CASCADE;
+      DROP TABLE IF EXISTS community_comments CASCADE;
+      DROP TABLE IF EXISTS community_posts CASCADE;
+      DROP TABLE IF EXISTS community_event_attendees CASCADE;
+      DROP TABLE IF EXISTS community_events CASCADE;
+      DROP TABLE IF EXISTS community_space_members CASCADE;
+      DROP TABLE IF EXISTS community_spaces CASCADE;
+      DROP TABLE IF EXISTS community_followers CASCADE;
+      DROP TABLE IF EXISTS community_notifications CASCADE;
+      DROP TABLE IF EXISTS community_leaderboard CASCADE;
+      DROP TABLE IF EXISTS community_members CASCADE;
+      DROP TABLE IF EXISTS community_profiles CASCADE;
+      DROP TABLE IF EXISTS communities CASCADE;
+    `;
+
     // 1. Users table
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -982,6 +999,144 @@ export async function runMigrations() {
         timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+
+    // 53. Chat System Tables (Conversations, Messages, Reactions, Reads)
+    await sql`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        title TEXT,
+        description TEXT,
+        department_id TEXT,
+        project_id TEXT,
+        created_by_id TEXT NOT NULL,
+        is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+        last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversations_workspace_id ON conversations(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at);`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS conversation_members (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        workspace_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT 'member',
+        last_read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_members_unique ON conversation_members(conversation_id, user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conv_members_conv_id ON conversation_members(conversation_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conv_members_user_id ON conversation_members(user_id);`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        workspace_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        parent_id TEXT,
+        is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+        attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+        mentions JSONB NOT NULL DEFAULT '[]'::jsonb,
+        is_edited BOOLEAN NOT NULL DEFAULT FALSE,
+        is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_id TEXT;`;
+    await sql`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE;`;
+    await sql`ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments JSONB NOT NULL DEFAULT '[]'::jsonb;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_workspace_id ON messages(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_is_pinned ON messages(is_pinned);`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        conversation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_reactions_unique ON message_reactions(message_id, user_id, emoji);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_msg_reactions_message_id ON message_reactions(message_id);`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS conversation_reads (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        last_read_message_id TEXT,
+        last_read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_conv_reads_unique ON conversation_reads(conversation_id, user_id);`;
+
+    // 53. Message Tasks table (Phase 2A Chat to Task)
+    await sql`
+      CREATE TABLE IF NOT EXISTS message_tasks (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        created_by TEXT NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_message_tasks_unique ON message_tasks(message_id, task_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_tasks_workspace_id ON message_tasks(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_tasks_message_id ON message_tasks(message_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_tasks_task_id ON message_tasks(task_id);`;
+
+    // 54. Message Mentions table (Phase 2B Chat Mentions & Notification Routing)
+    await sql`
+      CREATE TABLE IF NOT EXISTS message_mentions (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        mentioned_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        mention_type TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_message_mentions_unique ON message_mentions(message_id, mentioned_user_id, mention_type);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_mentions_workspace_id ON message_mentions(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_mentions_message_id ON message_mentions(message_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_mentions_user_id ON message_mentions(mentioned_user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_message_mentions_type ON message_mentions(mention_type);`;
+
+    // 55. Chat Slash Commands table (Phase 2C Slash Command System)
+    await sql`
+      CREATE TABLE IF NOT EXISTS chat_slash_commands (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        command TEXT NOT NULL,
+        raw_input TEXT NOT NULL,
+        args TEXT NOT NULL,
+        result JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_workspace_id ON chat_slash_commands(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_conv_id ON chat_slash_commands(conversation_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_user_id ON chat_slash_commands(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_command ON chat_slash_commands(command);`;
 
     // Apply Required Unique Constraints and Indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`;

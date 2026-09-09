@@ -89,9 +89,9 @@ chatRouter.post('/conversations/dm', async (c) => {
 });
 
 /**
- * POST /api/chat/conversations/channel - Create a public/workspace channel (Admin only)
+ * POST /api/chat/conversations/channel & POST /api/chat/channels - Create a public/workspace channel (Admin only)
  */
-chatRouter.post('/conversations/channel', async (c) => {
+const createChannelHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -110,12 +110,14 @@ chatRouter.post('/conversations/channel', async (c) => {
     const status = err.status || 500;
     return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
   }
-});
+};
+chatRouter.post('/conversations/channel', createChannelHandler);
+chatRouter.post('/channels', createChannelHandler);
 
 /**
- * POST /api/chat/conversations/group - Create a group conversation (Admin/Employee)
+ * POST /api/chat/conversations/group & POST /api/chat/groups - Create a group conversation (Admin/Employee)
  */
-chatRouter.post('/conversations/group', async (c) => {
+const createGroupHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -134,7 +136,9 @@ chatRouter.post('/conversations/group', async (c) => {
     const status = err.status || 500;
     return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
   }
-});
+};
+chatRouter.post('/conversations/group', createGroupHandler);
+chatRouter.post('/groups', createGroupHandler);
 
 /**
  * GET /api/chat/conversations/:id - Get conversation details & members
@@ -222,7 +226,7 @@ chatRouter.post('/conversations/:id/messages', async (c) => {
     const conversationId = c.req.param('id');
     const role = workspace.roleInWorkspace || user.role || 'employee';
     const body = await c.req.json().catch(() => ({}));
-    const { content } = body;
+    const { content, parentId, attachments } = body;
 
     if (!content || typeof content !== 'string') {
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Content is required.' } }, 400);
@@ -233,7 +237,8 @@ chatRouter.post('/conversations/:id/messages', async (c) => {
       conversationId,
       user.id,
       role,
-      content
+      content,
+      { parentId, attachments }
     );
 
     return c.json({ message }, 201);
@@ -293,9 +298,9 @@ chatRouter.delete('/messages/:id', async (c) => {
 });
 
 /**
- * POST /api/chat/messages/:id/reactions - Toggle emoji reaction
+ * POST /api/chat/messages/:id/react & POST /api/chat/messages/:id/reactions - Toggle emoji reaction
  */
-chatRouter.post('/messages/:id/reactions', async (c) => {
+const reactHandler = async (c: any) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -313,6 +318,276 @@ chatRouter.post('/messages/:id/reactions', async (c) => {
 
     const result = await ChatService.toggleReaction(workspace.id, messageId, user.id, emoji);
     return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+};
+chatRouter.post('/messages/:id/reactions', reactHandler);
+chatRouter.post('/messages/:id/react', reactHandler);
+
+/**
+ * DELETE /api/chat/messages/:id/react - Remove emoji reaction
+ */
+chatRouter.delete('/messages/:id/react', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const messageId = c.req.param('id');
+    const body = await c.req.json().catch(() => ({}));
+    const emoji = body?.emoji || c.req.query('emoji');
+
+    if (!emoji || typeof emoji !== 'string') {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Emoji is required.' } }, 400);
+    }
+
+    const result = await ChatService.toggleReaction(workspace.id, messageId, user.id, emoji);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/chat/messages/:id/pin - Toggle message pin (Admin only)
+ */
+chatRouter.post('/messages/:id/pin', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const messageId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+
+    const updated = await ChatService.togglePin(workspace.id, messageId, user.id, role);
+    return c.json({ message: updated, isPinned: updated.isPinned }, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * GET /api/chat/conversations/:id/pinned - List pinned messages in conversation
+ */
+chatRouter.get('/conversations/:id/pinned', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const pinned = await ChatRepository.listPinnedMessages(conversationId);
+    return c.json({ pinned }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/chat/conversations/:id/files - List files/attachments in conversation
+ */
+chatRouter.get('/conversations/:id/files', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const files = await ChatRepository.listConversationAttachments(conversationId);
+    return c.json({ files }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/chat/messages/:id/thread - Get thread replies
+ */
+chatRouter.get('/messages/:id/thread', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const parentId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+
+    const thread = await ChatService.getThread(workspace.id, parentId, user.id, role);
+    return c.json(thread, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/chat/messages/:id/thread - Post reply in thread
+ */
+chatRouter.post('/messages/:id/thread', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const parentId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+    const { content } = body;
+
+    if (!content || typeof content !== 'string') {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Content is required.' } }, 400);
+    }
+
+    const reply = await ChatService.replyThread(workspace.id, parentId, user.id, role, content);
+    return c.json({ reply }, 201);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * GET /api/chat/readers - Get readers who have read conversation
+ */
+chatRouter.get('/readers', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.query('conversationId');
+    if (!conversationId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'conversationId is required.' } }, 400);
+    }
+
+    const messageId = c.req.query('messageId');
+    const readers = await ChatRepository.getReaders(conversationId, messageId);
+    return c.json({ readers }, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * GET /api/chat/search - Global chat search
+ */
+chatRouter.get('/search', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const q = c.req.query('q') || c.req.query('query') || '';
+    const conversationId = c.req.query('conversationId') || c.req.query('channel');
+    const fromUserId = c.req.query('from') || c.req.query('fromUserId');
+    const hasFile = c.req.query('hasFile') === 'true' || c.req.query('has') === 'file';
+    const before = c.req.query('before');
+    const after = c.req.query('after');
+
+    const results = await ChatRepository.searchChat(workspace.id, user.id, role, q, {
+      conversationId,
+      fromUserId,
+      hasFile,
+      before,
+      after,
+    });
+
+    return c.json(results, 200);
+  } catch (err: any) {
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
+  }
+});
+
+/**
+ * POST /api/chat/upload - File attachment upload for chat
+ * RBAC: Admin & Employee: Allowed. Intern: Forbidden.
+ */
+chatRouter.post('/upload', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = (workspace.roleInWorkspace || user.role || 'employee').toLowerCase();
+    if (role === 'intern') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: 'Forbidden: Interns cannot upload attachments in chat.' } },
+        403
+      );
+    }
+
+    const contentType = c.req.header('content-type') || '';
+    let name = 'attachment';
+    let mimeType = 'application/octet-stream';
+    let size = 0;
+    let url = '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await c.req.formData();
+      const file = formData.get('file') as File | null;
+      if (!file) {
+        return c.json({ error: { code: 'VALIDATION_ERROR', message: 'File is required.' } }, 400);
+      }
+      name = file.name || 'file';
+      mimeType = file.type || 'application/octet-stream';
+      size = file.size || 0;
+
+      // Object storage upload
+      const fileExt = name.split('.').pop() || 'bin';
+      const storageKey = `chat/${workspace.id}/${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
+      const ab = await file.arrayBuffer();
+      const buffer = Buffer.from(ab);
+
+      const { ObjectStorageService } = await import('../services/object-storage-service.js');
+      const uploadResult = await ObjectStorageService.uploadObject({
+        workspaceId: workspace.id,
+        documentId: `chat-${Date.now()}`,
+        filename: `${crypto.randomUUID()}.${fileExt}`,
+        body: buffer,
+        contentType: mimeType,
+      });
+      url = uploadResult.url || `/api/documents/vault/${storageKey}`;
+    } else {
+      const body = await c.req.json().catch(() => ({}));
+      name = body.name || 'document';
+      mimeType = body.mimeType || 'application/pdf';
+      size = body.size || 1024;
+      url = body.url || `/api/documents/vault/chat/${Date.now()}-${name}`;
+    }
+
+    const attachment: import('../repositories/chat-repository.js').ChatAttachment = {
+      id: crypto.randomUUID(),
+      name,
+      url,
+      mimeType,
+      size,
+    };
+
+    return c.json({ success: true, attachment }, 201);
   } catch (err: any) {
     const status = err.status || 500;
     return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
@@ -352,9 +627,101 @@ chatRouter.post('/conversations/:id/typing', async (c) => {
     }
 
     const conversationId = c.req.param('id');
-    await ChatService.broadcastTyping(workspace.id, conversationId, user.id, user.name);
+    const body = await c.req.json().catch(() => ({}));
+    const isTyping = body?.isTyping !== false;
+
+    await ChatService.broadcastTyping(workspace.id, conversationId, user.id, user.name, isTyping);
     return c.json({ success: true }, 200);
   } catch (err: any) {
     return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
   }
 });
+
+/**
+ * POST /api/chat/messages/:id/create-task - Convert message into a task
+ */
+chatRouter.post('/messages/:id/create-task', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const messageId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+
+    const result = await ChatService.createMessageTask(workspace.id, messageId, user.id, role, body);
+    return c.json(result, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'NOT_FOUND' ? 404 : err.code === 'FORBIDDEN' ? 403 : 400);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/chat/conversations/:id/slash-command - Execute slash command in conversation
+ */
+chatRouter.post('/conversations/:id/slash-command', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+    const { command } = body;
+
+    if (!command || typeof command !== 'string') {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Command string is required.' } }, 400);
+    }
+
+    const result = await ChatService.executeSlashCommand(
+      workspace.id,
+      conversationId,
+      user.id,
+      role,
+      command
+    );
+
+    return c.json({
+      slashCommand: {
+        command: result.command,
+        args: result.args,
+        result: result.result,
+      },
+      command: result.command,
+      args: result.args,
+      result: result.result,
+      message: result.message,
+    }, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'NOT_FOUND' ? 404 : 400);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * GET /api/chat/conversations/:id/slash-commands - Get slash command execution history
+ */
+chatRouter.get('/conversations/:id/slash-commands', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const history = await ChatService.getSlashCommandHistory(workspace.id, conversationId);
+    return c.json({ history }, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+

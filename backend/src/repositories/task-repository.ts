@@ -24,6 +24,10 @@ export interface TaskEntity {
   blockedReason?: string | null;
   isBlocked?: boolean;
   isLearningTask?: boolean;
+  sourceMessageId?: string | null;
+  sourceConversationId?: string | null;
+  linkedConversationId?: string | null;
+  linkedMessageId?: string | null;
   createdAt: Date;
   commentsCount?: number;
   activityCount?: number;
@@ -70,6 +74,10 @@ export interface CreateTaskParams {
   teamId?: string;
   dueDate?: Date;
   isLearningTask?: boolean;
+  sourceMessageId?: string | null;
+  sourceConversationId?: string | null;
+  linkedConversationId?: string | null;
+  linkedMessageId?: string | null;
 }
 
 export interface UpdateTaskParams {
@@ -91,6 +99,10 @@ export interface UpdateTaskParams {
   blockedReason?: string | null;
   isBlocked?: boolean;
   isLearningTask?: boolean;
+  sourceMessageId?: string | null;
+  sourceConversationId?: string | null;
+  linkedConversationId?: string | null;
+  linkedMessageId?: string | null;
 }
 
 export interface ListTaskOptions {
@@ -225,6 +237,10 @@ export class TaskRepository {
             blockedReason: (t as any).blockedReason || null,
             isBlocked: (t as any).isBlocked || false,
             isLearningTask: t.isLearningTask || false,
+            sourceMessageId: (t as any).sourceMessageId || null,
+            sourceConversationId: (t as any).sourceConversationId || null,
+            linkedConversationId: (t as any).linkedConversationId || null,
+            linkedMessageId: (t as any).linkedMessageId || null,
             createdAt: t.createdAt,
             commentsCount: commentCounts.get(t.id) || 0,
             activityCount: activityCounts.get(t.id) || 0,
@@ -327,6 +343,10 @@ export class TaskRepository {
         blockedReason: (t as any).blockedReason || null,
         isBlocked: (t as any).isBlocked || false,
         isLearningTask: t.isLearningTask || false,
+        sourceMessageId: (t as any).sourceMessageId || null,
+        sourceConversationId: (t as any).sourceConversationId || null,
+        linkedConversationId: (t as any).linkedConversationId || null,
+        linkedMessageId: (t as any).linkedMessageId || null,
         createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
         commentsCount,
         activityCount,
@@ -401,6 +421,10 @@ export class TaskRepository {
             blockedReason: (task as any).blockedReason || null,
             isBlocked: (task as any).isBlocked || false,
             isLearningTask: task.isLearningTask || false,
+            sourceMessageId: (task as any).sourceMessageId || null,
+            sourceConversationId: (task as any).sourceConversationId || null,
+            linkedConversationId: (task as any).linkedConversationId || null,
+            linkedMessageId: (task as any).linkedMessageId || null,
             createdAt: task.createdAt,
             commentsCount: comments.length,
             activityCount: updates.length,
@@ -443,6 +467,10 @@ export class TaskRepository {
       blockedReason: (t as any).blockedReason || null,
       isBlocked: (t as any).isBlocked || false,
       isLearningTask: t.isLearningTask || false,
+      sourceMessageId: (t as any).sourceMessageId || null,
+      sourceConversationId: (t as any).sourceConversationId || null,
+      linkedConversationId: (t as any).linkedConversationId || null,
+      linkedMessageId: (t as any).linkedMessageId || null,
       createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
       commentsCount,
       activityCount,
@@ -481,6 +509,10 @@ export class TaskRepository {
       isBlocked: false,
       blockedReason: null,
       isLearningTask: data.isLearningTask || false,
+      sourceMessageId: data.sourceMessageId || null,
+      sourceConversationId: data.sourceConversationId || null,
+      linkedConversationId: data.linkedConversationId || null,
+      linkedMessageId: data.linkedMessageId || null,
       createdAt: now,
     };
 
@@ -506,6 +538,10 @@ export class TaskRepository {
           isBlocked: false,
           blockedReason: null,
           isLearningTask: data.isLearningTask || false,
+          sourceMessageId: data.sourceMessageId || null,
+          sourceConversationId: data.sourceConversationId || null,
+          linkedConversationId: data.linkedConversationId || null,
+          linkedMessageId: data.linkedMessageId || null,
           createdAt: now,
         });
       }
@@ -538,6 +574,10 @@ export class TaskRepository {
       isBlocked: false,
       blockedReason: null,
       isLearningTask: data.isLearningTask || false,
+      sourceMessageId: data.sourceMessageId || null,
+      sourceConversationId: data.sourceConversationId || null,
+      linkedConversationId: data.linkedConversationId || null,
+      linkedMessageId: data.linkedMessageId || null,
       createdAt: now,
       commentsCount: 0,
       activityCount: 1,
@@ -627,6 +667,10 @@ export class TaskRepository {
         if (updates.blockedReason !== undefined) setValues.blockedReason = updates.blockedReason;
         if (updates.isBlocked !== undefined) setValues.isBlocked = updates.isBlocked;
         if (updates.isLearningTask !== undefined) setValues.isLearningTask = updates.isLearningTask;
+        if (updates.sourceMessageId !== undefined) setValues.sourceMessageId = updates.sourceMessageId;
+        if (updates.sourceConversationId !== undefined) setValues.sourceConversationId = updates.sourceConversationId;
+        if (updates.linkedConversationId !== undefined) setValues.linkedConversationId = updates.linkedConversationId;
+        if (updates.linkedMessageId !== undefined) setValues.linkedMessageId = updates.linkedMessageId;
 
         if (Object.keys(setValues).length > 0) {
           await db
@@ -673,6 +717,10 @@ export class TaskRepository {
       blockedReason: updated.blockedReason || null,
       isBlocked: updated.isBlocked || false,
       isLearningTask: updated.isLearningTask,
+      sourceMessageId: (updated as any).sourceMessageId || null,
+      sourceConversationId: (updated as any).sourceConversationId || null,
+      linkedConversationId: (updated as any).linkedConversationId || null,
+      linkedMessageId: (updated as any).linkedMessageId || null,
       createdAt: updated.createdAt ? new Date(updated.createdAt) : new Date(),
       commentsCount,
       activityCount,

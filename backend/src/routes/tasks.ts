@@ -405,3 +405,94 @@ const postCommentHandler = async (c: any) => {
 
 taskRouter.post('/:id/comments', postCommentHandler);
 taskRouter.post('/:id/comment', postCommentHandler);
+
+/**
+ * POST /api/tasks/from-message - Create task directly from a chat message (Phase 2.1)
+ */
+taskRouter.post('/from-message', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json().catch(() => ({}));
+
+    const messageId = body.messageId || body.sourceMessageId;
+    if (!messageId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'messageId is required.' } }, 400);
+    }
+
+    const { ChatService } = await import('../services/chat-service.js');
+    const result = await ChatService.createMessageTask(workspace.id, messageId, user.id, role, {
+      title: body.title,
+      description: body.description,
+      projectId: body.projectId,
+      assignedTo: body.assignedTo || body.assigneeId,
+      priority: body.priority,
+      dueDate: body.dueDate,
+    });
+
+    return c.json({
+      task: result.task,
+      messageTask: result.messageTask,
+      sourceMessageId: messageId,
+      sourceConversationId: result.task?.sourceConversationId || result.task?.linkedConversationId,
+      sourceWorkspaceId: workspace.id,
+    }, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'NOT_FOUND' ? 404 : err.code === 'FORBIDDEN' ? 403 : 400);
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message } }, status);
+  }
+});
+
+/**
+ * GET /api/tasks/:id/discussion - Get task discussion thread and linked chat conversation (Phase 2.2)
+ */
+taskRouter.get('/:id/discussion', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    const discussion = await TaskService.getTaskDiscussion(workspace.id, user.id, role, taskId);
+    return c.json(discussion, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/tasks/:id/discussion - Post into linked discussion thread from task (Phase 2.2)
+ */
+taskRouter.post('/:id/discussion', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const body = await c.req.json().catch(() => ({}));
+
+    if (!body.content || !body.content.trim()) {
+      return c.json({ error: { code: 'BAD_REQUEST', message: 'Discussion content cannot be empty.' } }, 400);
+    }
+
+    const result = await TaskService.postTaskDiscussion(workspace.id, user.id, role, taskId, body.content);
+    return c.json(result, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'NOT_FOUND' || err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message } }, status);
+  }
+});

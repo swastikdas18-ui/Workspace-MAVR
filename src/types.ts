@@ -176,6 +176,14 @@ export interface Task {
   createdAt?: string;
   tags?: string[];
   is_learning_task?: boolean; // For interns
+  source_message_id?: string | null;
+  sourceMessageId?: string | null;
+  source_conversation_id?: string | null;
+  sourceConversationId?: string | null;
+  linked_conversation_id?: string | null;
+  linkedConversationId?: string | null;
+  linked_message_id?: string | null;
+  linkedMessageId?: string | null;
   comments_count?: number;
   activity_count?: number;
 }
@@ -378,6 +386,9 @@ export interface MessageTask {
     title: string;
     status: string;
     priority: string;
+    assignedTo?: string;
+    assigneeName?: string | null;
+    assigneeAvatar?: string | null;
   } | null;
 }
 
@@ -396,6 +407,13 @@ export interface ChatMessage {
   reactions?: MessageReaction[];
   replyCount?: number;
   linkedTasks?: MessageTask[];
+  announcementType?: 'Company Update' | 'Policy' | 'Release' | 'Urgent' | 'Hiring';
+  ackStats?: {
+    acknowledgedCount: number;
+    totalMembers: number;
+    percentage: number;
+    userAcknowledged: boolean;
+  };
   sender?: {
     id: string;
     name: string;
@@ -424,6 +442,73 @@ export interface Conversation {
   lastMessage?: ChatMessage | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// Phase 2D: Conversation Context & Operational Workspace
+export interface ConversationContextData {
+  id?: string | null;
+  conversationId: string;
+  workspaceId: string;
+  projectId?: string | null;
+  departmentId?: string | null;
+  teamId?: string | null;
+}
+
+export interface ConversationOperationalContext {
+  project?: { id: string; title: string; status: string; progress?: number } | null;
+  openTasks: number;
+  members: number;
+  activeSops: number;
+  departmentId?: string | null;
+  teamId?: string | null;
+}
+
+export interface ConversationContextResponse {
+  context: ConversationContextData;
+  operational: ConversationOperationalContext;
+}
+
+// Phase 2E: Operational Activity Timeline
+export interface ChatTimelineItem {
+  id: string;
+  workspaceId: string;
+  type: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string | null;
+  };
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+}
+
+export interface ChatTimelineResponse {
+  conversationId: string;
+  projectId?: string | null;
+  timeline: ChatTimelineItem[];
+}
+
+// Phase 2F: Saved Messages
+export interface SavedChatMessageItem {
+  id: string;
+  messageId: string;
+  workspaceId: string;
+  userId: string;
+  createdAt: string;
+  message: ChatMessage;
+  conversation?: {
+    id: string;
+    title: string | null;
+    type: string;
+  } | null;
+}
+
+export interface SavedChatMessagesResponse {
+  savedMessages: SavedChatMessageItem[];
 }
 
 // Phase 33: Work Inbox (Action Center)
@@ -455,5 +540,86 @@ export interface WorkInboxPayload {
     totalUnresolved: number;
   };
 }
+
+// Phase 2G: Announcement Acknowledgements
+export type AnnouncementType = 'Company Update' | 'Policy' | 'Release' | 'Urgent' | 'Hiring';
+
+export interface AnnouncementAckItem {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+  acknowledgedAt: string;
+}
+
+export interface AnnouncementStats {
+  announcementId: string;
+  acknowledgedCount: number;
+  totalMembers: number;
+  percentage: number;
+  userAcknowledged: boolean;
+  acknowledgements: AnnouncementAckItem[];
+}
+
+export interface ChatSearchFileItem {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  messageId: string;
+  conversationId: string;
+  conversationTitle: string;
+  senderId: string;
+  senderName: string;
+  createdAt: string;
+}
+
+export interface ChatSearchTaskItem {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  messageId?: string;
+  conversationId?: string;
+  createdAt: string;
+}
+
+export interface ChatSearchPersonItem {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+  role: string;
+}
+
+export interface ChatSearchResultGroup {
+  messages: any[];
+  conversations: any[];
+  files: ChatSearchFileItem[];
+  tasks: ChatSearchTaskItem[];
+  people: ChatSearchPersonItem[];
+  summary: {
+    totalMessages: number;
+    totalFiles: number;
+    totalTasks: number;
+    totalPeople: number;
+    tookMs: number;
+  };
+}
+
+export interface ChatSearchFilters {
+  channel?: string;
+  from?: string;
+  hasFile?: boolean;
+  hasTask?: boolean;
+  hasMention?: boolean;
+  before?: string;
+  after?: string;
+  in?: string;
+}
+
 
 

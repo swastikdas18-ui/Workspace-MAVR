@@ -237,6 +237,10 @@ export const tasks = pgTable(
     blockedReason: text('blocked_reason'),
     isBlocked: boolean('is_blocked').default(false),
     isLearningTask: boolean('is_learning_task').default(false),
+    sourceMessageId: text('source_message_id'),
+    sourceConversationId: text('source_conversation_id'),
+    linkedConversationId: text('linked_conversation_id'),
+    linkedMessageId: text('linked_message_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
@@ -247,6 +251,8 @@ export const tasks = pgTable(
     statusIdx: index('idx_tasks_status').on(table.status),
     priorityIdx: index('idx_tasks_priority').on(table.priority),
     titleIdx: index('idx_tasks_title').on(table.title),
+    sourceMessageIdx: index('idx_tasks_source_message_id').on(table.sourceMessageId),
+    linkedConversationIdx: index('idx_tasks_linked_conversation_id').on(table.linkedConversationId),
   })
 );
 
@@ -1732,4 +1738,65 @@ export const chatSlashCommands = pgTable(
     commandIdx: index('idx_chat_slash_commands_command').on(table.command),
   })
 );
+
+export const conversationContext = pgTable(
+  'conversation_context',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
+    teamId: text('team_id').references(() => teams.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    convUniqueIdx: uniqueIndex('idx_conversation_context_conv_unique').on(table.conversationId),
+    workspaceIdx: index('idx_conversation_context_workspace_id').on(table.workspaceId),
+    convIdx: index('idx_conversation_context_conv_id').on(table.conversationId),
+    projectIdx: index('idx_conversation_context_project_id').on(table.projectId),
+    departmentIdx: index('idx_conversation_context_department_id').on(table.departmentId),
+    teamIdx: index('idx_conversation_context_team_id').on(table.teamId),
+  })
+);
+
+// Phase 2F: Saved Messages table
+export const savedMessages = pgTable(
+  'saved_messages',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    messageId: text('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userMsgWsUnique: uniqueIndex('idx_saved_messages_user_msg_ws_unique').on(table.userId, table.workspaceId, table.messageId),
+    userIdx: index('idx_saved_messages_user_id').on(table.userId),
+    workspaceIdx: index('idx_saved_messages_workspace_id').on(table.workspaceId),
+    messageIdx: index('idx_saved_messages_message_id').on(table.messageId),
+    createdAtIdx: index('idx_saved_messages_created_at').on(table.createdAt),
+  })
+);
+
+// Phase 2G: Announcement Acknowledgements table
+export const announcementAcknowledgements = pgTable(
+  'announcement_acknowledgements',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    announcementId: text('announcement_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    acknowledgedAt: timestamp('acknowledged_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    annUserUnique: uniqueIndex('idx_announcement_ack_unique').on(table.announcementId, table.userId),
+    announcementIdx: index('idx_announcement_ack_announcement_id').on(table.announcementId),
+    userIdx: index('idx_announcement_ack_user_id').on(table.userId),
+    workspaceIdx: index('idx_announcement_ack_workspace_id').on(table.workspaceId),
+    ackAtIdx: index('idx_announcement_ack_at').on(table.acknowledgedAt),
+  })
+);
+
 

@@ -502,16 +502,22 @@ chatRouter.get('/search', async (c) => {
     const q = c.req.query('q') || c.req.query('query') || '';
     const conversationId = c.req.query('conversationId') || c.req.query('channel');
     const fromUserId = c.req.query('from') || c.req.query('fromUserId');
-    const hasFile = c.req.query('hasFile') === 'true' || c.req.query('has') === 'file';
+    const hasFile = c.req.query('hasFile') === 'true' || c.req.query('has') === 'file' ? true : undefined;
+    const hasTask = c.req.query('hasTask') === 'true' || c.req.query('has') === 'task' ? true : undefined;
+    const hasMention = c.req.query('hasMention') === 'true' || c.req.query('has') === 'mention' ? true : undefined;
     const before = c.req.query('before');
     const after = c.req.query('after');
+    const inFilter = c.req.query('in');
 
     const results = await ChatRepository.searchChat(workspace.id, user.id, role, q, {
-      conversationId,
+      conversationId: conversationId || inFilter,
       fromUserId,
       hasFile,
+      hasTask,
+      hasMention,
       before,
       after,
+      in: inFilter,
     });
 
     return c.json(results, 200);
@@ -724,4 +730,229 @@ chatRouter.get('/conversations/:id/slash-commands', async (c) => {
     return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
   }
 });
+
+/**
+ * GET /api/chat/conversations/:id/context - Get operational context for conversation
+ */
+chatRouter.get('/conversations/:id/context', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+
+    const result = await ChatService.getConversationContext(
+      workspace.id,
+      conversationId,
+      user.id,
+      role
+    );
+
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'NOT_FOUND' ? 404 : 500);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * PUT /api/chat/conversations/:id/context - Update operational context for conversation
+ */
+chatRouter.put('/conversations/:id/context', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const body = await c.req.json().catch(() => ({}));
+
+    const result = await ChatService.updateConversationContext(
+      workspace.id,
+      conversationId,
+      user.id,
+      role,
+      body
+    );
+
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'NOT_FOUND' ? 404 : 400);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * GET /api/chat/conversations/:id/timeline - Get operational activity timeline for conversation
+ */
+chatRouter.get('/conversations/:id/timeline', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const conversationId = c.req.param('id');
+    const role = workspace.roleInWorkspace || user.role || 'employee';
+    const limitQuery = c.req.query('limit');
+    const limit = limitQuery ? parseInt(limitQuery, 10) : 50;
+
+    const result = await ChatService.getConversationTimeline(
+      workspace.id,
+      conversationId,
+      user.id,
+      role,
+      limit
+    );
+
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'NOT_FOUND' ? 404 : 500);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+// =========================================================================
+// Phase 2F: Saved Messages Endpoints
+// =========================================================================
+
+/**
+ * GET /api/chat/saved - List all saved messages for authenticated user in workspace
+ */
+chatRouter.get('/saved', async (c) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const result = await ChatService.getSavedMessages(workspace.id, user.id);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+});
+
+/**
+ * POST /api/chat/save & POST /api/chat/messages/:id/save - Save a message
+ */
+const saveMessageHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const messageId = c.req.param('id') || body.messageId;
+    if (!messageId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'messageId is required.' } }, 400);
+    }
+
+    const result = await ChatService.saveMessage(workspace.id, messageId, user.id);
+    return c.json(result, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'NOT_FOUND' ? 404 : err.code === 'FORBIDDEN' ? 403 : 500);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+};
+chatRouter.post('/save', saveMessageHandler);
+chatRouter.post('/messages/:id/save', saveMessageHandler);
+
+/**
+ * DELETE /api/chat/save & DELETE /api/chat/messages/:id/save - Unsave a message
+ */
+const unsaveMessageHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const messageId = c.req.param('id') || body.messageId || c.req.query('messageId');
+    if (!messageId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'messageId is required.' } }, 400);
+    }
+
+    const result = await ChatService.unsaveMessage(workspace.id, messageId, user.id);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+};
+chatRouter.delete('/save', unsaveMessageHandler);
+chatRouter.delete('/messages/:id/save', unsaveMessageHandler);
+
+// =========================================================================
+// Phase 2G: Announcement Acknowledgements Endpoints
+// =========================================================================
+
+/**
+ * POST /api/chat/acknowledge & POST /api/chat/announcements/:id/acknowledge
+ */
+const acknowledgeAnnouncementHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const announcementId = c.req.param('id') || body.announcementId || body.messageId;
+    if (!announcementId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'announcementId is required.' } }, 400);
+    }
+
+    const result = await ChatService.acknowledgeAnnouncement(workspace.id, announcementId, user.id);
+    return c.json(result, 201);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'NOT_FOUND' ? 404 : err.code === 'FORBIDDEN' ? 403 : 500);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+};
+chatRouter.post('/acknowledge', acknowledgeAnnouncementHandler);
+chatRouter.post('/announcements/:id/acknowledge', acknowledgeAnnouncementHandler);
+
+/**
+ * GET /api/chat/stats & GET /api/chat/announcements/:id/stats
+ */
+const getAnnouncementStatsHandler = async (c: any) => {
+  try {
+    const user = c.get('user');
+    const workspace = c.get('workspace');
+    const role = c.get('role') || 'employee';
+    if (!workspace) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
+    }
+
+    const announcementId = c.req.param('id') || c.req.query('announcementId') || c.req.query('messageId');
+    if (!announcementId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'announcementId is required.' } }, 400);
+    }
+
+    const result = await ChatService.getAnnouncementStats(workspace.id, announcementId, user.id, role);
+    return c.json(result, 200);
+  } catch (err: any) {
+    const status = err.status || (err.code === 'NOT_FOUND' ? 404 : err.code === 'FORBIDDEN' ? 403 : 500);
+    return c.json({ error: { code: err.code || 'ERROR', message: err.message } }, status);
+  }
+};
+chatRouter.get('/stats', getAnnouncementStatsHandler);
+chatRouter.get('/announcements/:id/stats', getAnnouncementStatsHandler);
+
 

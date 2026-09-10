@@ -1224,11 +1224,21 @@ export class ChatService {
     const defaultDescription = `> ${message.content.split('\n').join('\n> ')}\n\n*Created from chat message by ${message.sender?.name || 'team member'}*`;
     const description = taskData.description?.trim() || defaultDescription;
 
-    const assignedTo = taskData.assignedTo?.trim() || userId;
+    // RBAC: Interns can only create tasks assigned to themselves
+    const normalizedRole = (role || 'employee').toLowerCase();
+    const assignedToInput = taskData.assignedTo?.trim();
+    if (normalizedRole === 'intern' && assignedToInput && assignedToInput !== userId) {
+      const error: any = new Error('Interns can only create tasks assigned to themselves.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    const assignedTo = assignedToInput || userId;
     const priority = taskData.priority || 'medium';
     const dueDate = taskData.dueDate ? new Date(taskData.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // 6. Create the task via TaskRepository
+    // 6. Create the task via TaskRepository with linkage fields
     const { TaskRepository } = await import('../repositories/task-repository.js');
     const task = await TaskRepository.createTask(workspaceId, userId, {
       title,
@@ -1238,6 +1248,10 @@ export class ChatService {
       priority,
       dueDate,
       status: 'todo',
+      sourceMessageId: messageId,
+      sourceConversationId: message.conversationId,
+      linkedConversationId: message.conversationId,
+      linkedMessageId: messageId,
     });
 
     // 7. Link message to task
@@ -1263,6 +1277,8 @@ export class ChatService {
             status: task.status,
             priority: task.priority,
             assignedTo: task.assignedTo,
+            linkedConversationId: message.conversationId,
+            linkedMessageId: messageId,
           },
           createdBy: userId,
           createdAt: messageTask.createdAt,
@@ -1674,5 +1690,431 @@ export class ChatService {
     }
 
     return list;
+  }
+
+  /**
+   * Phase 2D: Get operational context for conversation
+   */
+  static async getConversationContext(
+    workspaceId: string,
+    conversationId: string,
+    userId: string,
+    userRole: string
+  ): Promise<any> {
+    const conv = await ChatRepository.getConversationById(workspaceId, conversationId);
+    if (!conv) {
+      const err: any = new Error('Conversation not found.');
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    // Verify membership or access
+    const isMember = await ChatRepository.isConversationMember(conversationId, userId);
+    if (!isMember && conv.type === 'dm') {
+      const err: any = new Error('Access denied to direct message.');
+      err.status = 403;
+      err.code = 'FORBIDDEN';
+      throw err;
+    }
+
+    // Fetch existing context
+    let contextEntity = await ChatRepository.getConversationContext(conversationId);
+
+    // Fallback: If no context record exists yet, initialize or infer from conversation
+    let projectId = contextEntity?.projectId || conv.projectId || null;
+    let departmentId = contextEntity?.departmentId || conv.departmentId || null;
+    let teamId = contextEntity?.teamId || null;
+
+    // Load Project details & Open Tasks Count
+    let project: any = null;
+    let openTasks = 0;
+    if (projectId) {
+      const memProj = inMemoryDb.projects.get(projectId);
+      if (memProj && memProj.workspaceId === workspaceId) {
+        project = {
+          id: memProj.id,
+          title: memProj.title,
+          status: memProj.status,
+          progress: memProj.progress,
+        };
+      } else {
+        const db = getDb();
+        if (db) {
+          try {
+            const [pRow] = await db
+              .select()
+              .from(schema.projects)
+              .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, workspaceId)));
+            if (pRow) {
+              project = {
+                id: pRow.id,
+                title: pRow.title,
+                status: pRow.status,
+                progress: pRow.progress,
+              };
+            }
+          } catch {}
+        }
+      }
+
+      // Count open tasks for this project
+      for (const t of inMemoryDb.tasks.values()) {
+        const wsMatch = t.workspaceId === workspaceId || !t.workspaceId;
+        if (wsMatch && t.projectId === projectId) {
+          if (t.status !== 'done' && t.status !== 'completed') {
+            openTasks++;
+          }
+        }
+      }
+
+      if (openTasks === 0) {
+        const db = getDb();
+        if (db) {
+          try {
+            const tRows = await db
+              .select()
+              .from(schema.tasks)
+              .where(
+                and(
+                  eq(schema.tasks.projectId, projectId),
+                  eq(schema.tasks.workspaceId, workspaceId)
+                )
+              );
+            openTasks = tRows.filter((t) => t.status !== 'done' && t.status !== 'completed').length;
+          } catch {}
+        }
+      }
+    } else {
+      // General workspace open tasks count as fallback
+      for (const t of inMemoryDb.tasks.values()) {
+        if ((t.workspaceId === workspaceId || !t.workspaceId) && t.status !== 'done' && t.status !== 'completed') {
+          openTasks++;
+        }
+      }
+    }
+
+    // Members count: count of conversation members (fallback: project members or workspace members)
+    const membersList = await ChatRepository.getConversationMembers(conversationId);
+    let members = membersList.length;
+    if (members === 0 && projectId) {
+      for (const pm of inMemoryDb.projectMembers.values()) {
+        if (pm.projectId === projectId) members++;
+      }
+    }
+    if (members === 0) {
+      for (const wm of inMemoryDb.workspaceMembers.values()) {
+        if (wm.workspaceId === workspaceId) members++;
+      }
+    }
+
+    // Active SOPs count
+    let activeSops = 0;
+    for (const w of inMemoryDb.wikiPages.values()) {
+      if (w.workspaceId === workspaceId) {
+        // Count all SOPs / knowledge pages in workspace or department
+        if (!departmentId || !w.departmentId || w.departmentId === departmentId) {
+          activeSops++;
+        }
+      }
+    }
+    if (activeSops === 0) {
+      // Check documents
+      for (const d of inMemoryDb.documents.values()) {
+        if (d.workspaceId === workspaceId) {
+          if (d.category?.toLowerCase().includes('sop') || d.title?.toLowerCase().includes('sop')) {
+            activeSops++;
+          }
+        }
+      }
+    }
+
+    return {
+      context: {
+        id: contextEntity?.id || null,
+        conversationId,
+        workspaceId,
+        projectId,
+        departmentId,
+        teamId,
+      },
+      operational: {
+        project: project || (projectId ? { id: projectId, title: 'Project Initiative', status: 'in_progress' } : null),
+        openTasks,
+        members: Math.max(members, 1),
+        activeSops: Math.max(activeSops, 0),
+        departmentId,
+        teamId,
+      },
+    };
+  }
+
+  /**
+   * Phase 2D: Update operational context for conversation
+   */
+  static async updateConversationContext(
+    workspaceId: string,
+    conversationId: string,
+    userId: string,
+    userRole: string,
+    data: {
+      projectId?: string | null;
+      departmentId?: string | null;
+      teamId?: string | null;
+    }
+  ): Promise<any> {
+    // RBAC: Admin & Employee allowed; Intern denied (403)
+    if (userRole === 'intern') {
+      const err: any = new Error('Interns cannot modify conversation context.');
+      err.status = 403;
+      err.code = 'FORBIDDEN';
+      throw err;
+    }
+
+    const conv = await ChatRepository.getConversationById(workspaceId, conversationId);
+    if (!conv) {
+      const err: any = new Error('Conversation not found.');
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    // Validate project if provided
+    if (data.projectId) {
+      const memProj = inMemoryDb.projects.get(data.projectId);
+      if (memProj && memProj.workspaceId !== workspaceId) {
+        const err: any = new Error('Referenced project does not exist in workspace.');
+        err.status = 400;
+        err.code = 'VALIDATION_ERROR';
+        throw err;
+      }
+    }
+
+    const updatedContext = await ChatRepository.upsertConversationContext({
+      conversationId,
+      workspaceId,
+      projectId: data.projectId,
+      departmentId: data.departmentId,
+      teamId: data.teamId,
+    });
+
+    // Also link to conversation entity if projectId or departmentId specified
+    if (data.projectId !== undefined || data.departmentId !== undefined) {
+      const memConv = inMemoryDb.conversations.get(conversationId);
+      if (memConv) {
+        if (data.projectId !== undefined) memConv.projectId = data.projectId;
+        if (data.departmentId !== undefined) memConv.departmentId = data.departmentId;
+      }
+    }
+
+    // Realtime notification
+    try {
+      EventBus.publishWorkspaceEvent(
+        workspaceId,
+        'chat.context.updated',
+        {
+          conversationId,
+          context: updatedContext,
+          updatedBy: userId,
+        },
+        {
+          actorId: userId,
+          entityType: 'chat',
+          entityId: conversationId,
+        }
+      );
+    } catch {}
+
+    return await this.getConversationContext(workspaceId, conversationId, userId, userRole);
+  }
+
+  /**
+   * Phase 2E: Get operational activity timeline for conversation
+   */
+  static async getConversationTimeline(
+    workspaceId: string,
+    conversationId: string,
+    userId: string,
+    userRole: string,
+    limit = 50
+  ) {
+    const conv = await ChatRepository.getConversationById(workspaceId, conversationId);
+    if (!conv) {
+      const err: any = new Error('Conversation not found.');
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    // Authorization check
+    if (conv.type === 'dm' || conv.type === 'group') {
+      const members = await ChatRepository.getConversationMembers(conversationId);
+      const isMember = members.some((m) => m.userId === userId);
+      if (!isMember && userRole !== 'admin') {
+        const err: any = new Error('Access denied to conversation timeline.');
+        err.status = 403;
+        err.code = 'FORBIDDEN';
+        throw err;
+      }
+    }
+
+    // Get linked context
+    const context = await ChatRepository.getConversationContext(conversationId);
+    const projectId = context?.projectId || conv.projectId || null;
+
+    const { ActivityAggregationService } = await import('./activity-aggregation-service.js');
+    const timeline = await ActivityAggregationService.getConversationTimeline(
+      workspaceId,
+      conversationId,
+      projectId,
+      limit
+    );
+
+    return {
+      conversationId,
+      projectId,
+      timeline,
+    };
+  }
+
+  // =========================================================================
+  // Phase 2F: Saved Messages Methods
+  // =========================================================================
+
+  /**
+   * Save a message for a user
+   */
+  static async saveMessage(workspaceId: string, messageId: string, userId: string) {
+    const msg = await ChatRepository.getMessageById(messageId);
+    if (!msg) {
+      const err: any = new Error('Message not found.');
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    // Verify conversation access
+    const conv = await ChatRepository.getConversationById(workspaceId, msg.conversationId);
+    if (!conv) {
+      const err: any = new Error('Conversation not found in workspace.');
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    if (conv.type === 'dm' || conv.type === 'group') {
+      const members = await ChatRepository.getConversationMembers(msg.conversationId);
+      const isMember = members.some((m) => m.userId === userId);
+      if (!isMember) {
+        const err: any = new Error('Access denied to save message from this conversation.');
+        err.status = 403;
+        err.code = 'FORBIDDEN';
+        throw err;
+      }
+    }
+
+    const saved = await ChatRepository.saveMessage(workspaceId, userId, messageId);
+    return {
+      success: true,
+      saved,
+    };
+  }
+
+  /**
+   * Remove a saved message for a user
+   */
+  static async unsaveMessage(workspaceId: string, messageId: string, userId: string) {
+    await ChatRepository.unsaveMessage(workspaceId, userId, messageId);
+    return {
+      success: true,
+      message: 'Message unsaved successfully.',
+    };
+  }
+
+  /**
+   * Get all saved messages for a user
+   */
+  static async getSavedMessages(workspaceId: string, userId: string) {
+    const savedMessages = await ChatRepository.getSavedMessages(workspaceId, userId);
+    return {
+      savedMessages,
+    };
+  }
+
+  // =========================================================================
+  // Phase 2G: Announcement Acknowledgements Service Methods
+  // =========================================================================
+
+  /**
+   * Acknowledge an announcement
+   */
+  static async acknowledgeAnnouncement(workspaceId: string, announcementId: string, userId: string) {
+    // 1. Verify message exists
+    const message = await ChatRepository.getMessageById(announcementId);
+    if (!message || message.workspaceId !== workspaceId) {
+      const error: any = new Error('Announcement message not found.');
+      error.status = 404;
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
+    // 2. Verify conversation is an announcement channel
+    const conv = await ChatRepository.getConversationById(workspaceId, message.conversationId);
+    if (!conv || conv.type !== 'announcement') {
+      const error: any = new Error('Message does not belong to an announcement channel.');
+      error.status = 404;
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
+    // 3. Check if already acknowledged (idempotent handling)
+    const alreadyAck = await ChatRepository.hasUserAcknowledged(workspaceId, announcementId, userId);
+    let ackRecord: any = null;
+    if (!alreadyAck) {
+      ackRecord = await ChatRepository.acknowledgeAnnouncement(workspaceId, announcementId, userId);
+
+      // Publish event for real-time delivery
+      EventBus.publishWorkspaceEvent(workspaceId, 'chat.announcement.acknowledged', {
+        announcementId,
+        userId,
+        acknowledgedAt: ackRecord.acknowledgedAt,
+      });
+    }
+
+    // 4. Return acknowledgement and stats
+    const stats = await ChatRepository.getAnnouncementStats(workspaceId, announcementId, userId);
+    return {
+      success: true,
+      acknowledged: true,
+      ackRecord,
+      stats,
+    };
+  }
+
+  /**
+   * Get announcement acknowledgement stats and audit report
+   */
+  static async getAnnouncementStats(workspaceId: string, announcementId: string, userId: string, role: string) {
+    const message = await ChatRepository.getMessageById(announcementId);
+    if (!message || message.workspaceId !== workspaceId) {
+      const error: any = new Error('Announcement message not found.');
+      error.status = 404;
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
+    const conv = await ChatRepository.getConversationById(workspaceId, message.conversationId);
+    if (!conv || conv.type !== 'announcement') {
+      const error: any = new Error('Message does not belong to an announcement channel.');
+      error.status = 404;
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
+    const stats = await ChatRepository.getAnnouncementStats(workspaceId, announcementId, userId);
+    return {
+      success: true,
+      ...stats,
+    };
   }
 }

@@ -274,8 +274,14 @@ export async function runMigrations() {
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS blocked_reason TEXT;`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_learning_task BOOLEAN DEFAULT FALSE;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_message_id TEXT;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_conversation_id TEXT;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS linked_conversation_id TEXT;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS linked_message_id TEXT;`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_team_id ON tasks(team_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_source_message_id ON tasks(source_message_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_linked_conversation_id ON tasks(linked_conversation_id);`;
 
     // 9b. Task Updates (Activity Log & Audit Trail)
     await sql`
@@ -1137,6 +1143,26 @@ export async function runMigrations() {
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_conv_id ON chat_slash_commands(conversation_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_user_id ON chat_slash_commands(user_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_slash_commands_command ON chat_slash_commands(command);`;
+
+    // 56. Conversation Context table (Phase 2D Context-Aware Conversations)
+    await sql`
+      CREATE TABLE IF NOT EXISTS conversation_context (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_context_conv_unique ON conversation_context(conversation_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversation_context_workspace_id ON conversation_context(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversation_context_conv_id ON conversation_context(conversation_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversation_context_project_id ON conversation_context(project_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversation_context_department_id ON conversation_context(department_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_conversation_context_team_id ON conversation_context(team_id);`;
 
     // Apply Required Unique Constraints and Indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`;

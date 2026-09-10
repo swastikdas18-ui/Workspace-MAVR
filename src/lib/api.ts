@@ -419,6 +419,46 @@ export const api = {
     });
   },
 
+  // Phase 2.1 & 2.2: Chat -> Action Engine & Task Discussion
+  async createTaskFromMessage(data: {
+    messageId: string;
+    title?: string;
+    description?: string;
+    priority?: string;
+    assigneeId?: string;
+    dueDate?: string;
+    projectId?: string;
+  }) {
+    return await fetchApi<{
+      task: any;
+      messageTask: any;
+      sourceMessageId: string;
+      sourceConversationId: string;
+      sourceWorkspaceId: string;
+    }>('/api/tasks/from-message', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getTaskDiscussion(taskId: string) {
+    return await fetchApi<{
+      task: any;
+      conversation: any | null;
+      sourceMessage: any | null;
+      messages: any[];
+      linkedConversationId: string | null;
+      linkedMessageId: string | null;
+    }>(`/api/tasks/${taskId}/discussion`);
+  },
+
+  async postTaskDiscussion(taskId: string, content: string) {
+    return await fetchApi<{ message: any; task: any }>(`/api/tasks/${taskId}/discussion`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
   // Teams API
   async getTeams() {
     return await fetchApi<{ teams: any[] }>('/api/teams');
@@ -1237,15 +1277,37 @@ export const api = {
     return await fetchApi<{ readers: any[] }>(`/api/chat/readers${query}`);
   },
 
-  async searchChat(query: string, filters?: { channel?: string; from?: string; hasFile?: boolean; before?: string; after?: string }) {
+  async searchChat(
+    query: string,
+    filters?: {
+      channel?: string;
+      from?: string;
+      hasFile?: boolean;
+      hasTask?: boolean;
+      hasMention?: boolean;
+      before?: string;
+      after?: string;
+      in?: string;
+    }
+  ) {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (filters?.channel) params.set('channel', filters.channel);
     if (filters?.from) params.set('from', filters.from);
     if (filters?.hasFile) params.set('hasFile', 'true');
+    if (filters?.hasTask) params.set('hasTask', 'true');
+    if (filters?.hasMention) params.set('hasMention', 'true');
     if (filters?.before) params.set('before', filters.before);
     if (filters?.after) params.set('after', filters.after);
-    return await fetchApi<{ messages: any[]; conversations: any[] }>(`/api/chat/search?${params.toString()}`);
+    if (filters?.in) params.set('in', filters.in);
+    return await fetchApi<{
+      messages: any[];
+      conversations: any[];
+      files?: any[];
+      tasks?: any[];
+      people?: any[];
+      summary?: any;
+    }>(`/api/chat/search?${params.toString()}`);
   },
 
   async uploadChatAttachment(file: File) {
@@ -1315,6 +1377,73 @@ export const api = {
   async getChatSlashCommandHistory(conversationId: string) {
     return await fetchApi<{ history: any[] }>(
       `/api/chat/conversations/${conversationId}/slash-commands`
+    );
+  },
+
+  // Phase 2D: Context-Aware Conversations
+  async getChatConversationContext(conversationId: string) {
+    return await fetchApi<import('../types').ConversationContextResponse>(
+      `/api/chat/conversations/${conversationId}/context`
+    );
+  },
+
+  async updateChatConversationContext(
+    conversationId: string,
+    data: {
+      projectId?: string | null;
+      departmentId?: string | null;
+      teamId?: string | null;
+    }
+  ) {
+    return await fetchApi<import('../types').ConversationContextResponse>(
+      `/api/chat/conversations/${conversationId}/context`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  // Phase 2E: Operational Activity Timeline
+  async getChatConversationTimeline(conversationId: string, limit = 50) {
+    return await fetchApi<import('../types').ChatTimelineResponse>(
+      `/api/chat/conversations/${conversationId}/timeline?limit=${limit}`
+    );
+  },
+
+  // Phase 2F: Saved Messages
+  async saveChatMessage(messageId: string) {
+    return await fetchApi<{ success: boolean; saved: any }>('/api/chat/save', {
+      method: 'POST',
+      body: JSON.stringify({ messageId }),
+    });
+  },
+
+  async unsaveChatMessage(messageId: string) {
+    return await fetchApi<{ success: boolean; message: string }>('/api/chat/save', {
+      method: 'DELETE',
+      body: JSON.stringify({ messageId }),
+    });
+  },
+
+  async getSavedChatMessages() {
+    return await fetchApi<import('../types').SavedChatMessagesResponse>('/api/chat/saved');
+  },
+
+  // Phase 2G: Announcement Acknowledgements
+  async acknowledgeAnnouncement(announcementId: string) {
+    return await fetchApi<{ success: boolean; acknowledged: boolean; stats: import('../types').AnnouncementStats }>(
+      '/api/chat/acknowledge',
+      {
+        method: 'POST',
+        body: JSON.stringify({ announcementId }),
+      }
+    );
+  },
+
+  async getAnnouncementStats(announcementId: string) {
+    return await fetchApi<{ success: boolean } & import('../types').AnnouncementStats>(
+      `/api/chat/stats?announcementId=${announcementId}`
     );
   },
 

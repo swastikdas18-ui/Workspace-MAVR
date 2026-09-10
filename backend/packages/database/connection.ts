@@ -91,6 +91,9 @@ export class InMemoryDatabase {
   public messageMentions: Map<string, any> = new Map();
   public chatSlashCommands: Map<string, any> = new Map();
   public chatPolls: Map<string, any> = new Map();
+  public conversationContext: Map<string, any> = new Map();
+  public savedMessages: Map<string, any> = new Map();
+  public announcementAcknowledgements: Map<string, any> = new Map();
 
   public reset() {
     this.users.clear();
@@ -179,6 +182,9 @@ export class InMemoryDatabase {
     this.messageMentions.clear();
     this.chatSlashCommands.clear();
     this.chatPolls.clear();
+    this.conversationContext.clear();
+    this.savedMessages.clear();
+    this.announcementAcknowledgements.clear();
   }
 }
 

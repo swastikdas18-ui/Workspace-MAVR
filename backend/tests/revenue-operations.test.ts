@@ -10,7 +10,7 @@
  * 6. Customer Success & Churn Risk Detection
  * 7. 3-Tier RBAC Enforcement (Admin full access, Employee read-only plan/usage, Intern zero access)
  * 8. Multi-Tenant Isolation (Workspace A cannot view or upgrade Workspace B billing)
- */
+ **/
 
 import { inMemoryDb } from '../packages/database';
 import { app } from '../src/app';
@@ -56,7 +56,7 @@ async function requestApi(
   let data = null;
   try {
     data = attachSessionToken(res, await res.json());
-  } catch {}
+  } catch { }
 
   return { status: res.status, data, headers: res.headers };
 }
@@ -72,7 +72,7 @@ export async function runRevenueOperationsTests() {
   // 1. SETUP WORKSPACES & USERS
   // -------------------------------------------------------------------------
   console.log('--- 1. Setting up Tenants and User Accounts ---');
-  
+
   // Workspace A: TechCorp
   const adminARes = await requestApi('POST', '/api/auth/register', {
     name: 'Elon Admin',
@@ -131,12 +131,12 @@ export async function runRevenueOperationsTests() {
   // 2. SUBSCRIPTION TIERS & PLAN LIMITS MATRIX
   // -------------------------------------------------------------------------
   console.log('\n--- 2. Subscription Tiers & Plan Limits Matrix ---');
-  
+
   assert(PLAN_CONFIG.free.includedSeats === 3, '2.1 Free plan member limit is 3');
   assert(PLAN_CONFIG.starter.includedSeats === 10, '2.2 Starter plan member limit is 10');
   assert(PLAN_CONFIG.business.includedSeats === 25, '2.3 Business plan included seats is 25');
   assert(PLAN_CONFIG.enterprise.includedSeats === 100 || PLAN_CONFIG.enterprise.limits.maxMembers === 9999, '2.4 Enterprise plan member limit is unlimited');
-  
+
   assert(PLAN_CONFIG.starter.priceMonthly === 999, '2.5 Starter price is ₹999/mo');
   assert(PLAN_CONFIG.business.priceMonthly === 2999, '2.6 Business price is ₹2999/mo');
   assert(PLAN_CONFIG.enterprise.priceMonthly === 0, '2.7 Enterprise price is custom (0)');
@@ -301,7 +301,7 @@ export async function runRevenueOperationsTests() {
   // 8. BUSINESS TIER, ENTERPRISE UPGRADE & HIGH VOLUME CAPACITY
   // -------------------------------------------------------------------------
   console.log('\n--- 8. Enterprise Upgrade & High-Volume Capacity ---');
-  
+
   // Upgrade to Business First
   const bizUpgrade = await requestApi('POST', '/api/billing/upgrade', { plan: 'business', billingCycle: 'monthly' }, tokenA);
   assert(bizUpgrade.status === 200, '8.1 Upgraded to Business Monthly tier');

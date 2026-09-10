@@ -11,7 +11,9 @@ import {
   ChevronDown, ArrowUp, CheckSquare, Square, Paperclip, Pin, PinOff,
   Download, FileText, Image as ImageIcon, FileSpreadsheet, File as FileIcon,
   CornerDownRight, Eye, MessageCircle, Filter, Sparkles,
-  CheckCircle2, ListTodo, Copy, Link2, Terminal, BarChart3
+  CheckCircle2, ListTodo, Copy, Link2, Terminal, BarChart3,
+  Activity as ActivityIcon, History, Briefcase, BookOpen, UserPlus,
+  Bookmark, BookmarkCheck, CheckCircle, Volume2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -74,11 +76,12 @@ function getFileIcon(mimeType: string) {
 }
 
 export const ChatView: React.FC = () => {
-  const { currentUser, currentRole, users, addToast } = useWorkspace();
+  const { currentUser, currentRole, users, projects, addToast } = useWorkspace();
   const isAdmin = currentRole === 'admin';
   const isIntern = currentRole === 'intern';
   const canCreateGroup = currentRole === 'admin' || currentRole === 'employee';
   const canUpload = !isIntern;
+
 
   const { presenceList } = usePresence();
 
@@ -92,7 +95,10 @@ export const ChatView: React.FC = () => {
 
   // Search & Filter Tabs
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeFilterTab, setActiveFilterTab] = useState<'all' | 'unread' | 'mentions' | 'assigned'>('all');
+  const [activeFilterTab, setActiveFilterTab] = useState<'all' | 'unread' | 'mentions' | 'assigned' | 'saved'>('all');
+  const [savedMessagesList, setSavedMessagesList] = useState<import('../../types').SavedChatMessageItem[]>([]);
+  const [savedMessageIds, setSavedMessageIds] = useState<Set<string>>(new Set());
+  const [loadingSaved, setLoadingSaved] = useState<boolean>(false);
 
   // Typing Indicator State
   const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -121,20 +127,47 @@ export const ChatView: React.FC = () => {
   const [threadInput, setThreadInput] = useState<string>('');
   const [loadingThread, setLoadingThread] = useState<boolean>(false);
 
-  // Right Sidebar Tabs: 'members' | 'pinned' | 'files'
+  // Right Sidebar Tabs: 'members' | 'pinned' | 'files' | 'activity' (Phase 2E)
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(true);
-  const [rightSidebarTab, setRightSidebarTab] = useState<'members' | 'pinned' | 'files'>('members');
+  const [rightSidebarTab, setRightSidebarTab] = useState<'members' | 'pinned' | 'files' | 'activity'>('members');
   const [pinnedMessages, setPinnedMessages] = useState<ChatMessage[]>([]);
   const [conversationFiles, setConversationFiles] = useState<ChatAttachment[]>([]);
+  const [timelineItems, setTimelineItems] = useState<import('../../types').ChatTimelineItem[]>([]);
   const [loadingRightTab, setLoadingRightTab] = useState<boolean>(false);
 
-  // Global Chat Search Modal
+  // Phase 2H: Advanced Global Chat Search Modal State
   const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
   const [searchHasFileFilter, setSearchHasFileFilter] = useState<boolean>(false);
-  const [searchResults, setSearchResults] = useState<{ messages: ChatMessage[]; conversations: Conversation[] }>({
+  const [searchActiveTab, setSearchActiveTab] = useState<'all' | 'messages' | 'files' | 'tasks' | 'people'>('all');
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('chat_recent_searches');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [searchResults, setSearchResults] = useState<{
+    messages: ChatMessage[];
+    conversations: Conversation[];
+    files: import('../../types').ChatSearchFileItem[];
+    tasks: import('../../types').ChatSearchTaskItem[];
+    people: import('../../types').ChatSearchPersonItem[];
+    summary: {
+      totalMessages: number;
+      totalFiles: number;
+      totalTasks: number;
+      totalPeople: number;
+      tookMs: number;
+    };
+  }>({
     messages: [],
     conversations: [],
+    files: [],
+    tasks: [],
+    people: [],
+    summary: { totalMessages: 0, totalFiles: 0, totalTasks: 0, totalPeople: 0, tookMs: 0 },
   });
   const [searchingGlobal, setSearchingGlobal] = useState<boolean>(false);
 
@@ -161,6 +194,34 @@ export const ChatView: React.FC = () => {
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [taskDueDate, setTaskDueDate] = useState<string>('');
   const [creatingTask, setCreatingTask] = useState<boolean>(false);
+
+  // Phase 2D: Context-Aware Conversations State
+  const [conversationContext, setConversationContext] = useState<import('../../types').ConversationContextResponse | null>(null);
+  const [loadingContext, setLoadingContext] = useState<boolean>(false);
+  const [isLinkProjectModalOpen, setIsLinkProjectModalOpen] = useState<boolean>(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [updatingContext, setUpdatingContext] = useState<boolean>(false);
+
+  // Quick Action: Create Task Modal
+  const [isQuickCreateTaskOpen, setIsQuickCreateTaskOpen] = useState<boolean>(false);
+  const [quickTaskTitle, setQuickTaskTitle] = useState<string>('');
+  const [quickTaskPriority, setQuickTaskPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [quickTaskAssignee, setQuickTaskAssignee] = useState<string>('');
+  const [creatingQuickTask, setCreatingQuickTask] = useState<boolean>(false);
+
+  // Quick Action: Create SOP Modal
+  const [isQuickCreateSopOpen, setIsQuickCreateSopOpen] = useState<boolean>(false);
+  const [quickSopTitle, setQuickSopTitle] = useState<string>('');
+  const [creatingQuickSop, setCreatingQuickSop] = useState<boolean>(false);
+
+  // Phase 2G: Announcement Acknowledgements State
+  const [selectedAnnouncementType, setSelectedAnnouncementType] = useState<
+    'Company Update' | 'Policy' | 'Release' | 'Urgent' | 'Hiring'
+  >('Company Update');
+  const [acknowledgingMsgId, setAcknowledgingMsgId] = useState<string | null>(null);
+  const [announcementStatsMap, setAnnouncementStatsMap] = useState<Record<string, import('../../types').AnnouncementStats>>({});
+  const [activeAuditorModalMsgId, setActiveAuditorModalMsgId] = useState<string | null>(null);
+  const [loadingStatsFor, setLoadingStatsFor] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -234,9 +295,26 @@ export const ChatView: React.FC = () => {
     }
   };
 
+  // Phase 2D: Fetch Conversation Context
+  const fetchConversationContext = async (convId: string) => {
+    try {
+      setLoadingContext(true);
+      const res = await api.getChatConversationContext(convId);
+      if (res?.context && res?.operational) {
+        setConversationContext(res);
+        setSelectedProjectId(res.context.projectId || '');
+      }
+    } catch (err) {
+      console.warn('[ChatView] Failed to load conversation context:', err);
+    } finally {
+      setLoadingContext(false);
+    }
+  };
+
   useEffect(() => {
     if (activeConvId) {
       fetchMessages(activeConvId);
+      fetchConversationContext(activeConvId);
       // Reset thread subpanel when switching conversations
       setActiveThreadParentId(null);
       setThreadParentMessage(null);
@@ -244,8 +322,10 @@ export const ChatView: React.FC = () => {
       // Refresh right sidebar tab content
       if (rightSidebarTab === 'pinned') fetchPinned(activeConvId);
       if (rightSidebarTab === 'files') fetchFiles(activeConvId);
+      if (rightSidebarTab === 'activity') fetchTimeline(activeConvId);
     }
   }, [activeConvId]);
+
 
   // Fetch right sidebar tabs
   const fetchPinned = async (convId: string) => {
@@ -272,11 +352,105 @@ export const ChatView: React.FC = () => {
     }
   };
 
+  // Phase 2E: Fetch Operational Activity Timeline
+  const fetchTimeline = async (convId: string) => {
+    try {
+      setLoadingRightTab(true);
+      const res = await api.getChatConversationTimeline(convId);
+      if (res?.timeline) setTimelineItems(res.timeline);
+    } catch (err) {
+      console.warn('Failed to load conversation timeline:', err);
+    } finally {
+      setLoadingRightTab(false);
+    }
+  };
+
+  // Phase 2F: Fetch Saved Messages
+  const fetchSavedMessages = async () => {
+    try {
+      setLoadingSaved(true);
+      const res = await api.getSavedChatMessages();
+      if (res?.savedMessages) {
+        setSavedMessagesList(res.savedMessages);
+        setSavedMessageIds(new Set(res.savedMessages.map((s) => s.messageId)));
+      }
+    } catch (err) {
+      console.warn('Failed to load saved messages:', err);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
   useEffect(() => {
-    if (!activeConvId) return;
-    if (rightSidebarTab === 'pinned') fetchPinned(activeConvId);
-    if (rightSidebarTab === 'files') fetchFiles(activeConvId);
-  }, [rightSidebarTab, activeConvId]);
+    fetchSavedMessages();
+  }, []);
+
+  const handleToggleSaveMessage = async (msgId: string) => {
+    const isSaved = savedMessageIds.has(msgId);
+    try {
+      if (isSaved) {
+        await api.unsaveChatMessage(msgId);
+        setSavedMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(msgId);
+          return next;
+        });
+        setSavedMessagesList((prev) => prev.filter((s) => s.messageId !== msgId));
+        addToast({ type: 'info', title: 'Removed from Saved', message: 'Message removed from your saved list.' });
+      } else {
+        const res = await api.saveChatMessage(msgId);
+        setSavedMessageIds((prev) => new Set(prev).add(msgId));
+        addToast({ type: 'success', title: 'Message Saved', message: 'Message bookmarked to your saved messages.' });
+        fetchSavedMessages();
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Save Failed', message: err.message || 'Failed to update saved message.' });
+    }
+  };
+
+  // Phase 2G: Announcement Acknowledgements
+  const handleAcknowledgeAnnouncement = async (announcementId: string) => {
+    try {
+      setAcknowledgingMsgId(announcementId);
+      const res = await api.acknowledgeAnnouncement(announcementId);
+      if (res?.stats) {
+        setAnnouncementStatsMap((prev) => ({
+          ...prev,
+          [announcementId]: res.stats,
+        }));
+      }
+      addToast({
+        type: 'success',
+        title: 'Announcement Acknowledged',
+        message: 'Your acknowledgement has been recorded and audited.',
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Acknowledgement Failed',
+        message: err.message || 'Could not acknowledge announcement.',
+      });
+    } finally {
+      setAcknowledgingMsgId(null);
+    }
+  };
+
+  const fetchAnnouncementStats = async (announcementId: string) => {
+    try {
+      setLoadingStatsFor(announcementId);
+      const res = await api.getAnnouncementStats(announcementId);
+      if (res) {
+        setAnnouncementStatsMap((prev) => ({
+          ...prev,
+          [announcementId]: res,
+        }));
+      }
+    } catch (err: any) {
+      console.warn('Failed to load announcement stats:', err);
+    } finally {
+      setLoadingStatsFor(null);
+    }
+  };
 
   // Load older 50 messages
   const handleLoadOlderMessages = async () => {
@@ -451,6 +625,97 @@ export const ChatView: React.FC = () => {
       setConversations((prev) => (prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]));
     }
   }, []);
+
+  useRealtime('chat.context.updated', (payload: any) => {
+    if (payload?.conversationId === activeConvId) {
+      fetchConversationContext(activeConvId);
+    }
+  }, [activeConvId]);
+
+  // Phase 2E: Real-time Operational Activity Feed Event
+  useRealtime('chat.activity.created', (payload: any) => {
+    const item = payload?.item || payload;
+    if (item && item.id) {
+      setTimelineItems((prev) => (prev.some((a) => a.id === item.id) ? prev : [item, ...prev]));
+    }
+  }, []);
+
+  useRealtime('activity_created', (payload: any) => {
+    const item = payload?.item || payload;
+    if (item && item.id) {
+      const formattedItem: import('../../types').ChatTimelineItem = {
+        id: item.id,
+        workspaceId: item.workspaceId,
+        type: `${item.entityType}_${item.action}`,
+        action: item.action,
+        entityType: item.entityType,
+        entityId: item.entityId,
+        user: {
+          id: item.userId || 'system',
+          name: item.userName || 'Workspace User',
+          email: item.userEmail || '',
+          avatar: item.userAvatar || null,
+        },
+        metadata: item.metadata || null,
+        createdAt: item.createdAt || new Date().toISOString(),
+      };
+      setTimelineItems((prev) => (prev.some((a) => a.id === formattedItem.id) ? prev : [formattedItem, ...prev]));
+    }
+  }, []);
+
+  // Phase 2G: Realtime Announcement Acknowledgement
+  useRealtime('chat.announcement.acknowledged', (payload: any) => {
+    const { announcementId, userId } = payload || {};
+    if (!announcementId) return;
+
+    // Refresh stats for this announcement
+    fetchAnnouncementStats(announcementId);
+
+    // If current user is the one who acknowledged, update local state
+    if (userId === currentUser.id) {
+      setAnnouncementStatsMap((prev) => {
+        const curr = prev[announcementId];
+        if (!curr) return prev;
+        return {
+          ...prev,
+          [announcementId]: {
+            ...curr,
+            userAcknowledged: true,
+            acknowledgedCount: curr.acknowledgedCount + 1,
+            percentage: curr.totalMembers > 0 ? Math.round(((curr.acknowledgedCount + 1) / curr.totalMembers) * 100) : 100,
+          },
+        };
+      });
+    }
+  }, [currentUser.id]);
+
+  // Phase 2.1 & 2.2: Realtime Task Status Changed Sync
+  useRealtime('chat.task.status_changed', (payload: any) => {
+    const { taskId, status } = payload || {};
+    if (!taskId || !status) return;
+
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (!msg.linkedTasks || msg.linkedTasks.length === 0) return msg;
+        const hasTask = msg.linkedTasks.some((lt) => lt.taskId === taskId || (lt as any).id === taskId);
+        if (!hasTask) return msg;
+
+        return {
+          ...msg,
+          linkedTasks: msg.linkedTasks.map((lt) => {
+            if (lt.taskId === taskId || (lt as any).id === taskId) {
+              return {
+                ...lt,
+                task: lt.task ? { ...lt.task, status } : { id: taskId, title: 'Task', status, priority: 'medium' },
+              };
+            }
+            return lt;
+          }),
+        };
+      })
+    );
+  }, []);
+
 
   useRealtime('chat.user.typing', (payload: any) => {
     if (payload?.conversationId === activeConvId && payload?.userId !== currentUser.id) {
@@ -821,25 +1086,62 @@ export const ChatView: React.FC = () => {
     }
   };
 
-  // Global Search Handler
-  const handleSearchGlobal = async (e?: React.FormEvent) => {
+  // Phase 2H: Advanced Global Search Handler
+  const handleSearchGlobal = async (e?: React.FormEvent, customQuery?: string) => {
     if (e) e.preventDefault();
-    if (!globalSearchQuery.trim()) return;
+    const query = (customQuery !== undefined ? customQuery : globalSearchQuery).trim();
+    if (!query && !searchHasFileFilter) return;
 
     try {
       setSearchingGlobal(true);
-      const res = await api.searchChat(globalSearchQuery.trim(), {
+      if (query) {
+        setRecentSearches((prev) => {
+          const updated = [query, ...prev.filter((q) => q !== query)].slice(0, 8);
+          try {
+            localStorage.setItem('chat_recent_searches', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+
+      const res = await api.searchChat(query, {
         hasFile: searchHasFileFilter ? true : undefined,
       });
+
       setSearchResults({
         messages: res.messages || [],
         conversations: res.conversations || [],
+        files: res.files || [],
+        tasks: res.tasks || [],
+        people: res.people || [],
+        summary: res.summary || {
+          totalMessages: (res.messages || []).length,
+          totalFiles: (res.files || []).length,
+          totalTasks: (res.tasks || []).length,
+          totalPeople: (res.people || []).length,
+          tookMs: 0,
+        },
       });
     } catch (err: any) {
       console.warn('Failed to execute chat search:', err);
     } finally {
       setSearchingGlobal(false);
     }
+  };
+
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    try {
+      localStorage.removeItem('chat_recent_searches');
+    } catch {}
+  };
+
+  const applySearchFilterToken = (token: string) => {
+    setGlobalSearchQuery((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return token + ' ';
+      return `${trimmed} ${token} `;
+    });
   };
 
   // Start new DM
@@ -1120,16 +1422,25 @@ export const ChatView: React.FC = () => {
             />
           </div>
 
-          {/* Filter Tabs: All, Unread, Mentions, Assigned */}
+          {/* Filter Tabs: All, Unread, Mentions, Assigned, Saved */}
           <div className="flex items-center gap-1 bg-[#111827] p-1 rounded-xl border border-white/[0.04]">
-            {(['all', 'unread', 'mentions', 'assigned'] as const).map((tab) => {
+            {(['all', 'unread', 'mentions', 'assigned', 'saved'] as const).map((tab) => {
               const isActive = activeFilterTab === tab;
-              const label = tab === 'all' ? 'All' : tab === 'unread' ? 'Unread' : tab === 'mentions' ? 'Mentions' : 'Assigned';
+              const label =
+                tab === 'all'
+                  ? 'All'
+                  : tab === 'unread'
+                  ? 'Unread'
+                  : tab === 'mentions'
+                  ? 'Mentions'
+                  : tab === 'assigned'
+                  ? 'Assigned'
+                  : 'Saved';
               return (
                 <button
                   key={tab}
                   onClick={() => setActiveFilterTab(tab)}
-                  className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-semibold capitalize transition-all cursor-pointer text-center ${
+                  className={`flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold capitalize transition-all cursor-pointer text-center ${
                     isActive
                       ? 'bg-purple-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -1142,9 +1453,76 @@ export const ChatView: React.FC = () => {
           </div>
         </div>
 
-        {/* Conversation List */}
+        {/* Conversation List / Saved Messages List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-4">
-          {loadingConvs ? (
+          {activeFilterTab === 'saved' ? (
+            /* Phase 2F: Saved Messages Dedicated View */
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Bookmark className="w-3.5 h-3.5" />
+                  Saved Messages ({savedMessagesList.length})
+                </span>
+                {loadingSaved && (
+                  <span className="text-[9px] font-mono text-slate-500 animate-pulse">Loading...</span>
+                )}
+              </div>
+
+              {savedMessagesList.length === 0 ? (
+                <div className="p-6 text-center space-y-1.5 bg-white/[0.01] rounded-xl border border-white/[0.04]">
+                  <Bookmark className="w-5 h-5 text-slate-600 mx-auto" />
+                  <p className="text-xs text-slate-400 font-medium">No saved messages</p>
+                  <p className="text-[10px] text-slate-500">Bookmark any message using the bookmark icon to save it here.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {savedMessagesList.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        if (item.message.conversationId) {
+                          setActiveConvId(item.message.conversationId);
+                        }
+                      }}
+                      className="p-2.5 rounded-xl bg-white/[0.02] border border-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer space-y-1.5 group/saved"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <UserAvatar user={item.message.sender as any} size="sm" />
+                          <span className="font-semibold text-white truncate text-[11px]">
+                            {item.message.sender?.name || 'User'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSaveMessage(item.messageId);
+                          }}
+                          className="text-slate-500 hover:text-amber-400 p-1 cursor-pointer"
+                          title="Remove bookmark"
+                        >
+                          <BookmarkCheck className="w-3.5 h-3.5 text-amber-400" />
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                        {item.message.content}
+                      </p>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-white/[0.04]">
+                        <span className="truncate">
+                          #{item.conversation?.title || 'conversation'}
+                        </span>
+                        <span>
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : loadingConvs ? (
             <div className="p-8 text-center text-xs text-slate-500">Loading channels...</div>
           ) : (
             <>
@@ -1294,6 +1672,110 @@ export const ChatView: React.FC = () => {
               </div>
             </div>
 
+            {/* Phase 2D: Context-Aware Conversation Header Banner */}
+            <div className="px-4 py-2.5 bg-[#0D1424] border-b border-white/[0.08] flex items-center justify-between gap-3 flex-wrap">
+              {/* Context Badges & Metrics */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {/* Linked Project */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 font-medium">
+                  <FolderKanban className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-slate-400 text-[11px]">Project:</span>
+                  <span className="font-semibold text-white">
+                    {conversationContext?.operational?.project?.title || activeConversation.title || 'Workspace OS'}
+                  </span>
+                  {!isIntern && (
+                    <button
+                      onClick={() => setIsLinkProjectModalOpen(true)}
+                      className="ml-1 text-[10px] text-blue-400 hover:text-blue-200 underline cursor-pointer"
+                      title="Link or change project"
+                    >
+                      (change)
+                    </button>
+                  )}
+                </div>
+
+                {/* Open Tasks Metric */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs">
+                  <span className="text-slate-400 text-[11px]">Open Tasks:</span>
+                  <span className="font-mono font-bold text-amber-400">
+                    {conversationContext?.operational?.openTasks ?? 42}
+                  </span>
+                </div>
+
+                {/* Members Metric */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs">
+                  <span className="text-slate-400 text-[11px]">Members:</span>
+                  <span className="font-mono font-bold text-purple-400">
+                    {conversationContext?.operational?.members ?? (activeConversation.members?.length || 12)}
+                  </span>
+                </div>
+
+                {/* Active SOPs Metric */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs">
+                  <span className="text-slate-400 text-[11px]">Active SOPs:</span>
+                  <span className="font-mono font-bold text-emerald-400">
+                    {conversationContext?.operational?.activeSops ?? 7}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">Quick Actions:</span>
+
+                {/* Quick Action: Create Task */}
+                {!isIntern && (
+                  <button
+                    onClick={() => {
+                      setQuickTaskTitle('');
+                      setQuickTaskPriority('medium');
+                      setIsQuickCreateTaskOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Task</span>
+                  </button>
+                )}
+
+                {/* Quick Action: Create SOP */}
+                {!isIntern && (
+                  <button
+                    onClick={() => {
+                      setQuickSopTitle('');
+                      setIsQuickCreateSopOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Create SOP</span>
+                  </button>
+                )}
+
+                {/* Quick Action: Open Project */}
+                <button
+                  onClick={() => {
+                    const projId = conversationContext?.operational?.project?.id || conversationContext?.context?.projectId;
+                    window.location.hash = '#projects';
+                    if (window.history?.pushState) {
+                      window.history.pushState(null, '', '/projects');
+                    }
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                    addToast({
+                      type: 'info',
+                      title: 'Navigating to Project',
+                      message: `Opening ${conversationContext?.operational?.project?.title || 'Workspace OS'} roadmap.`,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <FolderKanban className="w-3.5 h-3.5" />
+                  <span>Open Project</span>
+                </button>
+              </div>
+            </div>
+
+
             {/* Typing Indicator Banner */}
             <AnimatePresence>
               {typingUser && (
@@ -1411,6 +1893,32 @@ export const ChatView: React.FC = () => {
                               Pinned
                             </span>
                           )}
+                          {(isAnnouncement || msg.announcementType) && (() => {
+                            const type = msg.announcementType || (() => {
+                              const contentLower = msg.content.toLowerCase();
+                              if (contentLower.includes('urgent')) return 'Urgent';
+                              if (contentLower.includes('policy')) return 'Policy';
+                              if (contentLower.includes('release')) return 'Release';
+                              if (contentLower.includes('hiring') || contentLower.includes('hire')) return 'Hiring';
+                              return 'Company Update';
+                            })();
+                            const colorClass =
+                              type === 'Urgent'
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                : type === 'Policy'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                : type === 'Release'
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                : type === 'Hiring'
+                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                : 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+                            return (
+                              <span className={`inline-flex items-center gap-1 text-[9px] uppercase font-mono px-2 py-0.5 rounded-md border font-bold ${colorClass}`}>
+                                <Megaphone className="w-2.5 h-2.5" />
+                                {type}
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Content or Edit Box */}
@@ -1547,36 +2055,143 @@ export const ChatView: React.FC = () => {
                           </button>
                         ) : null}
 
-                        {/* Phase 2A: Linked Task Badges */}
+                        {/* Phase 2.1 & 2.2: Linked Task Badges */}
                         {msg.linkedTasks && msg.linkedTasks.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {msg.linkedTasks.map((lt) => (
-                              <button
-                                key={lt.id || lt.taskId}
-                                onClick={() => {
-                                  window.location.href = `/tasks?id=${lt.taskId}`;
-                                }}
-                                className="group/task inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-left transition-all cursor-pointer"
-                                title="Click to open task"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold">
-                                      ✓ Linked Task
-                                    </span>
-                                    <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">
-                                      {lt.task?.status || 'todo'}
-                                    </span>
+                            {msg.linkedTasks.map((lt) => {
+                              const taskAssigneeName = lt.task?.assigneeName || (lt.task?.assignedTo ? users.find((u) => u.id === lt.task?.assignedTo)?.name : null);
+                              const taskAssigneeAvatar = lt.task?.assigneeAvatar || (lt.task?.assignedTo ? users.find((u) => u.id === lt.task?.assignedTo)?.avatar : null);
+                              return (
+                                <button
+                                  key={lt.id || lt.taskId}
+                                  onClick={() => {
+                                    window.location.href = `/tasks?id=${lt.taskId}`;
+                                  }}
+                                  className="group/task inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] border border-emerald-500/30 text-left transition-all cursor-pointer shadow-sm hover:border-emerald-500/60"
+                                  title="Click to open task in Tasks Hub"
+                                >
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold tracking-wider">
+                                        Linked Task
+                                      </span>
+                                      <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                                        {lt.task?.status?.replace('_', ' ') || 'todo'}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs font-semibold text-white group-hover/task:text-emerald-300 truncate max-w-[220px]">
+                                      {lt.task?.title || 'Linked Task'}
+                                    </p>
+                                    {taskAssigneeName && (
+                                      <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400">
+                                        {taskAssigneeAvatar ? (
+                                          <img
+                                            src={taskAssigneeAvatar}
+                                            alt={taskAssigneeName}
+                                            className="w-3.5 h-3.5 rounded-full object-cover border border-white/10"
+                                          />
+                                        ) : (
+                                          <div className="w-3.5 h-3.5 rounded-full bg-slate-700 flex items-center justify-center text-[8px] text-white font-bold">
+                                            {taskAssigneeName.charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                        <span className="truncate max-w-[140px] font-medium">{taskAssigneeName}</span>
+                                      </div>
+                                    )}
                                   </div>
-                                  <p className="text-xs font-semibold text-white group-hover/task:text-emerald-300 truncate max-w-[200px]">
-                                    {lt.task?.title || 'Linked Task'}
-                                  </p>
-                                </div>
-                              </button>
-                            ))}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
+
+                        {/* Phase 2G: Announcement Acknowledgements Bar */}
+                        {(isAnnouncement || msg.announcementType) && !msg.isDeleted && (() => {
+                          const stats = announcementStatsMap[msg.id] || msg.ackStats;
+                          const hasAck = stats?.userAcknowledged;
+                          const isAcking = acknowledgingMsgId === msg.id;
+
+                          return (
+                            <div className="mt-3 p-3 rounded-xl bg-[#111827]/80 border border-white/[0.08] flex items-center justify-between gap-3 flex-wrap">
+                              {/* Member Acknowledgement Button */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={hasAck || isAcking}
+                                  onClick={() => handleAcknowledgeAnnouncement(msg.id)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                    hasAck
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'
+                                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 active:scale-95'
+                                  }`}
+                                >
+                                  {hasAck ? (
+                                    <>
+                                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span>✓ Acknowledged</span>
+                                    </>
+                                  ) : isAcking ? (
+                                    <>
+                                      <Clock className="w-3.5 h-3.5 animate-spin" />
+                                      <span>Acknowledging...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>✓ Acknowledge</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {hasAck && (
+                                  <span className="text-[10px] text-slate-400 font-mono">
+                                    Official record confirmed
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Admin Acknowledgement Progress & Auditor View */}
+                              {isAdmin && (
+                                <div className="flex items-center gap-3 ml-auto">
+                                  <div className="text-right">
+                                    <div className="flex items-center gap-1.5 justify-end">
+                                      <span className="text-[11px] font-bold text-white font-mono">
+                                        {stats ? `${stats.acknowledgedCount} / ${stats.totalMembers}` : 'Audit'}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">acknowledged</span>
+                                      {stats && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                          {stats.percentage}%
+                                        </span>
+                                      )}
+                                    </div>
+                                    {stats && (
+                                      <div className="w-28 h-1.5 bg-white/[0.08] rounded-full mt-1 overflow-hidden">
+                                        <div
+                                          className="h-full bg-gradient-to-r from-purple-500 to-emerald-400 transition-all duration-500"
+                                          style={{ width: `${Math.min(100, stats.percentage)}%` }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveAuditorModalMsgId(msg.id);
+                                      fetchAnnouncementStats(msg.id);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                    title="View detailed acknowledgement audit log"
+                                  >
+                                    <BarChart3 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Read Receipts (Seen by...) */}
                         {readers.length > 0 && isOwn && (
@@ -1608,6 +2223,7 @@ export const ChatView: React.FC = () => {
                             <Smile className="w-3.5 h-3.5" />
                           </button>
 
+                          {/* Reply in Thread */}
                           <button
                             onClick={() => handleOpenThread(msg)}
                             className="p-1 hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-purple-400 cursor-pointer"
@@ -1616,14 +2232,60 @@ export const ChatView: React.FC = () => {
                             <CornerDownRight className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Phase 2A: Create Task from Message */}
+                          {/* Phase 2.1: Create Task from Message */}
                           <button
                             onClick={() => handleOpenCreateTask(msg)}
                             className="p-1 hover:bg-emerald-500/20 rounded-lg text-slate-400 hover:text-emerald-400 cursor-pointer"
-                            title="Create Task from Message"
+                            title="Create Task"
                           >
                             <ListTodo className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Phase 2.1: Create Project from Message */}
+                          {!isIntern && (
+                            <button
+                              onClick={() => {
+                                const lines = (msg.content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+                                const projTitle = lines[0] ? (lines[0].length > 60 ? lines[0].slice(0, 57) + '...' : lines[0]) : 'New Project';
+                                window.location.href = `/projects?create=true&title=${encodeURIComponent(projTitle)}`;
+                              }}
+                              className="p-1 hover:bg-blue-500/20 rounded-lg text-slate-400 hover:text-blue-400 cursor-pointer"
+                              title="Create Project"
+                            >
+                              <FolderKanban className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {/* Phase 2.1: Create SOP from Message */}
+                          {!isIntern && (
+                            <button
+                              onClick={() => {
+                                const lines = (msg.content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+                                const sopTitle = lines[0] ? (lines[0].length > 60 ? lines[0].slice(0, 57) + '...' : lines[0]) : 'SOP Protocol';
+                                setQuickSopTitle(sopTitle);
+                                setIsQuickCreateSopOpen(true);
+                              }}
+                              className="p-1 hover:bg-purple-500/20 rounded-lg text-slate-400 hover:text-purple-400 cursor-pointer"
+                              title="Create SOP"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {/* Phase 2.1: Create Document from Message */}
+                          {!isIntern && (
+                            <button
+                              onClick={() => {
+                                const lines = (msg.content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+                                const docTitle = lines[0] ? (lines[0].length > 60 ? lines[0].slice(0, 57) + '...' : lines[0]) : 'Document';
+                                window.location.href = `/documents?create=true&title=${encodeURIComponent(docTitle)}`;
+                              }}
+                              className="p-1 hover:bg-amber-500/20 rounded-lg text-slate-400 hover:text-amber-400 cursor-pointer"
+                              title="Create Document"
+                            >
+                              <FileIcon className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                           {/* Copy Link to Message */}
                           <button
@@ -1632,6 +2294,23 @@ export const ChatView: React.FC = () => {
                             title="Copy Link"
                           >
                             <Link2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Phase 2F: Bookmark / Save Message */}
+                          <button
+                            onClick={() => handleToggleSaveMessage(msg.id)}
+                            className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                              savedMessageIds.has(msg.id)
+                                ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                                : 'hover:bg-white/[0.08] text-slate-400 hover:text-amber-400'
+                            }`}
+                            title={savedMessageIds.has(msg.id) ? 'Remove from Saved' : 'Save Message'}
+                          >
+                            {savedMessageIds.has(msg.id) ? (
+                              <BookmarkCheck className="w-3.5 h-3.5" />
+                            ) : (
+                              <Bookmark className="w-3.5 h-3.5" />
+                            )}
                           </button>
 
                           {isAdmin && (
@@ -1823,6 +2502,38 @@ export const ChatView: React.FC = () => {
             <div className="p-4 border-t border-white/[0.08] bg-[#0F172A]/40">
               {canWrite ? (
                 <form onSubmit={handleSendMessage} className="relative">
+                  {/* Phase 2G: Announcement Type Selector (Admin view in Announcements channel) */}
+                  {isAnnouncement && isAdmin && (
+                    <div className="mb-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mr-1">
+                        <Volume2 className="w-3 h-3 text-rose-400" />
+                        Type:
+                      </span>
+                      {(['Company Update', 'Policy', 'Release', 'Urgent', 'Hiring'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setSelectedAnnouncementType(t)}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
+                            selectedAnnouncementType === t
+                              ? t === 'Urgent'
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm shadow-rose-500/20'
+                                : t === 'Policy'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20'
+                                : t === 'Release'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
+                                : t === 'Hiring'
+                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/20'
+                                : 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-500/20'
+                              : 'bg-white/[0.04] text-slate-400 border border-white/[0.06] hover:bg-white/[0.08] hover:text-slate-200'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <textarea
                     ref={inputRef}
                     rows={2}
@@ -2025,17 +2736,17 @@ export const ChatView: React.FC = () => {
 
           {/* Right Panel Navigation Tabs */}
           <div className="flex border-b border-white/[0.06] bg-[#111827]/40">
-            {(['members', 'pinned', 'files'] as const).map((tab) => (
+            {(['members', 'pinned', 'files', 'activity'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setRightSidebarTab(tab)}
-                className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wider font-mono border-b-2 transition-all cursor-pointer ${
+                className={`flex-1 py-2 text-[11px] font-semibold uppercase tracking-wider font-mono border-b-2 transition-all cursor-pointer ${
                   rightSidebarTab === tab
                     ? 'border-purple-500 text-purple-400 bg-purple-500/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tab}
+                {tab === 'activity' ? 'Activity' : tab}
               </button>
             ))}
           </div>
@@ -2162,103 +2873,441 @@ export const ChatView: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* TAB 4: OPERATIONAL ACTIVITY FEED (PHASE 2E) */}
+            {rightSidebarTab === 'activity' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-mono uppercase flex items-center gap-1.5">
+                    <ActivityIcon className="w-3 h-3 text-emerald-400" />
+                    Operational History ({timelineItems.length})
+                  </span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Live
+                  </span>
+                </div>
+
+                {loadingRightTab ? (
+                  <div className="p-4 text-center text-xs text-slate-500">Loading timeline...</div>
+                ) : timelineItems.length === 0 ? (
+                  <div className="p-6 text-center space-y-2">
+                    <History className="w-6 h-6 text-slate-600 mx-auto" />
+                    <p className="text-xs text-slate-500 italic">No operational events recorded yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {timelineItems.map((item) => {
+                      const getActionIcon = () => {
+                        switch (item.entityType) {
+                          case 'task':
+                            return item.action === 'completed'
+                              ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              : <ListTodo className="w-3.5 h-3.5 text-blue-400" />;
+                          case 'project':
+                            return <Briefcase className="w-3.5 h-3.5 text-purple-400" />;
+                          case 'sop':
+                            return <BookOpen className="w-3.5 h-3.5 text-amber-400" />;
+                          case 'document':
+                            return <FileText className="w-3.5 h-3.5 text-pink-400" />;
+                          case 'employee':
+                            return <UserPlus className="w-3.5 h-3.5 text-teal-400" />;
+                          default:
+                            return <ActivityIcon className="w-3.5 h-3.5 text-slate-400" />;
+                        }
+                      };
+
+                      const getActionBadge = () => {
+                        const actionMap: Record<string, string> = {
+                          created: 'Created',
+                          updated: 'Updated',
+                          completed: 'Completed',
+                          assigned: 'Assigned',
+                          published: 'Published',
+                          added: 'Added',
+                        };
+                        return actionMap[item.action] || item.action;
+                      };
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-colors space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <UserAvatar user={item.user as any} size="sm" />
+                              <span className="text-xs font-semibold text-white truncate">
+                                {item.user?.name || 'User'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono flex-shrink-0">
+                              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="p-1 rounded bg-white/[0.04] border border-white/[0.06] flex-shrink-0">
+                              {getActionIcon()}
+                            </span>
+                            <div className="truncate">
+                              <span className="font-medium capitalize text-slate-400 text-[11px]">
+                                {getActionBadge()} {item.entityType}:
+                              </span>{' '}
+                              <span className="text-white text-xs font-semibold">
+                                {item.metadata?.title || item.metadata?.name || item.entityId}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: GLOBAL CHAT SEARCH */}
+      {/* MODAL: GLOBAL CHAT SEARCH (Phase 2H - Enterprise Search) */}
       {/* ========================================================================= */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md"
             onClick={() => setIsSearchModalOpen(false)}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="relative w-full max-w-2xl bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4 max-h-[85vh] flex flex-col"
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-3xl bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4 max-h-[85vh] flex flex-col"
           >
+            {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-purple-400" />
-                <h3 className="text-sm font-bold text-white">Global Workspace Chat Search</h3>
+                <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <Search className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    Advanced Workspace Search
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-mono">
+                      Phase 2H
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Search messages, attachments, tasks, and people with filters
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsSearchModalOpen(false)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/[0.06] transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* Search Input Bar */}
             <form onSubmit={handleSearchGlobal} className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search messages, channels, or keywords..."
+                  placeholder="e.g. from:alice has:file quarterly review in:general"
                   value={globalSearchQuery}
                   onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-purple-500/50 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-[#111827] border border-white/[0.12] focus:border-purple-500/60 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500/40 transition"
+                  autoFocus
                 />
               </div>
               <button
-                type="button"
-                onClick={() => setSearchHasFileFilter(!searchHasFileFilter)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-                  searchHasFileFilter
-                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/40'
-                    : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'
-                }`}
-              >
-                <Paperclip className="w-3.5 h-3.5" />
-                <span>has:file</span>
-              </button>
-              <button
                 type="submit"
-                disabled={searchingGlobal || !globalSearchQuery.trim()}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold cursor-pointer"
+                disabled={searchingGlobal || (!globalSearchQuery.trim() && !searchHasFileFilter)}
+                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold cursor-pointer transition shadow-lg shadow-purple-900/20"
               >
                 {searchingGlobal ? 'Searching...' : 'Search'}
               </button>
             </form>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[200px]">
+            {/* Filter Suggestions Bar */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mr-1">
+                Quick Filters:
+              </span>
+              {[
+                { label: 'from:', token: 'from:', desc: 'By author' },
+                { label: 'has:file', token: 'has:file', desc: 'Attachments' },
+                { label: 'has:task', token: 'has:task', desc: 'Linked tasks' },
+                { label: 'has:mention', token: 'has:mention', desc: 'Mentions' },
+                { label: 'in:', token: 'in:', desc: 'Channel/DM' },
+                { label: 'before:', token: 'before:', desc: 'Before date' },
+                { label: 'after:', token: 'after:', desc: 'After date' },
+              ].map((f) => (
+                <button
+                  key={f.token}
+                  type="button"
+                  onClick={() => applySearchFilterToken(f.token)}
+                  className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-purple-500/15 border border-white/[0.08] hover:border-purple-500/30 text-[11px] font-mono text-slate-300 hover:text-purple-200 transition cursor-pointer"
+                  title={f.desc}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Recent Searches (when query empty or initial state) */}
+            {recentSearches.length > 0 && !searchResults.messages.length && !searchResults.files.length && !searchResults.tasks.length && !searchResults.people.length && !searchingGlobal && (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-slate-400 flex items-center gap-1">
+                    <History className="w-3.5 h-3.5 text-slate-500" /> Recent Searches
+                  </span>
+                  <button
+                    onClick={clearRecentSearches}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer"
+                  >
+                    Clear history
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {recentSearches.map((s, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setGlobalSearchQuery(s);
+                        handleSearchGlobal(undefined, s);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-xs text-slate-300 hover:text-white border border-white/[0.08] transition cursor-pointer"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Grouped Tabs */}
+            {(searchResults.messages.length > 0 ||
+              searchResults.files.length > 0 ||
+              searchResults.tasks.length > 0 ||
+              searchResults.people.length > 0) && (
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-2 text-xs">
+                <div className="flex items-center gap-2">
+                  {[
+                    { key: 'all', label: 'All', count: searchResults.summary.totalMessages + searchResults.summary.totalFiles + searchResults.summary.totalTasks + searchResults.summary.totalPeople },
+                    { key: 'messages', label: 'Messages', count: searchResults.summary.totalMessages },
+                    { key: 'files', label: 'Files', count: searchResults.summary.totalFiles },
+                    { key: 'tasks', label: 'Tasks', count: searchResults.summary.totalTasks },
+                    { key: 'people', label: 'People', count: searchResults.summary.totalPeople },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setSearchActiveTab(tab.key as any)}
+                      className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                        searchActiveTab === tab.key
+                          ? 'bg-purple-600 text-white'
+                          : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.count > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                          searchActiveTab === tab.key ? 'bg-purple-800 text-purple-200' : 'bg-white/[0.08] text-slate-400'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {searchResults.summary.tookMs !== undefined && (
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {searchResults.summary.tookMs}ms
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Results Content Body */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[220px]">
               {searchingGlobal ? (
-                <div className="p-8 text-center text-xs text-slate-500">Searching workspace discussions...</div>
-              ) : searchResults.messages.length === 0 && searchResults.conversations.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-500">
-                  {globalSearchQuery ? 'No results found matching your query.' : 'Enter a search term to find messages, files, and channels.'}
+                <div className="p-12 text-center text-xs text-slate-500 space-y-2">
+                  <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div>Searching workspace messages, attachments, tasks, and members...</div>
+                </div>
+              ) : searchResults.messages.length === 0 &&
+                searchResults.files.length === 0 &&
+                searchResults.tasks.length === 0 &&
+                searchResults.people.length === 0 ? (
+                <div className="p-10 text-center text-xs text-slate-500 space-y-2">
+                  {globalSearchQuery ? (
+                    <>
+                      <AlertCircle className="w-6 h-6 text-slate-600 mx-auto" />
+                      <div className="text-slate-300 font-medium">No results found</div>
+                      <div>Try using different keywords or filter tokens like `has:file` or `from:username`</div>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-6 h-6 text-slate-600 mx-auto" />
+                      <div className="text-slate-300 font-medium">Enter a query or filter</div>
+                      <div>Try typing `from:alice`, `has:file`, `has:task`, or `in:general`</div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
-                  {searchResults.messages.map((result) => (
-                    <div
-                      key={result.id}
-                      onClick={() => {
-                        setActiveConvId(result.conversationId);
-                        setIsSearchModalOpen(false);
-                      }}
-                      className="p-3 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-purple-500/40 transition-all cursor-pointer space-y-1"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-white">{result.sender?.name || 'User'}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {new Date(result.createdAt).toLocaleString()}
-                        </span>
+                  {/* PEOPLE GROUP */}
+                  {(searchActiveTab === 'all' || searchActiveTab === 'people') && searchResults.people.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
+                        <Users className="w-3.5 h-3.5 text-blue-400" /> People ({searchResults.people.length})
                       </div>
-                      <p className="text-xs text-slate-300 line-clamp-2">{result.content}</p>
-                      {result.attachments && result.attachments.length > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] text-purple-400 font-mono">
-                          <Paperclip className="w-3 h-3" />
-                          <span>{result.attachments.length} attachment(s)</span>
-                        </div>
-                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {searchResults.people.map((p) => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              handleStartDm(p.id);
+                              setIsSearchModalOpen(false);
+                            }}
+                            className="p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-blue-500/40 transition cursor-pointer flex items-center justify-between group"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <UserAvatar
+                                user={{ id: p.id, name: p.name, avatar: p.avatar, role: p.role } as any}
+                                size="sm"
+                              />
+                              <div>
+                                <div className="text-xs font-bold text-white group-hover:text-blue-300 transition">
+                                  {p.name}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono">{p.email}</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/[0.06] text-slate-400 capitalize">
+                              {p.role}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* TASKS GROUP */}
+                  {(searchActiveTab === 'all' || searchActiveTab === 'tasks') && searchResults.tasks.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
+                        <CheckSquare className="w-3.5 h-3.5 text-emerald-400" /> Tasks ({searchResults.tasks.length})
+                      </div>
+                      <div className="space-y-1.5">
+                        {searchResults.tasks.map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => {
+                              if (t.conversationId) {
+                                setActiveConvId(t.conversationId);
+                              }
+                              setIsSearchModalOpen(false);
+                            }}
+                            className="p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-emerald-500/40 transition cursor-pointer flex items-center justify-between group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span className="text-xs font-medium text-white group-hover:text-emerald-300 transition line-clamp-1">
+                                {t.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 capitalize">
+                                {t.status}
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-slate-400 capitalize">
+                                {t.priority}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FILES GROUP */}
+                  {(searchActiveTab === 'all' || searchActiveTab === 'files') && searchResults.files.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
+                        <Paperclip className="w-3.5 h-3.5 text-amber-400" /> Attachments & Files ({searchResults.files.length})
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {searchResults.files.map((f) => (
+                          <div
+                            key={f.id}
+                            onClick={() => {
+                              setActiveConvId(f.conversationId);
+                              setIsSearchModalOpen(false);
+                            }}
+                            className="p-2.5 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-amber-500/40 transition cursor-pointer flex items-center justify-between group"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 shrink-0">
+                                <FileText className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-white group-hover:text-amber-300 transition truncate">
+                                  {f.name}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono truncate">
+                                  {f.conversationTitle} • by {f.senderName}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-400 shrink-0 ml-2">
+                              {(f.size / 1024).toFixed(1)} KB
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MESSAGES GROUP */}
+                  {(searchActiveTab === 'all' || searchActiveTab === 'messages') && searchResults.messages.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
+                        <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Messages ({searchResults.messages.length})
+                      </div>
+                      <div className="space-y-2">
+                        {searchResults.messages.map((result) => (
+                          <div
+                            key={result.id}
+                            onClick={() => {
+                              setActiveConvId(result.conversationId);
+                              setIsSearchModalOpen(false);
+                            }}
+                            className="p-3 rounded-xl bg-[#111827] border border-white/[0.06] hover:border-purple-500/40 transition-all cursor-pointer space-y-1 group"
+                          >
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-white group-hover:text-purple-300 transition">
+                                {result.sender?.name || 'User'}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                {new Date(result.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-300 line-clamp-2">{result.content}</p>
+                            {result.attachments && result.attachments.length > 0 && (
+                              <div className="flex items-center gap-1 text-[10px] text-purple-400 font-mono pt-1">
+                                <Paperclip className="w-3 h-3" />
+                                <span>{result.attachments.length} attachment(s)</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2584,18 +3633,25 @@ export const ChatView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Assignee
+                    Assignee {isIntern && <span className="text-amber-400 font-normal">(Intern: Self only)</span>}
                   </label>
                   <select
                     value={taskAssignee}
+                    disabled={isIntern}
                     onChange={(e) => setTaskAssignee(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] focus:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    className="w-full bg-[#111827] border border-white/[0.08] focus:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.role})
+                    {isIntern ? (
+                      <option value={currentUser.id}>
+                        {currentUser.name} (You - Intern)
                       </option>
-                    ))}
+                    ) : (
+                      users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -2651,6 +3707,436 @@ export const ChatView: React.FC = () => {
           </motion.div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: PHASE 2D LINK PROJECT TO CONVERSATION */}
+      {/* ========================================================================= */}
+      {isLinkProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsLinkProjectModalOpen(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <FolderKanban className="w-4 h-4 text-blue-400" />
+                Link Project to Conversation
+              </h3>
+              <button
+                onClick={() => setIsLinkProjectModalOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Select a project initiative to attach to this discussion space. All tasks and operational stats will update in real time.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Active Projects
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-blue-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                >
+                  <option value="">-- Unlink Project / Standalone Discussion --</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({p.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setIsLinkProjectModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={updatingContext || !activeConvId}
+                  onClick={async () => {
+                    if (!activeConvId) return;
+                    try {
+                      setUpdatingContext(true);
+                      const res = await api.updateChatConversationContext(activeConvId, {
+                        projectId: selectedProjectId || null,
+                      });
+                      if (res) {
+                        setConversationContext(res);
+                        addToast({
+                          type: 'success',
+                          title: 'Project Linked',
+                          message: 'Conversation context updated successfully.',
+                        });
+                      }
+                      setIsLinkProjectModalOpen(false);
+                    } catch (err: any) {
+                      addToast({
+                        type: 'error',
+                        title: 'Context Update Error',
+                        message: err.message || 'Failed to update context.',
+                      });
+                    } finally {
+                      setUpdatingContext(false);
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 cursor-pointer"
+                >
+                  {updatingContext ? 'Saving...' : 'Save Context'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: PHASE 2D QUICK CREATE TASK */}
+      {/* ========================================================================= */}
+      {isQuickCreateTaskOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsQuickCreateTaskOpen(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-emerald-400" />
+                Quick Action: Create Task
+              </h3>
+              <button
+                onClick={() => setIsQuickCreateTaskOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Task Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Task title..."
+                  value={quickTaskTitle}
+                  onChange={(e) => setQuickTaskTitle(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={quickTaskPriority}
+                  onChange={(e) => setQuickTaskPriority(e.target.value as any)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none capitalize"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickCreateTaskOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={creatingQuickTask || !quickTaskTitle.trim() || !activeConvId}
+                  onClick={async () => {
+                    if (!activeConvId || !quickTaskTitle.trim()) return;
+                    try {
+                      setCreatingQuickTask(true);
+                      const cmd = `/task ${quickTaskTitle.trim()}`;
+                      const res = await api.executeChatSlashCommand(activeConvId, cmd);
+                      if (res?.message) {
+                        setMessages((prev) => [...prev, res.message]);
+                        addToast({
+                          type: 'success',
+                          title: 'Task Created',
+                          message: `Task "${quickTaskTitle}" created and linked to conversation.`,
+                        });
+                        fetchConversationContext(activeConvId);
+                      }
+                      setIsQuickCreateTaskOpen(false);
+                    } catch (err: any) {
+                      addToast({
+                        type: 'error',
+                        title: 'Creation Failed',
+                        message: err.message || 'Failed to create task.',
+                      });
+                    } finally {
+                      setCreatingQuickTask(false);
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{creatingQuickTask ? 'Creating...' : 'Create Task'}</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 7: PHASE 2D QUICK CREATE SOP */}
+      {/* ========================================================================= */}
+      {isQuickCreateSopOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsQuickCreateSopOpen(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl p-6 z-10 space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <FileText className="w-4 h-4 text-purple-400" />
+                Quick Action: Create SOP
+              </h3>
+              <button
+                onClick={() => setIsQuickCreateSopOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  SOP Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Incident Response Protocol..."
+                  value={quickSopTitle}
+                  onChange={(e) => setQuickSopTitle(e.target.value)}
+                  className="w-full bg-[#111827] border border-white/[0.08] focus:border-purple-500/50 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickCreateSopOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={creatingQuickSop || !quickSopTitle.trim() || !activeConvId}
+                  onClick={async () => {
+                    if (!activeConvId || !quickSopTitle.trim()) return;
+                    try {
+                      setCreatingQuickSop(true);
+                      const cmd = `/sop ${quickSopTitle.trim()}`;
+                      const res = await api.executeChatSlashCommand(activeConvId, cmd);
+                      if (res?.message) {
+                        setMessages((prev) => [...prev, res.message]);
+                        addToast({
+                          type: 'success',
+                          title: 'SOP Drafted',
+                          message: `SOP "${quickSopTitle}" created in Knowledge Base.`,
+                        });
+                        fetchConversationContext(activeConvId);
+                      }
+                      setIsQuickCreateSopOpen(false);
+                    } catch (err: any) {
+                      addToast({
+                        type: 'error',
+                        title: 'Creation Failed',
+                        message: err.message || 'Failed to create SOP.',
+                      });
+                    } finally {
+                      setCreatingQuickSop(false);
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{creatingQuickSop ? 'Drafting...' : 'Create SOP'}</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 9. PHASE 2G: ANNOUNCEMENT ACKNOWLEDGEMENT AUDITOR MODAL */}
+      {/* ========================================================================= */}
+      {activeAuditorModalMsgId && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg bg-[#0F172A] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-[#111827]">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <Megaphone className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Announcement Acknowledgement Audit</h3>
+                  <p className="text-[11px] text-slate-400">Real-time compliance breakdown and verification</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveAuditorModalMsgId(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Area */}
+            {(() => {
+              const stats = announcementStatsMap[activeAuditorModalMsgId];
+              const isLoading = loadingStatsFor === activeAuditorModalMsgId;
+
+              if (isLoading && !stats) {
+                return (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    <Clock className="w-5 h-5 mx-auto mb-2 animate-spin text-purple-400" />
+                    Loading audit reports...
+                  </div>
+                );
+              }
+
+              return (
+                <div className="p-5 overflow-y-auto space-y-4">
+                  {/* Metric Summary Card */}
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Compliance Rate</p>
+                      <p className="text-xl font-bold text-white mt-0.5">
+                        {stats ? `${stats.acknowledgedCount} / ${stats.totalMembers}` : '0 / 0'}
+                        <span className="text-xs text-slate-400 font-normal ml-1.5">acknowledged</span>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-bold font-mono px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        {stats?.percentage || 0}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                      <span>Acknowledged ({stats?.acknowledgedCount || 0})</span>
+                      <span>Pending ({Math.max(0, (stats?.totalMembers || 0) - (stats?.acknowledgedCount || 0))})</span>
+                    </div>
+                    <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-400 transition-all duration-500"
+                        style={{ width: `${Math.min(100, stats?.percentage || 0)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Acknowledged Members List */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono">
+                      Acknowledged Members ({stats?.acknowledgements?.length || 0})
+                    </h4>
+                    {(!stats?.acknowledgements || stats.acknowledgements.length === 0) ? (
+                      <p className="text-xs text-slate-500 italic py-4 text-center">
+                        No team members have acknowledged this announcement yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {stats.acknowledgements.map((ack) => (
+                          <div
+                            key={ack.id || ack.userId}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <UserAvatar
+                                user={{ id: ack.userId, name: ack.name, avatar: ack.avatar } as any}
+                                size="sm"
+                              />
+                              <div className="truncate">
+                                <p className="font-semibold text-white truncate">{ack.name}</p>
+                                <p className="text-[10px] text-slate-400 font-mono truncate">{ack.email}</p>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {new Date(ack.acknowledgedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <p className="text-[9px] text-slate-500 font-mono">
+                                {new Date(ack.acknowledgedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Modal Footer */}
+            <div className="p-3.5 border-t border-white/[0.08] bg-[#111827] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveAuditorModalMsgId(null)}
+                className="px-4 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold cursor-pointer"
+              >
+                Close Audit
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
+

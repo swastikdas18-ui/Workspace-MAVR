@@ -44,6 +44,12 @@ import { runChatV2ProductionTests } from './chat-v2-production.test';
 import { runChatMessageTaskTests } from './chat-message-task.test';
 import { runChatMentionsTests } from './chat-mentions.test';
 import { runChatSlashCommandsTests } from './chat-slash-commands.test';
+import { runChatContextTests } from './chat-context.test';
+import { runChatActivityFeedTests } from './chat-activity-feed.test';
+import { runChatSavedMessagesTests } from './chat-saved-messages.test';
+import { runChatAnnouncementsTests } from './chat-announcements.test';
+import { runChatSearchV2Tests } from './chat-search-v2.test';
+import { runChatActionEngineTests } from './chat-action-engine.test';
 
 async function main() {
   try {
@@ -135,7 +141,19 @@ async function main() {
     await runChatMentionsTests();
     console.log('\n>>> Starting Suite 44: Workspace OS — Chat Slash Command System (Phase 2C)');
     await runChatSlashCommandsTests();
-    console.log('\n🌟 ALL 44 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n>>> Starting Suite 45: Workspace OS — Context-Aware Conversations (Phase 2D)');
+    await runChatContextTests();
+    console.log('\n>>> Starting Suite 46: Workspace OS — Operational Activity Feed (Phase 2E)');
+    await runChatActivityFeedTests();
+    console.log('\n>>> Starting Suite 47: Workspace OS — Saved Messages (Phase 2F)');
+    await runChatSavedMessagesTests();
+    console.log('\n>>> Starting Suite 48: Workspace OS — Announcement Acknowledgements (Phase 2G)');
+    await runChatAnnouncementsTests();
+    console.log('\n>>> Starting Suite 49: Workspace OS — Advanced Chat Search (Phase 2H)');
+    await runChatSearchV2Tests();
+    console.log('\n>>> Starting Suite 50: Workspace OS — Chat -> Action Engine (Phase 2.1 & 2.2)');
+    await runChatActionEngineTests();
+    console.log('\n🌟 ALL 50 TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

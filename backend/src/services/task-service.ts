@@ -27,6 +27,14 @@ export interface CreateTaskInput {
   due_date?: string;
   isLearningTask?: boolean;
   is_learning_task?: boolean;
+  sourceMessageId?: string | null;
+  source_message_id?: string | null;
+  sourceConversationId?: string | null;
+  source_conversation_id?: string | null;
+  linkedConversationId?: string | null;
+  linked_conversation_id?: string | null;
+  linkedMessageId?: string | null;
+  linked_message_id?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -54,6 +62,14 @@ export interface UpdateTaskInput {
   blocked_reason?: string;
   isLearningTask?: boolean;
   is_learning_task?: boolean;
+  sourceMessageId?: string | null;
+  source_message_id?: string | null;
+  sourceConversationId?: string | null;
+  source_conversation_id?: string | null;
+  linkedConversationId?: string | null;
+  linked_conversation_id?: string | null;
+  linkedMessageId?: string | null;
+  linked_message_id?: string | null;
 }
 
 export class TaskService {
@@ -223,7 +239,16 @@ export class TaskService {
         blocked_reason: t.blockedReason || null,
         blockedReason: t.blockedReason || null,
         created_at: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+        createdAt: t.createdAt ? new Date(t.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
         is_learning_task: t.isLearningTask || false,
+        source_message_id: t.sourceMessageId || null,
+        sourceMessageId: t.sourceMessageId || null,
+        source_conversation_id: t.sourceConversationId || null,
+        sourceConversationId: t.sourceConversationId || null,
+        linked_conversation_id: t.linkedConversationId || null,
+        linkedConversationId: t.linkedConversationId || null,
+        linked_message_id: t.linkedMessageId || null,
+        linkedMessageId: t.linkedMessageId || null,
         comments_count: t.commentsCount || 0,
         activity_count: t.activityCount || 0,
       };
@@ -294,6 +319,10 @@ export class TaskService {
       teamId: input.teamId || input.team_id,
       dueDate,
       isLearningTask: input.isLearningTask || input.is_learning_task || false,
+      sourceMessageId: input.sourceMessageId || input.source_message_id || null,
+      sourceConversationId: input.sourceConversationId || input.source_conversation_id || null,
+      linkedConversationId: input.linkedConversationId || input.linked_conversation_id || null,
+      linkedMessageId: input.linkedMessageId || input.linked_message_id || null,
     });
 
     // Auto-calculate project progress
@@ -353,9 +382,18 @@ export class TaskService {
       workspace_id: task.workspaceId,
       due_date: task.dueDate.toISOString().substring(0, 10),
       created_at: task.createdAt.toISOString().substring(0, 10),
+      createdAt: task.createdAt.toISOString().substring(0, 10),
       is_learning_task: task.isLearningTask || false,
       is_blocked: false,
       isBlocked: false,
+      source_message_id: task.sourceMessageId || null,
+      sourceMessageId: task.sourceMessageId || null,
+      source_conversation_id: task.sourceConversationId || null,
+      sourceConversationId: task.sourceConversationId || null,
+      linked_conversation_id: task.linkedConversationId || null,
+      linkedConversationId: task.linkedConversationId || null,
+      linked_message_id: task.linkedMessageId || null,
+      linkedMessageId: task.linkedMessageId || null,
       comments_count: 0,
       activity_count: 1,
     };
@@ -447,7 +485,16 @@ export class TaskService {
       blocked_reason: existing.blockedReason || null,
       blockedReason: existing.blockedReason || null,
       created_at: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      createdAt: existing.createdAt ? new Date(existing.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       is_learning_task: existing.isLearningTask || false,
+      source_message_id: existing.sourceMessageId || null,
+      sourceMessageId: existing.sourceMessageId || null,
+      source_conversation_id: existing.sourceConversationId || null,
+      sourceConversationId: existing.sourceConversationId || null,
+      linked_conversation_id: existing.linkedConversationId || null,
+      linkedConversationId: existing.linkedConversationId || null,
+      linked_message_id: existing.linkedMessageId || null,
+      linkedMessageId: existing.linkedMessageId || null,
       comments_count: existing.commentsCount || 0,
       activity_count: existing.activityCount || 0,
     };
@@ -613,6 +660,46 @@ export class TaskService {
           link: `/tasks/${updatedTask.id}`,
         }).catch(() => null);
       }
+
+      // Realtime: Broadcast status changes into linked chat conversation
+      try {
+        const linkedConvId = updatedTask.linkedConversationId || updatedTask.sourceConversationId;
+        const linkedMsgId = updatedTask.linkedMessageId || updatedTask.sourceMessageId;
+
+        const statusPayload = {
+          workspaceId,
+          taskId: updatedTask.id,
+          taskTitle: updatedTask.title,
+          fromStatus: existing.status,
+          toStatus: targetStatus,
+          status: targetStatus,
+          updatedBy: userId,
+          assignedTo: updatedTask.assignedTo,
+          linkedConversationId: linkedConvId || null,
+          linkedMessageId: linkedMsgId || null,
+          updatedAt: new Date().toISOString(),
+        };
+
+        const { EventBus } = await import('../realtime/event-bus.js');
+        EventBus.publishWorkspaceEvent(
+          workspaceId,
+          'chat.task.status_changed',
+          statusPayload,
+          {
+            actorId: userId,
+            entityType: 'task',
+            entityId: updatedTask.id,
+            meta: {
+              conversationId: linkedConvId,
+              messageId: linkedMsgId,
+              taskId: updatedTask.id,
+              status: targetStatus,
+            },
+          }
+        );
+      } catch (err: any) {
+        console.warn('[TaskService.updateTask] chat.task.status_changed broadcast error:', err?.message);
+      }
     }
 
     // Reassignment log & notification
@@ -671,7 +758,16 @@ export class TaskService {
       blocked_reason: updatedTask.blockedReason || null,
       blockedReason: updatedTask.blockedReason || null,
       created_at: updatedTask.createdAt ? new Date(updatedTask.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      createdAt: updatedTask.createdAt ? new Date(updatedTask.createdAt).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       is_learning_task: updatedTask.isLearningTask || false,
+      source_message_id: updatedTask.sourceMessageId || null,
+      sourceMessageId: updatedTask.sourceMessageId || null,
+      source_conversation_id: updatedTask.sourceConversationId || null,
+      sourceConversationId: updatedTask.sourceConversationId || null,
+      linked_conversation_id: updatedTask.linkedConversationId || null,
+      linkedConversationId: updatedTask.linkedConversationId || null,
+      linked_message_id: updatedTask.linkedMessageId || null,
+      linkedMessageId: updatedTask.linkedMessageId || null,
       comments_count: updatedTask.commentsCount || 0,
       activity_count: updatedTask.activityCount || 0,
     };
@@ -1188,5 +1284,147 @@ export class TaskService {
       content: c.content,
       created_at: c.createdAt.toISOString(),
     }));
+  }
+
+  /**
+   * Phase 2.2: Get Task Discussion
+   * Retrieves the linked chat conversation details, source message, and conversation thread history.
+   */
+  static async getTaskDiscussion(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string
+  ): Promise<{
+    task: any;
+    conversation: any | null;
+    sourceMessage: any | null;
+    messages: any[];
+    linkedConversationId: string | null;
+    linkedMessageId: string | null;
+  }> {
+    const role = normalizeRole(rawRole);
+    const task = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!task || task.workspaceId !== workspaceId) {
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    // Role-based visibility check
+    if (role === 'intern' && task.assignedTo !== userId) {
+      const error: any = new Error('Interns are not authorized to view unassigned task discussions.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    let linkedConversationId = task.linkedConversationId || task.sourceConversationId || null;
+    let linkedMessageId = task.linkedMessageId || task.sourceMessageId || null;
+
+    // Fallback: check message_tasks relational link
+    if (!linkedConversationId || !linkedMessageId) {
+      const { inMemoryDb } = await import('../../packages/database/index.js');
+      const messageTask = Array.from(inMemoryDb.messageTasks.values()).find(
+        (mt) => mt.taskId === taskId && mt.workspaceId === workspaceId
+      );
+      if (messageTask) {
+        linkedMessageId = messageTask.messageId;
+        const msg = inMemoryDb.messages.get(messageTask.messageId);
+        if (msg) {
+          linkedConversationId = msg.conversationId;
+        }
+      }
+    }
+
+    if (!linkedConversationId) {
+      return {
+        task,
+        conversation: null,
+        sourceMessage: null,
+        messages: [],
+        linkedConversationId: null,
+        linkedMessageId: null,
+      };
+    }
+
+    const { ChatRepository } = await import('../repositories/chat-repository.js');
+    const conversation = await ChatRepository.getConversationById(workspaceId, linkedConversationId);
+    let sourceMessage = linkedMessageId ? await ChatRepository.getMessageById(linkedMessageId) : null;
+    const messages = await ChatRepository.listMessages(linkedConversationId, 50);
+
+    return {
+      task,
+      conversation,
+      sourceMessage,
+      messages,
+      linkedConversationId,
+      linkedMessageId,
+    };
+  }
+
+  /**
+   * Phase 2.2: Post into Task Discussion (linked chat conversation)
+   */
+  static async postTaskDiscussion(
+    workspaceId: string,
+    userId: string,
+    rawRole: UserRole | string,
+    taskId: string,
+    content: string
+  ): Promise<{ message: any; task: any }> {
+    const role = normalizeRole(rawRole);
+    const task = await TaskRepository.getTaskById(workspaceId, taskId);
+    if (!task || task.workspaceId !== workspaceId) {
+      const error: any = new Error('Task not found in active workspace.');
+      error.code = 'TASK_NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    // Role-based check
+    if (role === 'intern' && task.assignedTo !== userId) {
+      const error: any = new Error('Interns are not authorized to participate in unassigned task discussions.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    let linkedConversationId = task.linkedConversationId || task.sourceConversationId || null;
+
+    if (!linkedConversationId) {
+      const { inMemoryDb } = await import('../../packages/database/index.js');
+      const messageTask = Array.from(inMemoryDb.messageTasks.values()).find(
+        (mt) => mt.taskId === taskId && mt.workspaceId === workspaceId
+      );
+      if (messageTask) {
+        const msg = inMemoryDb.messages.get(messageTask.messageId);
+        if (msg) {
+          linkedConversationId = msg.conversationId;
+        }
+      }
+    }
+
+    if (!linkedConversationId) {
+      const error: any = new Error('Task does not have a linked chat conversation.');
+      error.code = 'NOT_FOUND';
+      error.status = 404;
+      throw error;
+    }
+
+    const { ChatService } = await import('./chat-service.js');
+    const message = await ChatService.sendMessage(
+      workspaceId,
+      linkedConversationId,
+      userId,
+      role,
+      content.trim()
+    );
+
+    // Also log comment on task for internal activity tracking
+    await TaskRepository.addComment(workspaceId, taskId, userId, content.trim()).catch(() => null);
+
+    return { message, task };
   }
 }

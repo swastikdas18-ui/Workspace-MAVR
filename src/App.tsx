@@ -28,7 +28,6 @@ import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
 import { ChatView } from './components/chat/ChatView';
-import { WorkInboxView } from './components/inbox/WorkInboxView';
 import { RoleGuard } from './components/common/RoleGuard';
 import { RequireRole } from './components/common/RequireRole';
 import { ForbiddenPage } from './components/common/ForbiddenPage';
@@ -84,8 +83,6 @@ const pathToTabMap: Record<string, string> = {
   '/notifications': 'notifications',
   '/chat': 'chat',
   '/communication': 'chat',
-  '/inbox': 'inbox',
-  '/work-inbox': 'inbox',
 };
 
 const tabToPathMap: Record<string, string> = {
@@ -109,7 +106,6 @@ const tabToPathMap: Record<string, string> = {
   workspaces: '/workspaces',
   notifications: '/notifications',
   chat: '/chat',
-  inbox: '/inbox',
 };
 
 const MainAppContent: React.FC = () => {
@@ -191,11 +187,7 @@ const MainAppContent: React.FC = () => {
     if (pathToTabMap[path]) {
       setActiveTab(pathToTabMap[path]);
     } else if (path === '/' || !path) {
-      if (currentRole === 'employee' || currentRole === 'intern') {
-        setActiveTab('inbox');
-      } else {
-        setActiveTab('dashboard');
-      }
+      setActiveTab('dashboard');
     }
 
     const handlePopState = () => {
@@ -234,16 +226,12 @@ const MainAppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [setActiveTab, currentRole]);
 
-  // Phase 33: Role-aware initial landing default
+  // Initial landing default
   useEffect(() => {
     if (!isAuthBootstrapping && !isLandingPage && !hasSetInitialRoleTab) {
       const path = window.location.pathname;
       if (path === '/' || path === '' || path === '/dashboard') {
-        if (currentRole === 'employee' || currentRole === 'intern') {
-          setActiveTab('inbox');
-        } else {
-          setActiveTab('dashboard');
-        }
+        setActiveTab('dashboard');
       }
       setHasSetInitialRoleTab(true);
     }
@@ -347,8 +335,6 @@ const MainAppContent: React.FC = () => {
 
     // Role-Guarded Views
     switch (activeTab) {
-      case 'inbox':
-        return <WorkInboxView />;
       case 'workspaces':
         return <WorkspacesSelectionPage />;
       case 'onboarding':

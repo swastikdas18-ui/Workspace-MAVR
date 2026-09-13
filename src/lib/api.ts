@@ -1446,18 +1446,6 @@ export const api = {
       `/api/chat/stats?announcementId=${announcementId}`
     );
   },
-
-  // Phase 33: Work Inbox (Action Center)
-  async getWorkInbox() {
-    return await fetchApi<import('../types').WorkInboxPayload>('/api/inbox');
-  },
-
-  async executeInboxQuickAction(action: string, payload: Record<string, any>) {
-    return await fetchApi<{ success: boolean; message: string }>('/api/inbox/quick-action', {
-      method: 'POST',
-      body: JSON.stringify({ action, payload }),
-    });
-  },
 };
 
 

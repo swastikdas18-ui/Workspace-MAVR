@@ -222,7 +222,7 @@ export const NotificationBell: React.FC = () => {
     if (!notif.entityId) return;
     setActionInProgress(notif.id);
     try {
-      const reviewNotes = `${action === 'approve' ? 'Approved' : 'Rejected'} directly via Notification inbox.`;
+      const reviewNotes = `${action === 'approve' ? 'Approved' : 'Rejected'} directly via Notifications.`;
       if (action === 'approve') {
         await api.approveLeaveRequest(notif.entityId, reviewNotes);
       } else {
@@ -298,7 +298,7 @@ export const NotificationBell: React.FC = () => {
             <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Actionable Inbox</span>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">Notification Center</span>
                 {unreadCount > 0 && (
                   <span className="text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-mono">
                     {unreadCount} new
@@ -541,7 +541,7 @@ export const NotificationBell: React.FC = () => {
 
             {/* Footer */}
             <div className="px-4 py-2.5 border-t border-white/[0.06] bg-slate-900/80 flex items-center justify-between text-xs">
-              <span className="text-[10px] text-slate-500 font-mono">Workspace OS Inbox</span>
+              <span className="text-[10px] text-slate-500 font-mono">Workspace OS Notifications</span>
               <button
                 onClick={() => {
                   setIsOpen(false);

@@ -21,7 +21,6 @@ import { PeopleRepository } from '../src/repositories/people-repository';
 import { ProjectRepository } from '../src/repositories/project-repository';
 import { NotificationRepository } from '../src/repositories/notification-repository';
 import { CRMRepository } from '../src/repositories/crm-repository';
-import { WorkInboxService } from '../src/services/work-inbox-service';
 import { SearchV2Service } from '../src/services/search-v2-service';
 import { RevenueAnalyticsService } from '../src/services/revenue-analytics-service';
 import { BillingRepository } from '../src/repositories/billing-repository';
@@ -109,13 +108,12 @@ export async function runProductionSplitBrainTests() {
   assert(fetchedTask !== null, 'Task persisted and recovered via TaskRepository after simulated restart');
   assert(fetchedTask?.title === 'Verify Architecture Persistence', 'Task title matches accurately');
 
-  // --- Test 2: Repository-only task retrieval in WorkInboxService ---
-  console.log('\n--- Test 2: Repository-only Task Retrieval (Work Inbox) ---');
-  const inboxData = await WorkInboxService.getWorkInbox(wsId, adminId, 'admin');
-  assert(Array.isArray(inboxData.today) || Array.isArray(inboxData.urgent), 'Inbox items structured correctly');
-  const allInboxTasks = [...inboxData.urgent, ...inboxData.today, ...inboxData.upcoming];
-  const foundTask = allInboxTasks.find((i) => i.id === createdTask.id || (i.metadata as any)?.taskId === createdTask.id);
-  assert(foundTask !== undefined, 'Task retrieved exclusively via TaskRepository in WorkInboxService');
+  // --- Test 2: Repository-only Task Retrieval ---
+  console.log('\n--- Test 2: Repository-only Task Retrieval ---');
+  const tasksInWs = await TaskRepository.listTasks(wsId);
+  assert(Array.isArray(tasksInWs), 'Tasks in workspace structured correctly');
+  const foundTask = tasksInWs.find((t) => t.id === createdTask.id);
+  assert(foundTask !== undefined, 'Task retrieved exclusively via TaskRepository');
 
   // --- Test 3: Repository-only leave retrieval ---
   console.log('\n--- Test 3: Repository-only Leave Request Retrieval ---');
@@ -169,17 +167,16 @@ export async function runProductionSplitBrainTests() {
   // Task state must be identical in TaskRepository, Inbox API, and Dashboard API
   const repoTask = await TaskRepository.getTaskById(wsId, createdTask.id);
 
-  // Check GET /api/inbox
-  const inboxRes = await app.request('/api/inbox', {
+  // Check GET /api/tasks
+  const tasksRes = await app.request('/api/tasks', {
     method: 'GET',
     headers: authHeaders,
   });
-  assert(inboxRes.status === 200, 'GET /api/inbox returns 200 OK');
-  const inboxJson = await inboxRes.json();
-  const rawInbox = inboxJson.data || inboxJson;
-  const allItems = [...(rawInbox.urgent || []), ...(rawInbox.today || []), ...(rawInbox.upcoming || [])];
-  const inboxTaskItem = allItems.find((i: any) => i.id === createdTask.id || i.metadata?.taskId === createdTask.id);
-  assert(inboxTaskItem !== undefined, 'Task present in Work Inbox API');
+  assert(tasksRes.status === 200, 'GET /api/tasks returns 200 OK');
+  const tasksJson = await tasksRes.json();
+  const rawTasks = tasksJson.tasks || tasksJson;
+  const taskFoundInApi = rawTasks.find((i: any) => i.id === createdTask.id);
+  assert(taskFoundInApi !== undefined, 'Task present in Tasks API');
 
   // Check GET /api/dashboard
   const dashboardRes = await app.request('/api/dashboard', {

@@ -32,8 +32,6 @@ import { runNotificationsMvpCompleteTests } from './notifications-mvp-complete.t
 import { runNotificationsEnhancementTests } from './notifications-enhancement.test';
 import { runChatSystemTests } from './chat-system.test';
 import { runChatV2Tests } from './chat-v2.test';
-import { runWorkInboxTests } from './work-inbox.test';
-import { runSecurityAuditRbacTests } from './security-audit-rbac.test';
 import { runProductionSplitBrainTests } from './production-split-brain.test';
 import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
 import { runRateLimitProtectionTests } from './rate-limit-protection.test';
@@ -117,10 +115,6 @@ async function main() {
     await runChatSystemTests();
     console.log('\n>>> Starting Suite 32: Workspace OS — Chat V2 (Unread Engine, Mentions Inbox, Real-Time, Typing, Pagination)');
     await runChatV2Tests();
-    console.log('\n>>> Starting Suite 33: Workspace OS — Phase 33 Work Inbox (Action Center & Priority Engine)');
-    await runWorkInboxTests();
-    console.log('\n>>> Starting Suite 34: Workspace OS — Quick Action RBAC & Security Boundaries');
-    await runSecurityAuditRbacTests();
     console.log('\n>>> Starting Suite 35: Workspace OS — Production Data Architecture & Split-Brain Remediation');
     await runProductionSplitBrainTests();
     console.log('\n>>> Starting Suite 36: Workspace OS — Tenant Role Isolation & People OS Authorization (HIGH-01)');
@@ -153,7 +147,7 @@ async function main() {
     await runChatSearchV2Tests();
     console.log('\n>>> Starting Suite 50: Workspace OS — Chat -> Action Engine (Phase 2.1 & 2.2)');
     await runChatActionEngineTests();
-    console.log('\n🌟 ALL 50 TEST SUITES PASSED CLEANLY 🌟\n');
+    console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {
     console.error('Test run failed:', err);

@@ -908,7 +908,7 @@ export const SettingsView: React.FC = () => {
                     <span>Notification Preferences</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Control which in-app inbox events generate notifications for your account.
+                    Control which in-app events generate notifications for your account.
                   </p>
                 </div>
                 <button

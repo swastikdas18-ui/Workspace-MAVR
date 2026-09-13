@@ -21,11 +21,15 @@ export async function runMigrations() {
   const sql = neon(databaseUrl);
 
   try {
-    // 0. Ensure legacy Community/Discord-style tables are purged if present (Idempotent cleanup)
+    // 0. Ensure legacy Community/Discord-style tables and Work Inbox tables are purged if present (Idempotent cleanup)
     await sql`
       DROP TABLE IF EXISTS community_reactions CASCADE;
       DROP TABLE IF EXISTS community_comments CASCADE;
       DROP TABLE IF EXISTS community_posts CASCADE;
+      DROP TABLE IF EXISTS post_reactions CASCADE;
+      DROP TABLE IF EXISTS post_comments CASCADE;
+      DROP TABLE IF EXISTS forum_replies CASCADE;
+      DROP TABLE IF EXISTS forum_threads CASCADE;
       DROP TABLE IF EXISTS community_event_attendees CASCADE;
       DROP TABLE IF EXISTS community_events CASCADE;
       DROP TABLE IF EXISTS community_space_members CASCADE;
@@ -33,9 +37,14 @@ export async function runMigrations() {
       DROP TABLE IF EXISTS community_followers CASCADE;
       DROP TABLE IF EXISTS community_notifications CASCADE;
       DROP TABLE IF EXISTS community_leaderboard CASCADE;
+      DROP TABLE IF EXISTS community_invites CASCADE;
+      DROP TABLE IF EXISTS community_roles CASCADE;
       DROP TABLE IF EXISTS community_members CASCADE;
       DROP TABLE IF EXISTS community_profiles CASCADE;
       DROP TABLE IF EXISTS communities CASCADE;
+      DROP TABLE IF EXISTS inbox_notifications CASCADE;
+      DROP TABLE IF EXISTS inbox_reads CASCADE;
+      DROP TABLE IF EXISTS inbox_items CASCADE;
     `;
 
     // 1. Users table

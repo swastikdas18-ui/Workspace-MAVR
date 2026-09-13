@@ -511,36 +511,6 @@ export interface SavedChatMessagesResponse {
   savedMessages: SavedChatMessageItem[];
 }
 
-// Phase 33: Work Inbox (Action Center)
-export interface WorkInboxItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  entityType: 'task' | 'leave' | 'initiative' | 'mention' | 'chat' | 'lead' | 'deal' | 'notification';
-  entityId: string;
-  priority: 'urgent' | 'today' | 'upcoming' | 'completed';
-  actionLabel: string;
-  actionRoute: string;
-  dueDate?: string | null;
-  timestamp: string;
-  status?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface WorkInboxPayload {
-  urgent: WorkInboxItem[];
-  today: WorkInboxItem[];
-  upcoming: WorkInboxItem[];
-  completedRecently: WorkInboxItem[];
-  summary: {
-    totalUrgent: number;
-    totalToday: number;
-    totalUpcoming: number;
-    totalCompletedRecently: number;
-    totalUnresolved: number;
-  };
-}
-
 // Phase 2G: Announcement Acknowledgements
 export type AnnouncementType = 'Company Update' | 'Policy' | 'Release' | 'Urgent' | 'Hiring';
 

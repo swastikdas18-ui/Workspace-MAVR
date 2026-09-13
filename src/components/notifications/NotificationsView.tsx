@@ -241,7 +241,7 @@ export const NotificationsView: React.FC = () => {
             )}
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Prioritized work inbox: execute approvals, open initiative reviews, and track notifications.
+            Actionable notifications: execute approvals, open initiative reviews, and track system updates.
           </p>
         </div>
 

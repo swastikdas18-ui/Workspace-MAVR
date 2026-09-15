@@ -1,0 +1,144 @@
+﻿import React from 'react';
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { motion } from 'motion/react';
+
+export interface KPIWidgetProps {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  trend?: {
+    value: string;
+    direction: 'up' | 'down' | 'neutral';
+    label?: string;
+  };
+  subtitle?: string;
+  sparklineData?: number[];
+  color?: 'purple' | 'blue' | 'emerald' | 'amber' | 'rose' | 'slate';
+  onClick?: () => void;
+  className?: string;
+}
+
+const colorMap = {
+  purple: {
+    border: 'hover:border-purple-500/30',
+    iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    sparkline: '#A855F7',
+  },
+  blue: {
+    border: 'hover:border-blue-500/30',
+    iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    sparkline: '#3B82F6',
+  },
+  emerald: {
+    border: 'hover:border-emerald-500/30',
+    iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    sparkline: '#10B981',
+  },
+  amber: {
+    border: 'hover:border-amber-500/30',
+    iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    sparkline: '#F59E0B',
+  },
+  rose: {
+    border: 'hover:border-rose-500/30',
+    iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    sparkline: '#F43F5E',
+  },
+  slate: {
+    border: 'hover:border-slate-500/30',
+    iconBg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+    sparkline: '#94A3B8',
+  },
+};
+
+export const KPIWidget: React.FC<KPIWidgetProps> = React.memo(({
+  label,
+  value,
+  icon: Icon,
+  trend,
+  subtitle,
+  sparklineData,
+  color = 'purple',
+  onClick,
+  className = '',
+}) => {
+  const currentTheme = colorMap[color];
+
+  const hasSparkline = sparklineData && sparklineData.length > 1;
+  const minVal = hasSparkline ? Math.min(...sparklineData, 0) : 0;
+  const maxVal = hasSparkline ? Math.max(...sparklineData, 100) : 100;
+  const width = 80;
+  const height = 28;
+  const points = hasSparkline
+    ? sparklineData
+        .map((val, i) => {
+          const x = (i / (sparklineData.length - 1)) * width;
+          const y = height - ((val - minVal) / (maxVal - minVal || 1)) * (height - 4) - 2;
+          return `${x},${y}`;
+        })
+        .join(' ')
+    : '';
+
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClick}
+      className={`group relative ui-card-interactive p-5 ${currentTheme.border} ${onClick ? 'cursor-pointer' : ''} overflow-hidden flex flex-col justify-between ${className}`}
+    >
+      {/* Card Header */}
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/[0.04]">
+        <span className="ui-caption font-semibold uppercase tracking-wider text-slate-400">{label}</span>
+        <div className={`p-2 rounded-[14px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+
+      {/* Card Content */}
+      <div className="py-3 flex items-baseline justify-between gap-4 flex-1">
+        <span className="ui-h2">{value}</span>
+
+        {hasSparkline && (
+          <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+            <svg width={width} height={height} className="overflow-visible">
+              <polyline
+                fill="none"
+                stroke={currentTheme.sparkline}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+              />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Card Footer: Trend & Telemetry */}
+      <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs">
+        {trend ? (
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[14px] ${
+                trend.direction === 'up'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : trend.direction === 'down'
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+              }`}
+            >
+              {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}
+              {trend.direction === 'down' && <TrendingDown className="w-3 h-3" />}
+              {trend.direction === 'neutral' && <Minus className="w-3 h-3" />}
+              {trend.value}
+            </span>
+            <span className="text-slate-400 text-[11px]">{trend.label || 'vs last month'}</span>
+          </div>
+        ) : (
+          <span className="text-slate-400 text-[11px]">{subtitle || 'Live telemetry'}</span>
+        )}
+      </div>
+    </motion.div>
+  );
+});
+KPIWidget.displayName = 'KPIWidget';

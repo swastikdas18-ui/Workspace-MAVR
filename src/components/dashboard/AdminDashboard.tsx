@@ -11,44 +11,15 @@ import { MetricCard } from '../common/MetricCard';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { api } from '../../lib/api';
 
+import { useAdminDashboardData } from '../../features/dashboard';
+
 export const AdminDashboard: React.FC = () => {
   const { 
     projects, tasks, users, crmRecords, teams, documents, systemLogs, 
     setActiveTab, currentWorkspace, currentUser 
   } = useWorkspace();
 
-  const [execData, setExecData] = useState<any>(null);
-  const [peopleAnalytics, setPeopleAnalytics] = useState<any>(null);
-  const [automationAnalytics, setAutomationAnalytics] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [res, peopleRes, autoRes] = await Promise.all([
-        api.getExecutiveDashboard(),
-        api.getPeopleAnalytics().catch(() => null),
-        api.getAutomationAnalytics().catch(() => null),
-      ]);
-      if (res && !('error' in res)) {
-        setExecData(res);
-      }
-      if (peopleRes && !('error' in peopleRes)) {
-        setPeopleAnalytics(peopleRes);
-      }
-      if (autoRes && !('error' in autoRes)) {
-        setAutomationAnalytics(autoRes);
-      }
-    } catch (err) {
-      console.warn('[AdminDashboard] Failed to fetch executive data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [currentWorkspace?.id]);
+  const { execData, peopleAnalytics, automationAnalytics, loading } = useAdminDashboardData(currentWorkspace?.id);
 
   // Fallback to active state if async endpoint is loading or offline
   const memberCount = execData?.memberCount ?? Math.max(1, users.length || 1);

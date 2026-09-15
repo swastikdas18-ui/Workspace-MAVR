@@ -12,6 +12,7 @@ import { MetricCard } from '../common/MetricCard';
 import { EmptyState } from '../common/EmptyState';
 import { UserAvatar } from '../common/UserAvatar';
 import { motion, AnimatePresence } from 'motion/react';
+import { CrmKanbanColumn, CrmLeadModal } from '../../features/crm';
 
 interface CrmViewProps {
   routeLeadId?: string | null;
@@ -223,77 +224,16 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 overflow-x-auto pb-4">
           {pipelineStages.map((stage) => {
             const stageRecords = visibleRecords.filter((r) => r.status === stage.id);
-            const stageValue = stageRecords.reduce((acc, curr) => acc + curr.deal_value, 0);
-
             return (
-              <div key={stage.id} className="flex flex-col rounded-[24px] bg-[#111827] border border-white/[0.08] p-4 glass-shadow min-w-[240px]">
-                {/* Column Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${stage.dotClass}`} />
-                    <h3 className="ui-caption font-bold text-white tracking-tight">{stage.label}</h3>
-                    <span className="ui-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
-                      {stageRecords.length}
-                    </span>
-                  </div>
-                  <span className="ui-mono font-semibold text-slate-400">
-                    ₹{stageValue > 1000 ? `${(stageValue / 1000).toFixed(0)}k` : stageValue}
-                  </span>
-                </div>
-
-                {/* Cards Container */}
-                <div className="space-y-3 flex-1 min-h-[300px]">
-                  {stageRecords.map((rec) => {
-                    const owner = users.find(u => u.id === rec.owner_id);
-                      <div
-                        key={rec.id}
-                        className="ui-card-interactive p-5 space-y-3 group flex flex-col justify-between"
-                      >
-                        {/* Card Header: Company & Deal Value */}
-                        <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.04]">
-                          <h4 
-                            onClick={() => handleSelectLead(rec)}
-                            className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors cursor-pointer truncate"
-                          >
-                            {rec.company}
-                          </h4>
-                          <span className="text-xs font-mono font-bold text-emerald-400 shrink-0">
-                            ₹{rec.deal_value.toLocaleString()}
-                          </span>
-                        </div>
-
-                        {/* Card Content: Contact Name & Notes */}
-                        <div className="space-y-2 flex-1">
-                          <p className="text-[11px] text-slate-400 font-medium">{rec.customer_name}</p>
-                          {rec.notes && (
-                            <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-950/40 p-2 rounded-xl border border-white/[0.04] leading-relaxed">
-                              {rec.notes}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Card Footer: Owner & Stage Shift Dropdown */}
-                        <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-400">
-                          <div className="flex items-center gap-1.5">
-                            {owner && <UserAvatar name={owner.name} avatar={owner.avatar} size="xs" />}
-                            <span className="truncate max-w-[80px]">{owner ? owner.name.split(' ')[0] : 'Unassigned'}</span>
-                          </div>
-
-                          {/* Quick Advance Stage Dropdown */}
-                          <select
-                            value={rec.status}
-                            onChange={(e) => handleStageShift(rec.id, e.target.value as CrmStatus)}
-                            className="bg-slate-900 border border-white/[0.08] text-slate-300 text-[10px] rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-colors cursor-pointer"
-                          >
-                            {pipelineStages.map((s) => (
-                              <option key={s.id} value={s.id}>{s.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                  })}
-                </div>
-              </div>
+              <CrmKanbanColumn
+                key={stage.id}
+                stage={stage}
+                stages={pipelineStages}
+                records={stageRecords}
+                users={users}
+                onSelectLead={handleSelectLead}
+                onStageShift={handleStageShift}
+              />
             );
           })}
         </div>
@@ -481,80 +421,26 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
 
         {/* LEAD DETAIL DEEP-LINK MODAL */}
         {selectedLeadModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-[#0F172A] border border-white/[0.12] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-6"
-            >
-              <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 font-bold uppercase">
-                      {selectedLeadModal.status.replace('_', ' ')}
-                    </span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-xs text-slate-400 font-mono">ID: {selectedLeadModal.id}</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-white tracking-tight">{selectedLeadModal.company}</h2>
-                  <p className="text-xs text-slate-400 font-medium">{selectedLeadModal.customer_name}</p>
-                </div>
-
-                <button
-                  onClick={() => handleSelectLead(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-[#111827] p-3.5 rounded-xl border border-white/[0.04]">
-                    <span className="text-slate-500 text-[10px] uppercase font-mono">Deal Value</span>
-                    <p className="text-base font-mono font-bold text-emerald-400 mt-0.5">₹{selectedLeadModal.deal_value.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-[#111827] p-3.5 rounded-xl border border-white/[0.04]">
-                    <span className="text-slate-500 text-[10px] uppercase font-mono">Pipeline Stage</span>
-                    <p className="text-sm font-semibold text-white mt-0.5 capitalize">{selectedLeadModal.status.replace('_', ' ')}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 bg-[#111827] p-4 rounded-xl border border-white/[0.04]">
-                  <h4 className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Contact Info</h4>
-                  <div className="space-y-1.5 text-slate-300">
-                    <p className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-blue-400" />
-                      <span>{selectedLeadModal.email || 'No email provided'}</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{selectedLeadModal.phone || 'No phone provided'}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {selectedLeadModal.notes && (
-                  <div>
-                    <h4 className="text-slate-400 font-semibold mb-1.5 uppercase tracking-wider text-[10px]">Opportunity Notes</h4>
-                    <p className="text-slate-200 leading-relaxed bg-[#111827] p-3.5 rounded-xl border border-white/[0.04] whitespace-pre-wrap">
-                      {selectedLeadModal.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-white/[0.08]">
-                <button
-                  onClick={() => handleSelectLead(null)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors cursor-pointer"
-                >
-                  Close Deal View
-                </button>
-              </div>
-            </motion.div>
-          </div>
+          <CrmLeadModal
+            lead={selectedLeadModal}
+            users={users}
+            canDelete={Boolean(permissions.crm.deleteRecord)}
+            canEditNotes={Boolean(permissions.crm.editNotes)}
+            editingNotesId={editingNotesId}
+            notesText={notesText}
+            onClose={() => handleSelectLead(null)}
+            onDelete={(id) => {
+              deleteCrmRecord(id);
+              handleSelectLead(null);
+            }}
+            onStartEditNotes={(id, currentNotes) => {
+              setEditingNotesId(id);
+              setNotesText(currentNotes);
+            }}
+            onCancelEditNotes={() => setEditingNotesId(null)}
+            onSaveNotes={handleSaveNotes}
+            onNotesTextChange={setNotesText}
+          />
         )}
       </AnimatePresence>
     </div>

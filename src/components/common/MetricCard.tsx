@@ -89,17 +89,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       whileHover={{ y: -2 }}
       transition={{ duration: 0.15 }}
       onClick={onClick}
-      className={`group relative bg-[#111827] border border-white/[0.08] ${currentTheme.border} ${currentTheme.glow} rounded-xl p-5 transition-all cursor-pointer overflow-hidden`}
+      className={`group relative ui-card p-6 ${currentTheme.border} transition-all cursor-pointer overflow-hidden`}
     >
-      <div className="flex items-start justify-between">
-        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</span>
-        <div className={`p-2 rounded-lg border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
+      <div className="flex items-start justify-between gap-4">
+        <span className="ui-caption font-semibold uppercase tracking-wider">{label}</span>
+        <div className={`p-2 rounded-[14px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between">
-        <span className="text-2xl font-bold text-white tracking-tight">{value}</span>
+      <div className="mt-4 flex items-baseline justify-between gap-4">
+        <span className="ui-h2">{value}</span>
 
         {/* Mini Sparkline Chart */}
         {hasSparkline && (
@@ -119,11 +119,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       </div>
 
       {/* Trend & Subtitle */}
-      <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-white/[0.04]">
+      <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-white/[0.04]">
         {trend ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[14px] ${
                 trend.direction === 'up'
                   ? 'bg-emerald-500/10 text-emerald-400'
                   : trend.direction === 'down'

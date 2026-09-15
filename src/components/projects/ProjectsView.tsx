@@ -318,20 +318,20 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
           {statuses.map((status) => {
             const columnProjects = visibleProjects.filter((p) => p.status === status.id);
             return (
-              <div key={status.id} className="flex flex-col bg-[#0F172A]/60 border border-white/[0.06] rounded-2xl p-3.5 min-h-[520px]">
+              <div key={status.id} className="flex flex-col bg-[#0F172A]/60 border border-white/[0.06] rounded-[24px] p-4 min-h-[520px]">
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06] px-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white tracking-tight">{status.label}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                    <span className="ui-caption font-semibold text-white tracking-tight">{status.label}</span>
+                    <span className="ui-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
                       {columnProjects.length}
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-500 hidden sm:inline">{status.desc}</span>
+                  <span className="ui-caption text-slate-500 hidden sm:inline">{status.desc}</span>
                 </div>
 
                 {/* Project Cards in Column */}
-                <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+                <div className="space-y-4 flex-1 overflow-y-auto pr-1">
                   {columnProjects.map((project) => {
                     const projectMembers = users.filter((u) => project.member_ids?.includes(u.id));
                     const assignedDept = departments.find(
@@ -345,11 +345,11 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         key={project.id}
                         whileHover={{ y: -2 }}
                         transition={{ duration: 0.15 }}
-                        className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-xl p-4 shadow-lg transition-all group relative flex flex-col justify-between"
+                        className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-[24px] p-4 glass-shadow transition-all group relative flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${getStatusBadge(project.status)}`}>
+                            <span className={`ui-mono text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${getStatusBadge(project.status)}`}>
                               {project.status.replace('_', ' ')}
                             </span>
 

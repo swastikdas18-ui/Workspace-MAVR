@@ -434,14 +434,14 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
             return (
               <div
                 key={column.id}
-                className="bg-[#0F172A]/70 border border-white/[0.06] rounded-2xl p-3 flex flex-col min-h-[560px]"
+                className="bg-[#0F172A]/70 border border-white/[0.06] rounded-[24px] p-4 flex flex-col min-h-[560px]"
               >
                 {/* Column Header */}
-                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/[0.06] px-1">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06] px-1">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${column.dotColor}`} />
-                    <span className="font-semibold text-xs text-white tracking-tight">{column.label}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                    <span className="ui-caption font-semibold text-white tracking-tight">{column.label}</span>
+                    <span className="ui-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
                       {columnTasks.length}
                     </span>
                   </div>
@@ -460,7 +460,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                         whileHover={{ y: -2 }}
                         transition={{ duration: 0.15 }}
                         onClick={() => handleSelectTask(task)}
-                        className={`bg-[#111827] border ${isBlocked ? 'border-rose-500/40' : 'border-white/[0.08] hover:border-purple-500/40'} rounded-xl p-3.5 shadow-lg transition-all group cursor-pointer`}
+                        className={`bg-[#111827] border ${isBlocked ? 'border-rose-500/40' : 'border-white/[0.08] hover:border-purple-500/40'} rounded-[24px] p-4 glass-shadow transition-all group cursor-pointer`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-1.5 flex-wrap">

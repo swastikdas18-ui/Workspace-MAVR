@@ -449,14 +449,14 @@ export const SettingsView: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-5"
+            className="bg-[#111827] border border-white/[0.08] rounded-[24px] p-6 glass-shadow space-y-5"
           >
             <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <h3 className="ui-h3 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-purple-400" />
                 <span>Organization Identity</span>
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="ui-body text-slate-400 mt-1">
                 Public profile and canonical URL domain for this Workspace OS cluster.
               </p>
             </div>
@@ -469,13 +469,13 @@ export const SettingsView: React.FC = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#0F172A] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full bg-[#0F172A] border border-white/[0.08] rounded-[16px] p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-300 font-medium mb-1.5">Domain Slug (URL Routing)</label>
-                <div className="flex items-center bg-[#0F172A] border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-purple-500 transition-colors">
+                <div className="flex items-center bg-[#0F172A] border border-white/[0.08] rounded-[16px] overflow-hidden focus-within:border-purple-500 transition-colors">
                   <span className="px-3 text-slate-500 font-mono text-xs">app.workspaceos.dev/</span>
                   <input
                     type="text"
@@ -488,7 +488,7 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-[#0F172A] rounded-xl border border-white/[0.04] flex items-center justify-between text-xs">
+            <div className="p-4 bg-[#0F172A] rounded-[16px] border border-white/[0.04] flex items-center justify-between text-xs">
               <div>
                 <p className="font-semibold text-white">Cluster ID</p>
                 <p className="text-[11px] text-slate-400 font-mono">wos-cluster-us-east4-prod-01</p>

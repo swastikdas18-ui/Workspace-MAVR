@@ -226,29 +226,29 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
             const stageValue = stageRecords.reduce((acc, curr) => acc + curr.deal_value, 0);
 
             return (
-              <div key={stage.id} className="flex flex-col rounded-2xl bg-[#111827] border border-white/[0.08] p-3 shadow-lg min-w-[240px]">
+              <div key={stage.id} className="flex flex-col rounded-[24px] bg-[#111827] border border-white/[0.08] p-4 glass-shadow min-w-[240px]">
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${stage.dotClass}`} />
-                    <h3 className="text-xs font-bold text-white tracking-tight">{stage.label}</h3>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
+                    <h3 className="ui-caption font-bold text-white tracking-tight">{stage.label}</h3>
+                    <span className="ui-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
                       {stageRecords.length}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono font-semibold text-slate-400">
+                  <span className="ui-mono font-semibold text-slate-400">
                     ₹{stageValue > 1000 ? `${(stageValue / 1000).toFixed(0)}k` : stageValue}
                   </span>
                 </div>
 
                 {/* Cards Container */}
-                <div className="space-y-2.5 flex-1 min-h-[300px]">
+                <div className="space-y-3 flex-1 min-h-[300px]">
                   {stageRecords.map((rec) => {
                     const owner = users.find(u => u.id === rec.owner_id);
                     return (
                       <div
                         key={rec.id}
-                        className="bg-[#0F172A] border border-white/[0.06] rounded-xl p-3 shadow-md hover:border-blue-500/40 transition-all space-y-2.5 group"
+                        className="bg-[#0F172A] border border-white/[0.06] rounded-[24px] p-3.5 glass-shadow hover:border-blue-500/40 transition-all space-y-2.5 group"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>

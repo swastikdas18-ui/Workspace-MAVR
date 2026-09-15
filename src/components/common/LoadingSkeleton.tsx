@@ -12,7 +12,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className = '', count = 1 })
         {Array.from({ length: count }).map((_, idx) => (
           <div
             key={idx}
-            className={`animate-pulse bg-slate-800/60 rounded-lg border border-white/[0.04] ${className}`}
+            className={`ui-shimmer rounded-lg border border-white/[0.04] ${className}`}
           />
         ))}
       </div>
@@ -21,7 +21,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className = '', count = 1 })
 
   return (
     <div
-      className={`animate-pulse bg-slate-800/60 rounded-lg border border-white/[0.04] ${className}`}
+      className={`ui-shimmer rounded-lg border border-white/[0.04] ${className}`}
     />
   );
 };
@@ -32,14 +32,16 @@ export const CardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
       {Array.from({ length: count }).map((_, idx) => (
         <div
           key={idx}
-          className="p-5 rounded-xl bg-[#111827] border border-white/[0.08] space-y-4 animate-pulse"
+          className="p-5 rounded-[24px] bg-[#111827] border border-white/[0.08] space-y-4"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.04]">
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-6 w-6 rounded-lg" />
           </div>
-          <Skeleton className="h-8 w-20" />
-          <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+          <div className="py-2">
+            <Skeleton className="h-8 w-20" />
+          </div>
+          <div className="space-y-2 pt-3 border-t border-white/[0.04]">
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-3/4" />
           </div>
@@ -51,14 +53,14 @@ export const CardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
 
 export const TableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
   return (
-    <div className="rounded-xl bg-[#111827] border border-white/[0.08] overflow-hidden">
+    <div className="rounded-[24px] bg-[#111827] border border-white/[0.08] overflow-hidden">
       <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-8 w-48 rounded-lg" />
       </div>
       <div className="divide-y divide-white/[0.04]">
         {Array.from({ length: rows }).map((_, idx) => (
-          <div key={idx} className="p-4 flex items-center justify-between animate-pulse">
+          <div key={idx} className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Skeleton className="w-8 h-8 rounded-full" />
               <div className="space-y-1.5">

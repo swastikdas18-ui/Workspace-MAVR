@@ -265,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Persistent Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-200 z-20 ${
+        className={`hidden lg:flex flex-col shrink-0 h-screen sticky top-0 transition-[width] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] z-20 ${
           isCollapsed ? 'w-16' : 'w-64'
         }`}
       >
@@ -281,6 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
               onClick={onCloseMobile}
               className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             />
@@ -290,7 +291,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10"
             >
               {sidebarContent}

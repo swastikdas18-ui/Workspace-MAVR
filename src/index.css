@@ -200,24 +200,38 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem; /* 8px */
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  user-select: none;
+}
+
+.ui-btn:hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.ui-btn:active {
+  transform: translateY(0.5px) scale(0.98);
 }
 
 .ui-btn-primary {
   background: var(--color-primary);
   color: #FFFFFF;
-  box-shadow: var(--shadow-glass-sm), 0 0 20px -3px var(--color-primary-glow);
+  box-shadow: var(--shadow-glass-sm), 0 0 16px -3px var(--color-primary-glow);
 }
 
 .ui-btn-primary:hover {
   background: #6D28D9;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-glass), 0 0 25px -2px var(--color-primary-glow);
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: var(--shadow-glass), 0 0 22px -2px var(--color-primary-glow);
 }
 
 .ui-btn-primary:active {
-  transform: translateY(0);
+  background: #5B21B6;
+  transform: translateY(0.5px) scale(0.98);
+  box-shadow: var(--shadow-glass-sm), 0 0 10px -2px var(--color-primary-glow);
 }
 
 .ui-btn-secondary {
@@ -227,9 +241,36 @@
 }
 
 .ui-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-color: var(--color-border-hover);
   color: #FFFFFF;
+  transform: translateY(-1px) scale(1.01);
+}
+
+.ui-btn-secondary:active {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Shimmer Loading Skeleton Effect */
+@keyframes ui-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.ui-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.5) 0%,
+    rgba(51, 65, 85, 0.8) 50%,
+    rgba(30, 41, 59, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* Glass & Glow utilities */

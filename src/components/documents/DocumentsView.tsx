@@ -320,29 +320,32 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
             return (
               <motion.div
                 key={doc.id}
-                whileHover={{ y: -3 }}
+                whileHover={{ y: -2 }}
                 transition={{ duration: 0.15 }}
                 onClick={() => handleSelectDoc(doc)}
-                className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all group shadow-lg cursor-pointer"
+                className="ui-card-interactive p-5 flex flex-col justify-between group cursor-pointer"
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.06] group-hover:border-purple-500/30 transition-colors">
-                      {getDocIcon(doc.file_type)}
-                    </div>
-                    {getVisibilityBadge(doc.visibility, doc.department_id)}
+                {/* Card Header: Icon & Visibility Badge */}
+                <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.04]">
+                  <div className="p-2 rounded-xl bg-[#0F172A] border border-white/[0.06] group-hover:border-purple-500/30 transition-colors">
+                    {getDocIcon(doc.file_type)}
                   </div>
+                  {getVisibilityBadge(doc.visibility, doc.department_id)}
+                </div>
 
-                  <h3 className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1 leading-snug line-clamp-2">
+                {/* Card Content: Title & Category Metadata */}
+                <div className="py-3 flex-1 space-y-1.5">
+                  <h3 className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors leading-snug line-clamp-2">
                     {doc.title}
                   </h3>
-                  <p className="text-xs text-slate-400 mb-4 font-mono">
+                  <p className="ui-mono text-slate-400">
                     {doc.category} • {doc.file_size}
                   </p>
                 </div>
 
+                {/* Card Footer: Downloads & Action Buttons */}
                 <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400">
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className="ui-mono text-slate-500">
                     {doc.download_count} Downloads
                   </span>
 

@@ -286,30 +286,32 @@ export const TeamsView: React.FC = () => {
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.15 }}
                   onClick={() => setSelectedTeam(team)}
-                  className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-xl transition-all group cursor-pointer"
+                  className="ui-card-interactive p-5 flex flex-col justify-between group cursor-pointer"
                 >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-3.5 h-3.5 rounded-full shadow-sm"
-                          style={{ backgroundColor: team.color || '#7C3AED' }}
-                        />
-                        <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
-                          {team.name}
-                        </h4>
-                      </div>
-                      <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#0F172A] border border-white/[0.06] text-slate-300 font-mono">
-                        {members.length} {members.length === 1 ? 'Member' : 'Members'}
-                      </span>
+                  {/* Card Header: Team Name, Color Dot & Count Badge */}
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.04]">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full shadow-sm"
+                        style={{ backgroundColor: team.color || '#7C3AED' }}
+                      />
+                      <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
+                        {team.name}
+                      </h4>
                     </div>
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#0F172A] border border-white/[0.06] text-slate-300 font-mono">
+                      {members.length} {members.length === 1 ? 'Member' : 'Members'}
+                    </span>
+                  </div>
 
-                    <p className="text-xs text-slate-400 mb-4 leading-relaxed line-clamp-2">
+                  {/* Card Content: Description & Lead Card */}
+                  <div className="py-3 flex-1 space-y-3">
+                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
                       {team.description || 'Department team'}
                     </p>
 
                     {/* Team Lead Card */}
-                    <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] mb-4 flex items-center justify-between">
+                    <div className="p-3 rounded-xl bg-[#0F172A] border border-white/[0.04] flex items-center justify-between">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <UserAvatar name={lead?.name} avatar={lead?.avatar} size="sm" />
                         <div className="min-w-0">
@@ -324,7 +326,7 @@ export const TeamsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Member Avatars Preview & Details Trigger */}
+                  {/* Card Footer: Manage Link & Member Avatars */}
                   <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400">
                     <div className="flex items-center gap-1.5 text-[11px] text-purple-400 group-hover:text-purple-300 font-medium">
                       <span>Manage Team</span>
@@ -335,7 +337,7 @@ export const TeamsView: React.FC = () => {
                         <UserAvatar key={m.id} name={m.name} avatar={m.avatar} size="xs" />
                       ))}
                       {members.length > 5 && (
-                        <span className="w-5 h-5 rounded-full bg-slate-800 border border-white/[0.1] text-[9px] flex items-center justify-center text-slate-300">
+                        <span className="w-5 h-5 rounded-full bg-slate-800 border border-white/[0.1] text-[9px] flex items-center justify-center text-slate-300 font-mono">
                           +{members.length - 5}
                         </span>
                       )}

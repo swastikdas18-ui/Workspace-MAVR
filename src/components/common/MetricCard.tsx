@@ -89,16 +89,18 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       whileHover={{ y: -2 }}
       transition={{ duration: 0.15 }}
       onClick={onClick}
-      className={`group relative ui-card p-6 ${currentTheme.border} transition-all cursor-pointer overflow-hidden`}
+      className={`group relative ui-card-interactive p-5 ${currentTheme.border} cursor-pointer overflow-hidden flex flex-col justify-between`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <span className="ui-caption font-semibold uppercase tracking-wider">{label}</span>
+      {/* Card Header */}
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/[0.04]">
+        <span className="ui-caption font-semibold uppercase tracking-wider text-slate-400">{label}</span>
         <div className={`p-2 rounded-[14px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="mt-4 flex items-baseline justify-between gap-4">
+      {/* Card Content */}
+      <div className="py-3 flex items-baseline justify-between gap-4 flex-1">
         <span className="ui-h2">{value}</span>
 
         {/* Mini Sparkline Chart */}
@@ -118,17 +120,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         )}
       </div>
 
-      {/* Trend & Subtitle */}
-      <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-white/[0.04]">
+      {/* Card Footer: Trend & Telemetry */}
+      <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs">
         {trend ? (
           <div className="flex items-center gap-2">
             <span
               className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[14px] ${
                 trend.direction === 'up'
-                  ? 'bg-emerald-500/10 text-emerald-400'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                   : trend.direction === 'down'
-                  ? 'bg-rose-500/10 text-rose-400'
-                  : 'bg-slate-500/10 text-slate-400'
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
               }`}
             >
               {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}

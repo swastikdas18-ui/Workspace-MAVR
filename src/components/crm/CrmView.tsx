@@ -245,43 +245,45 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                 <div className="space-y-3 flex-1 min-h-[300px]">
                   {stageRecords.map((rec) => {
                     const owner = users.find(u => u.id === rec.owner_id);
-                    return (
                       <div
                         key={rec.id}
-                        className="bg-[#0F172A] border border-white/[0.06] rounded-[24px] p-3.5 glass-shadow hover:border-blue-500/40 transition-all space-y-2.5 group"
+                        className="ui-card-interactive p-5 space-y-3 group flex flex-col justify-between"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h4 
-                              onClick={() => handleSelectLead(rec)}
-                              className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors cursor-pointer"
-                            >
-                              {rec.company}
-                            </h4>
-                            <p className="text-[11px] text-slate-400 font-medium">{rec.customer_name}</p>
-                          </div>
+                        {/* Card Header: Company & Deal Value */}
+                        <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.04]">
+                          <h4 
+                            onClick={() => handleSelectLead(rec)}
+                            className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors cursor-pointer truncate"
+                          >
+                            {rec.company}
+                          </h4>
                           <span className="text-xs font-mono font-bold text-emerald-400 shrink-0">
                             ₹{rec.deal_value.toLocaleString()}
                           </span>
                         </div>
 
-                        {rec.notes && (
-                          <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-950/40 p-1.5 rounded-lg border border-white/[0.04]">
-                            {rec.notes}
-                          </p>
-                        )}
+                        {/* Card Content: Contact Name & Notes */}
+                        <div className="space-y-2 flex-1">
+                          <p className="text-[11px] text-slate-400 font-medium">{rec.customer_name}</p>
+                          {rec.notes && (
+                            <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-950/40 p-2 rounded-xl border border-white/[0.04] leading-relaxed">
+                              {rec.notes}
+                            </p>
+                          )}
+                        </div>
 
-                        <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-400">
+                        {/* Card Footer: Owner & Stage Shift Dropdown */}
+                        <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-400">
                           <div className="flex items-center gap-1.5">
                             {owner && <UserAvatar name={owner.name} avatar={owner.avatar} size="xs" />}
-                            <span>{owner ? owner.name.split(' ')[0] : 'Unassigned'}</span>
+                            <span className="truncate max-w-[80px]">{owner ? owner.name.split(' ')[0] : 'Unassigned'}</span>
                           </div>
 
                           {/* Quick Advance Stage Dropdown */}
                           <select
                             value={rec.status}
                             onChange={(e) => handleStageShift(rec.id, e.target.value as CrmStatus)}
-                            className="bg-slate-900 border border-white/[0.08] text-slate-300 text-[10px] rounded px-1.5 py-0.5 outline-none focus:border-blue-500"
+                            className="bg-slate-900 border border-white/[0.08] text-slate-300 text-[10px] rounded-lg px-2 py-1 outline-none focus:border-purple-500 transition-colors cursor-pointer"
                           >
                             {pipelineStages.map((s) => (
                               <option key={s.id} value={s.id}>{s.label}</option>
@@ -289,7 +291,6 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                           </select>
                         </div>
                       </div>
-                    );
                   })}
                 </div>
               </div>

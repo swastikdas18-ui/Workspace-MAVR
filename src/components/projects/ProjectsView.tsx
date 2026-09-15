@@ -345,38 +345,40 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         key={project.id}
                         whileHover={{ y: -2 }}
                         transition={{ duration: 0.15 }}
-                        className="bg-[#111827] border border-white/[0.08] hover:border-purple-500/40 rounded-[24px] p-4 glass-shadow transition-all group relative flex flex-col justify-between"
+                        className="ui-card-interactive p-5 group relative flex flex-col justify-between"
                       >
-                        <div>
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <span className={`ui-mono text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${getStatusBadge(project.status)}`}>
-                              {project.status.replace('_', ' ')}
-                            </span>
+                        {/* Card Header: Status Badge & Project Delete */}
+                        <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.04]">
+                          <span className={`ui-mono text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider border ${getStatusBadge(project.status)}`}>
+                            {project.status.replace('_', ' ')}
+                          </span>
 
-                            {permissions.projects.delete && (
-                              <button
-                                onClick={() => deleteProject(project.id)}
-                                className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                                title="Delete Project"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          {permissions.projects.delete && (
+                            <button
+                              onClick={() => deleteProject(project.id)}
+                              className="text-slate-500 hover:text-rose-400 p-1 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                              title="Delete Project"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
 
+                        {/* Card Content: Title, Description, Department, Progress */}
+                        <div className="py-3 flex-1 space-y-2.5">
                           <h4
                             onClick={() => handleSelectProject(project)}
-                            className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors mb-1 cursor-pointer"
+                            className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors cursor-pointer leading-snug"
                           >
                             {project.title}
                           </h4>
-                          <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
                             {project.description}
                           </p>
 
                           {/* Assigned Department Badge */}
                           {assignedDept && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
                                 <Building2 className="w-2.5 h-2.5" />
                                 {assignedDept.name}
@@ -385,9 +387,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           )}
 
                           {/* Progress Bar */}
-                          <div className="mb-3">
+                          <div className="pt-1">
                             <div className="flex items-center justify-between text-[11px] mb-1">
-                              <span className="text-slate-500">Progress</span>
+                              <span className="text-slate-500 font-medium">Progress</span>
                               <span className="font-mono font-bold text-purple-400">{project.progress}%</span>
                             </div>
                             <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
@@ -400,16 +402,16 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
 
                           {/* Review feedback indicator if present */}
                           {project.review_feedback && project.status === 'in_progress' && (
-                            <div className="mb-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-1.5">
+                            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-1.5">
                               <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
                               <span className="line-clamp-2">Changes requested: "{project.review_feedback}"</span>
                             </div>
                           )}
                         </div>
 
-                        {/* WORKFLOW ACTION BUTTONS */}
-                        <div className="pt-3 mt-1 border-t border-white/[0.06] space-y-2">
-                          {/* Feature 1: Start Work button in Planning */}
+                        {/* Card Footer: Workflow Actions, Team Avatars & Due Date */}
+                        <div className="pt-3 border-t border-white/[0.04] space-y-3">
+                          {/* Workflow Actions */}
                           {project.status === 'planning' && (isLead || currentRole === 'admin') && (
                             <button
                               onClick={(e) => handleStartWork(project.id, e)}
@@ -420,7 +422,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             </button>
                           )}
 
-                          {/* Feature 2 & 3: Update Progress & Submit for Review in In Progress */}
                           {project.status === 'in_progress' && (isAssigned || isLead || currentRole === 'admin') && (
                             <div className="grid grid-cols-2 gap-1.5">
                               <button
@@ -440,7 +441,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             </div>
                           )}
 
-                          {/* Feature 4: Review Workflow (Approve / Request Changes) */}
                           {project.status === 'review' && (
                             <>
                               {isLead || currentRole === 'admin' ? (
@@ -468,8 +468,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             </>
                           )}
 
-                          {/* Card Footer: Avatars & Due Date */}
-                          <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between">
+                          {/* Member Avatars & Due Date */}
+                          <div className="flex items-center justify-between pt-1">
                             <div className="flex -space-x-1.5 overflow-hidden">
                               {projectMembers.slice(0, 3).map((m) => (
                                 <UserAvatar key={m.id} user={m} size="sm" />

@@ -212,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
         {!isCollapsed && (
           <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            7 Core Pillars
+            Core Navigation
           </div>
         )}
 

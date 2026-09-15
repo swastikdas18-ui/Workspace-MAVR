@@ -22,7 +22,6 @@ import { billingRouter } from './routes/billing.js';
 import { executiveRouter } from './routes/executive.js';
 import { analyticsRouter, adminRouter } from './routes/protected-modules.js';
 import { dashboardRouter } from './routes/dashboard.js';
-import { chatRouter } from './routes/chat.js';
 import { foundingPartnerRouter } from './routes/founding-partner.js';
 import { wikiRouter, timeRouter, guestPortalRouter, integrationRouter } from './routes/msme-extensions.js';
 import { phase14Router } from './routes/phase14-routes.js';
@@ -261,9 +260,6 @@ app.route('/crm', crmRouter);
 
 app.route('/api/notifications', notificationRouter);
 app.route('/notifications', notificationRouter);
-
-app.route('/api/chat', chatRouter);
-app.route('/chat', chatRouter);
 
 app.route('/api/activity', activityRouter);
 app.route('/activity', activityRouter);

@@ -24,7 +24,6 @@ import { TaskRepository } from '../src/repositories/task-repository';
 import { TeamRepository } from '../src/repositories/team-repository';
 import { CRMRepository } from '../src/repositories/crm-repository';
 import { DocumentRepository } from '../src/repositories/document-repository';
-import { ChatRepository } from '../src/repositories/chat-repository';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -146,27 +145,6 @@ export async function runTenantIsolationSecurityTests() {
     category: 'Legal',
     visibility: 'workspace',
     ownerId: userBetaId,
-  });
-
-  // Beta Chat Conversation & Message
-  const betaConv = await ChatRepository.createConversation({
-    workspaceId: wsBetaId,
-    type: 'project',
-    title: 'Beta Confidential Strategy Chat',
-    createdById: userBetaId,
-    projectId: betaProject.id,
-  });
-  await ChatRepository.addConversationMember({
-    conversationId: betaConv.id,
-    workspaceId: wsBetaId,
-    userId: userBetaId,
-    role: 'admin',
-  });
-  const betaMsg = await ChatRepository.createMessage({
-    conversationId: betaConv.id,
-    workspaceId: wsBetaId,
-    senderId: userBetaId,
-    content: 'TOP SECRET: Acquisition offer is $50M.',
   });
 
   // =========================================================================
@@ -559,69 +537,6 @@ export async function runTenantIsolationSecurityTests() {
   assert(!exportDocsText.includes(betaDoc.id), 'Exported documents CSV must not contain Beta doc ID');
   assert(!exportDocsText.includes('Beta Proprietary Roadmap 2026'), 'Exported documents CSV must not contain Beta doc title');
 
-  // =========================================================================
-  // MODULE 6: CHAT TENANT ISOLATION
-  // =========================================================================
-  console.log('\n--- [MODULE 6] CHAT ISOLATION TESTS ---');
-
-  // Test 6.1: Alpha cannot read Beta chat conversation or messages (GET /api/chat/conversations/:id/messages)
-  console.log('6.1: Alpha reading Beta chat conversation messages...');
-  const readBetaChatRes = await app.fetch(
-    new Request(`http://localhost:3000/api/chat/conversations/${betaConv.id}/messages`, {
-      method: 'GET',
-      headers: alphaHeaders,
-    })
-  );
-  assert(
-    readBetaChatRes.status === 403 || readBetaChatRes.status === 404,
-    `Reading foreign chat messages returns 403 or 404 (received ${readBetaChatRes.status})`
-  );
-
-  // Test 6.2: Alpha cannot update/edit Beta chat message (PUT /api/chat/messages/:id)
-  console.log('6.2: Alpha editing Beta chat message...');
-  const editBetaMsgRes = await app.fetch(
-    new Request(`http://localhost:3000/api/chat/messages/${betaMsg.id}`, {
-      method: 'PUT',
-      headers: alphaHeaders,
-      body: JSON.stringify({ content: 'Tampered message by Alpha' }),
-    })
-  );
-  assert(
-    editBetaMsgRes.status === 403 || editBetaMsgRes.status === 404,
-    `Editing foreign chat message returns 403 or 404 (received ${editBetaMsgRes.status})`
-  );
-  const verifyBetaMsg = await ChatRepository.getMessageById(betaMsg.id);
-  assert(verifyBetaMsg?.content === 'TOP SECRET: Acquisition offer is $50M.', 'Beta chat message content untouched');
-
-  // Test 6.3: Alpha cannot delete Beta chat message (DELETE /api/chat/messages/:id)
-  console.log('6.3: Alpha deleting Beta chat message...');
-  const deleteBetaMsgRes = await app.fetch(
-    new Request(`http://localhost:3000/api/chat/messages/${betaMsg.id}`, {
-      method: 'DELETE',
-      headers: alphaHeaders,
-    })
-  );
-  assert(
-    deleteBetaMsgRes.status === 403 || deleteBetaMsgRes.status === 404,
-    `Deleting foreign chat message returns 403 or 404 (received ${deleteBetaMsgRes.status})`
-  );
-  const verifyBetaMsgAlive = await ChatRepository.getMessageById(betaMsg.id);
-  assert(verifyBetaMsgAlive !== null, 'Beta chat message remains in database');
-
-  // Test 6.4: Alpha global search does not leak Beta chat messages or conversations
-  console.log('6.4: Alpha searching globally for Beta confidential chat string...');
-  const searchBetaGlobalRes = await app.fetch(
-    new Request('http://localhost:3000/api/search?q=Acquisition+offer', {
-      method: 'GET',
-      headers: alphaHeaders,
-    })
-  );
-  assert(searchBetaGlobalRes.status === 200, 'Global search returns 200');
-  const searchGlobalData = await searchBetaGlobalRes.json();
-  const searchGlobalString = JSON.stringify(searchGlobalData);
-  assert(!searchGlobalString.includes(betaMsg.id), 'Global search must not contain Beta message ID');
-  assert(!searchGlobalString.includes('TOP SECRET: Acquisition offer'), 'Global search must not contain Beta message content');
-
   // Test 6.5: Alpha full workspace backup export does not contain Beta records (GET /api/export/workspace)
   console.log('6.5: Alpha exporting full workspace archive JSON...');
   const exportWorkspaceRes = await app.fetch(
@@ -640,8 +555,8 @@ export async function runTenantIsolationSecurityTests() {
   assert(!exportArchiveStr.includes(betaDoc.id), 'Alpha export archive must NEVER contain Beta document ID');
 
   console.log('\n===============================================================');
-  console.log(' ✅ ALL 30 TENANT ISOLATION SECURITY REGRESSION TESTS PASSED!');
-  console.log(' Zero foreign tenant records leaked across Projects, Tasks, Teams, CRM, Documents, and Chat.');
+  console.log(' ✅ ALL TENANT ISOLATION SECURITY REGRESSION TESTS PASSED!');
+  console.log(' Zero foreign tenant records leaked across Projects, Tasks, Teams, CRM, Documents.');
   console.log('===============================================================\n');
 }
 

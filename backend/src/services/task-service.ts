@@ -660,47 +660,8 @@ export class TaskService {
           link: `/tasks/${updatedTask.id}`,
         }).catch(() => null);
       }
-
-      // Realtime: Broadcast status changes into linked chat conversation
-      try {
-        const linkedConvId = updatedTask.linkedConversationId || updatedTask.sourceConversationId;
-        const linkedMsgId = updatedTask.linkedMessageId || updatedTask.sourceMessageId;
-
-        const statusPayload = {
-          workspaceId,
-          taskId: updatedTask.id,
-          taskTitle: updatedTask.title,
-          fromStatus: existing.status,
-          toStatus: targetStatus,
-          status: targetStatus,
-          updatedBy: userId,
-          assignedTo: updatedTask.assignedTo,
-          linkedConversationId: linkedConvId || null,
-          linkedMessageId: linkedMsgId || null,
-          updatedAt: new Date().toISOString(),
-        };
-
-        const { EventBus } = await import('../realtime/event-bus.js');
-        EventBus.publishWorkspaceEvent(
-          workspaceId,
-          'chat.task.status_changed',
-          statusPayload,
-          {
-            actorId: userId,
-            entityType: 'task',
-            entityId: updatedTask.id,
-            meta: {
-              conversationId: linkedConvId,
-              messageId: linkedMsgId,
-              taskId: updatedTask.id,
-              status: targetStatus,
-            },
-          }
-        );
-      } catch (err: any) {
-        console.warn('[TaskService.updateTask] chat.task.status_changed broadcast error:', err?.message);
-      }
     }
+
 
     // Reassignment log & notification
     const newAssignee = updates.assignedTo || updates.assigned_to;
@@ -1287,8 +1248,7 @@ export class TaskService {
   }
 
   /**
-   * Phase 2.2: Get Task Discussion
-   * Retrieves the linked chat conversation details, source message, and conversation thread history.
+   * Get Task Discussion (comments & activity updates)
    */
   static async getTaskDiscussion(
     workspaceId: string,
@@ -1320,52 +1280,31 @@ export class TaskService {
       throw error;
     }
 
-    let linkedConversationId = task.linkedConversationId || task.sourceConversationId || null;
-    let linkedMessageId = task.linkedMessageId || task.sourceMessageId || null;
-
-    // Fallback: check message_tasks relational link
-    if (!linkedConversationId || !linkedMessageId) {
-      const { inMemoryDb } = await import('../../packages/database/index.js');
-      const messageTask = Array.from(inMemoryDb.messageTasks.values()).find(
-        (mt) => mt.taskId === taskId && mt.workspaceId === workspaceId
-      );
-      if (messageTask) {
-        linkedMessageId = messageTask.messageId;
-        const msg = inMemoryDb.messages.get(messageTask.messageId);
-        if (msg) {
-          linkedConversationId = msg.conversationId;
-        }
-      }
-    }
-
-    if (!linkedConversationId) {
-      return {
-        task,
-        conversation: null,
-        sourceMessage: null,
-        messages: [],
-        linkedConversationId: null,
-        linkedMessageId: null,
-      };
-    }
-
-    const { ChatRepository } = await import('../repositories/chat-repository.js');
-    const conversation = await ChatRepository.getConversationById(workspaceId, linkedConversationId);
-    let sourceMessage = linkedMessageId ? await ChatRepository.getMessageById(linkedMessageId) : null;
-    const messages = await ChatRepository.listMessages(linkedConversationId, 50);
+    const comments = await TaskRepository.getComments(workspaceId, taskId).catch(() => []);
 
     return {
       task,
-      conversation,
-      sourceMessage,
-      messages,
-      linkedConversationId,
-      linkedMessageId,
+      conversation: null,
+      sourceMessage: null,
+      messages: comments.map((c: any) => ({
+        id: c.id,
+        content: c.content,
+        senderId: c.userId,
+        createdAt: c.createdAt,
+        sender: {
+          id: c.userId,
+          name: c.userName,
+          avatar: c.userAvatar,
+          role: c.userRole,
+        },
+      })),
+      linkedConversationId: null,
+      linkedMessageId: null,
     };
   }
 
   /**
-   * Phase 2.2: Post into Task Discussion (linked chat conversation)
+   * Post into Task Discussion (task comment)
    */
   static async postTaskDiscussion(
     workspaceId: string,
@@ -1391,40 +1330,16 @@ export class TaskService {
       throw error;
     }
 
-    let linkedConversationId = task.linkedConversationId || task.sourceConversationId || null;
+    const comment = await TaskRepository.addComment(workspaceId, taskId, userId, content.trim());
 
-    if (!linkedConversationId) {
-      const { inMemoryDb } = await import('../../packages/database/index.js');
-      const messageTask = Array.from(inMemoryDb.messageTasks.values()).find(
-        (mt) => mt.taskId === taskId && mt.workspaceId === workspaceId
-      );
-      if (messageTask) {
-        const msg = inMemoryDb.messages.get(messageTask.messageId);
-        if (msg) {
-          linkedConversationId = msg.conversationId;
-        }
-      }
-    }
-
-    if (!linkedConversationId) {
-      const error: any = new Error('Task does not have a linked chat conversation.');
-      error.code = 'NOT_FOUND';
-      error.status = 404;
-      throw error;
-    }
-
-    const { ChatService } = await import('./chat-service.js');
-    const message = await ChatService.sendMessage(
-      workspaceId,
-      linkedConversationId,
-      userId,
-      role,
-      content.trim()
-    );
-
-    // Also log comment on task for internal activity tracking
-    await TaskRepository.addComment(workspaceId, taskId, userId, content.trim()).catch(() => null);
-
-    return { message, task };
+    return {
+      message: {
+        id: comment?.id || `comment-${Date.now()}`,
+        content: content.trim(),
+        senderId: userId,
+        createdAt: new Date().toISOString(),
+      },
+      task,
+    };
   }
 }

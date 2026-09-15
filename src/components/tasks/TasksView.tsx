@@ -8,8 +8,8 @@ import { api } from '../../lib/api';
 import { 
   CheckSquare, Plus, Columns, List, Trash2, MessageSquare, 
   Send, X, AlertTriangle, Flame, Clock, Calendar, ChevronRight, User,
-  CheckCircle2, ArrowRight, FolderKanban, Tag, Check, Sparkles, Play,
-  ShieldAlert, ShieldCheck, History, CornerDownRight, ThumbsUp, RotateCcw
+  CheckCircle2, FolderKanban, Tag, Check, Sparkles, Play,
+  ShieldAlert, ShieldCheck, History, ThumbsUp, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,19 +32,13 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
   
   // Selected task for comments & details drawer
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
-  const [drawerTab, setDrawerTab] = useState<'details' | 'activity' | 'comments' | 'discussion'>('details');
+  const [drawerTab, setDrawerTab] = useState<'details' | 'activity' | 'comments'>('details');
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-
-  // Phase 2.2: Linked Chat Discussion State
-  const [discussionData, setDiscussionData] = useState<any | null>(null);
-  const [loadingDiscussion, setLoadingDiscussion] = useState(false);
-  const [discussionInput, setDiscussionInput] = useState('');
-  const [isSubmittingDiscussion, setIsSubmittingDiscussion] = useState(false);
 
   // Block Modal
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -109,7 +103,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
     resetCreateForm();
   };
 
-  // Load comments, activities, and linked discussion when selectedTask changes
+  // Load comments and activities when selectedTask changes
   useEffect(() => {
     if (selectedTask) {
       setLoadingComments(true);
@@ -125,18 +119,6 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
         }
         setLoadingActivities(false);
       }).catch(() => setLoadingActivities(false));
-
-      // Phase 2.2: Load Linked Discussion
-      setLoadingDiscussion(true);
-      api.getTaskDiscussion(selectedTask.id).then((res) => {
-        setDiscussionData(res);
-        setLoadingDiscussion(false);
-      }).catch(() => {
-        setDiscussionData(null);
-        setLoadingDiscussion(false);
-      });
-    } else {
-      setDiscussionData(null);
     }
   }, [selectedTask, getTaskComments]);
 
@@ -334,34 +316,6 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
     }
   };
 
-  // Phase 2.2: Post directly into linked chat discussion
-  const handlePostDiscussion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTask || !discussionInput.trim() || isSubmittingDiscussion) return;
-
-    try {
-      setIsSubmittingDiscussion(true);
-      const res = await api.postTaskDiscussion(selectedTask.id, discussionInput.trim());
-      addToast({ type: 'success', title: 'Message Sent', message: 'Posted to linked discussion.' });
-      setDiscussionInput('');
-      if (res?.message) {
-        setDiscussionData((prev: any) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            messages: [...(prev.messages || []), res.message],
-          };
-        });
-      }
-      // Refresh discussion to stay in sync
-      const updated = await api.getTaskDiscussion(selectedTask.id);
-      if (updated) setDiscussionData(updated);
-    } catch (err: any) {
-      addToast({ type: 'error', title: 'Failed to Post', message: err.message || 'Could not post to discussion.' });
-    } finally {
-      setIsSubmittingDiscussion(false);
-    }
-  };
 
   const getPriorityBadge = (p: string) => {
     switch (p) {
@@ -819,20 +773,6 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Comments ({comments.length})</span>
                 </button>
-                <button
-                  onClick={() => setDrawerTab('discussion')}
-                  className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    drawerTab === 'discussion'
-                      ? 'border-emerald-500 text-emerald-300'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Chat Discussion</span>
-                  {(selectedTask.linked_conversation_id || selectedTask.linkedConversationId || discussionData?.conversation) && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  )}
-                </button>
               </div>
 
               {/* Drawer Body */}
@@ -1034,122 +974,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                   </div>
                 )}
 
-                {/* Phase 2.2: Linked Chat Discussion Tab */}
-                {drawerTab === 'discussion' && (
-                  <div className="space-y-4">
-                    {loadingDiscussion ? (
-                      <div className="text-center py-6 text-slate-500">Loading linked conversation...</div>
-                    ) : !discussionData?.conversation ? (
-                      <div className="p-6 text-center border border-dashed border-white/[0.08] rounded-2xl bg-[#111827]/40 space-y-2">
-                        <MessageSquare className="w-8 h-8 text-slate-500 mx-auto" />
-                        <p className="font-semibold text-slate-300 text-sm">No Linked Chat Conversation</p>
-                        <p className="text-slate-500 text-xs max-w-xs mx-auto">
-                          This task was created directly or has not been linked to a chat message yet.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Conversation Header & Source Message */}
-                        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold">
-                                Linked Conversation
-                              </span>
-                              <span className="text-xs font-semibold text-white">
-                                {discussionData.conversation.title || (discussionData.conversation.type === 'dm' ? 'Direct Message' : 'Team Channel')}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                window.location.href = `/chat?convId=${discussionData.conversation.id}`;
-                              }}
-                              className="text-[10px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1 cursor-pointer"
-                            >
-                              <span>Open in Chat</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          </div>
 
-                          {/* Source Message Highlight */}
-                          {discussionData.sourceMessage && (
-                            <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] text-xs space-y-1">
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                <CornerDownRight className="w-3 h-3 text-emerald-400" />
-                                <span className="font-semibold text-slate-300">
-                                  {discussionData.sourceMessage.sender?.name || 'Sender'}
-                                </span>
-                                <span>originally posted:</span>
-                              </div>
-                              <p className="text-slate-300 italic pl-4 border-l-2 border-emerald-500/40 font-mono text-[11px]">
-                                {discussionData.sourceMessage.content}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Linked Chat Messages Feed */}
-                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                          {discussionData.messages && discussionData.messages.length > 0 ? (
-                            discussionData.messages.map((m: any) => {
-                              const isSource = m.id === discussionData.linkedMessageId;
-                              const senderName = m.sender?.name || 'Workspace User';
-                              return (
-                                <div
-                                  key={m.id}
-                                  className={`p-3 rounded-xl border transition-all ${
-                                    isSource
-                                      ? 'bg-emerald-500/10 border-emerald-500/30'
-                                      : 'bg-[#111827] border-white/[0.06]'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between text-[11px] mb-1">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-semibold text-white">{senderName}</span>
-                                      {isSource && (
-                                        <span className="text-[9px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                          Source Message
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-[10px] text-slate-500 font-mono">
-                                      {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="text-center py-4 text-slate-500 text-xs">
-                              No messages in linked conversation yet.
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Post into Linked Discussion Form */}
-                        <form onSubmit={handlePostDiscussion} className="flex gap-2 pt-1">
-                          <input
-                            type="text"
-                            placeholder="Reply directly into linked chat..."
-                            value={discussionInput}
-                            onChange={(e) => setDiscussionInput(e.target.value)}
-                            className="flex-1 bg-[#111827] border border-white/[0.08] focus:border-emerald-500 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none text-xs transition-colors"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!discussionInput.trim() || isSubmittingDiscussion}
-                            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer shadow-lg shadow-emerald-600/20"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Send</span>
-                          </button>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>

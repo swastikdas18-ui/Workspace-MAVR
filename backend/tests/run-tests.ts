@@ -30,24 +30,10 @@ import { runDocumentsVisibilityTests } from './documents-visibility.test';
 import { runNotificationsTests } from './notifications.test';
 import { runNotificationsMvpCompleteTests } from './notifications-mvp-complete.test';
 import { runNotificationsEnhancementTests } from './notifications-enhancement.test';
-import { runChatSystemTests } from './chat-system.test';
-import { runChatV2Tests } from './chat-v2.test';
 import { runProductionSplitBrainTests } from './production-split-brain.test';
 import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
 import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
-import { runChatRealtimeProviderRegressionTest } from './chat-realtime-provider.test';
-import { runChatV2FoundationTests } from './chat-v2-foundation.test';
-import { runChatV2ProductionTests } from './chat-v2-production.test';
-import { runChatMessageTaskTests } from './chat-message-task.test';
-import { runChatMentionsTests } from './chat-mentions.test';
-import { runChatSlashCommandsTests } from './chat-slash-commands.test';
-import { runChatContextTests } from './chat-context.test';
-import { runChatActivityFeedTests } from './chat-activity-feed.test';
-import { runChatSavedMessagesTests } from './chat-saved-messages.test';
-import { runChatAnnouncementsTests } from './chat-announcements.test';
-import { runChatSearchV2Tests } from './chat-search-v2.test';
-import { runChatActionEngineTests } from './chat-action-engine.test';
 
 async function main() {
   try {
@@ -111,10 +97,7 @@ async function main() {
     await runNotificationsMvpCompleteTests();
     console.log('\n>>> Starting Suite 30: Notifications MVP Enhancements (Priority, Preferences, Mentions, Actions, Retention, RBAC)');
     await runNotificationsEnhancementTests();
-    console.log('\n>>> Starting Suite 31: Workspace Chat & Internal Communication (DMs, Departments, Projects, Announcements, Mentions)');
-    await runChatSystemTests();
-    console.log('\n>>> Starting Suite 32: Workspace OS — Chat V2 (Unread Engine, Mentions Inbox, Real-Time, Typing, Pagination)');
-    await runChatV2Tests();
+
     console.log('\n>>> Starting Suite 35: Workspace OS — Production Data Architecture & Split-Brain Remediation');
     await runProductionSplitBrainTests();
     console.log('\n>>> Starting Suite 36: Workspace OS — Tenant Role Isolation & People OS Authorization (HIGH-01)');
@@ -123,30 +106,7 @@ async function main() {
     await runRateLimitProtectionTests();
     console.log('\n>>> Starting Suite 38: Workspace OS — Cross-Tenant Isolation Security Regression');
     await runTenantIsolationSecurityTests();
-    console.log('\n>>> Starting Suite 39: Workspace OS — Chat Route Realtime Provider Regression');
-    await runChatRealtimeProviderRegressionTest();
-    console.log('\n>>> Starting Suite 40: Workspace OS — Chat V2 Foundation (Phase 1)');
-    await runChatV2FoundationTests();
-    console.log('\n>>> Starting Suite 41: Workspace OS — Chat V2 Production (Slack-Grade Communication Hub)');
-    await runChatV2ProductionTests();
-    console.log('\n>>> Starting Suite 42: Workspace OS — Chat Message To Task Conversion (Phase 2A)');
-    await runChatMessageTaskTests();
-    console.log('\n>>> Starting Suite 43: Workspace OS — Chat Mentions & Notification Engine (Phase 2B)');
-    await runChatMentionsTests();
-    console.log('\n>>> Starting Suite 44: Workspace OS — Chat Slash Command System (Phase 2C)');
-    await runChatSlashCommandsTests();
-    console.log('\n>>> Starting Suite 45: Workspace OS — Context-Aware Conversations (Phase 2D)');
-    await runChatContextTests();
-    console.log('\n>>> Starting Suite 46: Workspace OS — Operational Activity Feed (Phase 2E)');
-    await runChatActivityFeedTests();
-    console.log('\n>>> Starting Suite 47: Workspace OS — Saved Messages (Phase 2F)');
-    await runChatSavedMessagesTests();
-    console.log('\n>>> Starting Suite 48: Workspace OS — Announcement Acknowledgements (Phase 2G)');
-    await runChatAnnouncementsTests();
-    console.log('\n>>> Starting Suite 49: Workspace OS — Advanced Chat Search (Phase 2H)');
-    await runChatSearchV2Tests();
-    console.log('\n>>> Starting Suite 50: Workspace OS — Chat -> Action Engine (Phase 2.1 & 2.2)');
-    await runChatActionEngineTests();
+
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);
   } catch (err) {

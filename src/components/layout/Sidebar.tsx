@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { api } from '../../lib/api';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
   DollarSign, Users, BarChart3, CreditCard, Settings, ShieldAlert,
-  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock, Zap, MessageSquare
+  ChevronLeft, ChevronRight, LogOut, Bell, BookOpen, Sparkles, Clock, Zap
 } from 'lucide-react';
 import { RoleBadge } from '../common/RoleBadge';
 import { UserAvatar } from '../common/UserAvatar';
@@ -27,38 +26,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCommandPalette,
 }) => {
   const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser, logout, systemLogs } = useWorkspace();
-  const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchBadges = async () => {
-      try {
-        const chatRes = await api.getChatUnreadCount();
-
-        if (isMounted && typeof chatRes?.unreadCount === 'number') {
-          setChatUnreadCount(chatRes.unreadCount);
-        }
-      } catch {}
-    };
-
-    fetchBadges();
-    const interval = setInterval(fetchBadges, 8000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [currentWorkspace?.id, activeTab]);
-
-  const chatBadge = chatUnreadCount > 0 ? String(chatUnreadCount) : null;
-  const chatLabel = chatUnreadCount > 0 ? `Communication Hub (${chatUnreadCount})` : 'Communication Hub';
-  const chatBadgeClass = chatUnreadCount > 0 ? 'bg-red-500 text-white font-bold rounded-full px-2 py-0.2' : undefined;
-
   // Core Navigation Pillars mapped to role specifications
   const getCoreNavItems = () => {
     if (currentRole === 'admin') {
       return [
         { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, badge: null },
-        { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
         { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
         { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
         { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
@@ -71,7 +43,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (currentRole === 'employee') {
       return [
         { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
-        { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
         { id: 'tasks', label: 'Tasks & Board', icon: CheckSquare, badge: 'Flow' },
         { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
         { id: 'teams', label: 'People OS', icon: Users, badge: null },
@@ -86,10 +57,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Intern Role: strictly Command Sandbox, Communication Hub, Learning Tasks, Knowledge Center, Time
+    // Intern Role: strictly Command Sandbox, Learning Tasks, Knowledge Center, Time
     return [
       { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
-      { id: 'chat', label: chatLabel, icon: MessageSquare, badge: chatBadge, badgeClass: chatBadgeClass },
       { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
       { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'SOPs' },
       { id: 'time', label: 'Time Logs', icon: Clock, badge: null },

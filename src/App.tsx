@@ -27,7 +27,6 @@ import { NotificationsView } from './components/notifications/NotificationsView'
 import { TimeTrackingView } from './components/time/TimeTrackingView';
 import { ClientPortalView } from './components/portal/ClientPortalView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
-import { ChatView } from './components/chat/ChatView';
 import { RoleGuard } from './components/common/RoleGuard';
 import { RequireRole } from './components/common/RequireRole';
 import { ForbiddenPage } from './components/common/ForbiddenPage';
@@ -81,8 +80,6 @@ const pathToTabMap: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/onboarding': 'onboarding',
   '/notifications': 'notifications',
-  '/chat': 'chat',
-  '/communication': 'chat',
 };
 
 const tabToPathMap: Record<string, string> = {
@@ -105,7 +102,6 @@ const tabToPathMap: Record<string, string> = {
   onboarding: '/onboarding',
   workspaces: '/workspaces',
   notifications: '/notifications',
-  chat: '/chat',
 };
 
 const MainAppContent: React.FC = () => {
@@ -397,13 +393,6 @@ const MainAppContent: React.FC = () => {
           />
         );
 
-      case 'chat':
-      case 'communication':
-        return (
-          <RoleGuard allowedRoles={['admin', 'employee', 'intern']} fallback={<ForbiddenPage requiredRole="ADMIN, EMPLOYEE, or INTERN" message="Communication Hub is restricted to workspace members." />}>
-            <ChatView />
-          </RoleGuard>
-        );
 
       case 'time':
         return <TimeTrackingView />;

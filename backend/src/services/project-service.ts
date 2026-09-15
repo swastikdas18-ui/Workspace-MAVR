@@ -205,13 +205,6 @@ export class ProjectService {
       }
     );
 
-    // Auto-create Project Chat Channel
-    try {
-      const { ChatService } = await import('./chat-service.js');
-      await ChatService.autoCreateProjectChannel(workspaceId, created);
-    } catch (chatErr: any) {
-      console.warn('[ProjectService] autoCreateProjectChannel warning:', chatErr?.message);
-    }
 
     // Dispatch Notifications: Department Lead & Assigned Members
     try {

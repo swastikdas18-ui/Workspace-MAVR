@@ -149,17 +149,17 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global Search / Command Bar */}
         <button
           onClick={onOpenCommandPalette}
-          className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#020617]/70 border border-white/[0.08] hover:border-purple-500/40 text-slate-400 hover:text-slate-200 text-xs transition-all shadow-inner group cursor-pointer"
+          className="w-full flex items-center justify-between px-3.5 py-2 rounded-[14px] bg-[#020617]/90 border border-white/[0.1] hover:border-purple-500/50 hover:bg-[#070B16] text-slate-400 hover:text-slate-100 text-xs transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.6),0_1px_4px_rgba(0,0,0,0.3)] group cursor-pointer"
         >
-          <div className="flex items-center gap-2.5">
-            <Search className="w-3.5 h-3.5 text-purple-400 group-hover:text-purple-300 transition-colors" />
-            <span className="truncate">
-              Search {activeTab.replace('_', ' ')} or run commands...
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Search className="w-3.5 h-3.5 text-purple-400 group-hover:text-purple-300 transition-colors shrink-0" />
+            <span className="truncate font-normal text-slate-300 group-hover:text-white">
+              Search or jump to...
             </span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="hidden sm:inline-block text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-white/[0.06]">
-              Ctrl + K
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded-[6px] border border-white/[0.1] shadow-sm">
+              <span className="text-[11px]">⌘</span>K
             </kbd>
           </div>
         </button>

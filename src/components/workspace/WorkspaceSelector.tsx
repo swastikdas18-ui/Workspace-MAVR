@@ -72,49 +72,50 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={isWorkspaceLoading}
-        className={`flex items-center gap-2.5 rounded-xl border border-white/[0.08] bg-[#0F172A]/70 hover:bg-[#1E293B]/80 hover:border-purple-500/30 transition-all text-left group cursor-pointer ${
+        className={`flex items-center gap-2.5 rounded-[14px] border border-white/[0.08] bg-[#0A0E1A]/80 hover:bg-[#13192B] hover:border-purple-500/30 transition-all text-left group cursor-pointer ${
           compact ? 'px-2.5 py-1.5' : 'px-3 py-2 w-full'
         }`}
       >
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-purple-600/20 shrink-0">
+        {/* Organization Avatar */}
+        <div className="w-7 h-7 rounded-[10px] bg-gradient-to-tr from-purple-600 via-purple-500 to-indigo-500 flex items-center justify-center font-bold text-white text-xs shadow-[0_2px_10px_rgba(124,58,237,0.3)] shrink-0 border border-white/20">
           {currentWorkspace?.name ? currentWorkspace.name.substring(0, 2).toUpperCase() : 'WS'}
         </div>
 
         {!compact && (
           <div className="flex-1 min-w-0 pr-1">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-100 truncate block">
+              <span className="text-xs font-semibold text-white truncate block tracking-tight group-hover:text-purple-200 transition-colors">
                 {currentWorkspace?.name || 'Workspace OS'}
               </span>
-              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
-                MVP
+              <span className="ui-mono text-[9px] uppercase px-1 py-0.2 rounded-[6px] bg-purple-500/15 text-purple-300 font-bold border border-purple-500/25">
+                PRO
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono block truncate">
-              {currentWorkspace?.slug || 'workspace'} • {currentRole.toUpperCase()}
+            <span className="ui-caption text-slate-400 block truncate text-[10px]">
+              {currentWorkspace?.slug || 'workspace'}
             </span>
           </div>
         )}
 
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 5, scale: 0.96 }}
+            initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 3, scale: 0.96 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-0 top-full mt-2 w-72 bg-[#0F172A] border border-slate-700/60 rounded-xl shadow-2xl shadow-black/80 z-50 overflow-hidden backdrop-blur-xl"
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 top-full mt-2 w-72 bg-[#0F172A] border border-white/[0.1] rounded-[18px] shadow-[0_16px_36px_rgba(0,0,0,0.6)] z-50 overflow-hidden backdrop-blur-xl"
           >
-            <div className="p-2 border-b border-white/[0.06] flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase px-2">
-                Your Workspaces ({displayWorkspaces.length})
+            <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
+              <span className="ui-caption font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
+                Workspaces ({displayWorkspaces.length})
               </span>
-              <span className="text-[10px] text-purple-400 font-mono">
-                Active: {currentWorkspace?.name}
+              <span className="ui-mono text-[10px] text-purple-400">
+                {currentWorkspace?.name}
               </span>
             </div>
 
@@ -127,35 +128,37 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                     key={ws.id}
                     type="button"
                     onClick={() => handleSwitch(ws.id)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between p-2 rounded-[12px] text-left transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-purple-900/30 border border-purple-500/30 text-white'
-                        : 'hover:bg-white/[0.05] text-slate-300 hover:text-white border border-transparent'
+                        ? 'bg-purple-600/15 border border-purple-500/30 text-white'
+                        : 'hover:bg-white/[0.04] text-slate-300 hover:text-white border border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                        isActive ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'
+                      <div className={`w-6 h-6 rounded-[8px] flex items-center justify-center text-[10px] font-bold shrink-0 border ${
+                        isActive ? 'bg-purple-600 text-white border-purple-400/40' : 'bg-slate-800 text-slate-300 border-white/[0.06]'
                       }`}>
                         {ws.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium truncate block max-w-[130px]">
+                          <span className="text-xs font-semibold truncate block max-w-[130px]">
                             {ws.name}
                           </span>
-                          <span className="text-[9px] uppercase font-mono px-1 py-0.1 rounded bg-purple-500/20 text-purple-300 font-bold">
-                            MVP
-                          </span>
+                          {isActive && (
+                            <span className="ui-mono text-[9px] uppercase px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
+                              active
+                            </span>
+                          )}
                         </div>
-                        <span className="text-[10px] text-slate-500 block truncate">
+                        <span className="ui-caption text-slate-400 block truncate text-[10px]">
                           {ws.role ? ws.role.toUpperCase() : 'MEMBER'} • {ws.member_count || 1} member{(ws.member_count || 1) > 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
 
                     {isActive && (
-                      <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                     )}
                   </button>
                 );
@@ -163,7 +166,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
             </div>
 
             {/* Create New Workspace & Manage buttons */}
-            <div className="p-2 border-t border-white/[0.06] bg-slate-900/50 space-y-1">
+            <div className="p-2 border-t border-white/[0.06] bg-[#0A0E1A]/60 space-y-1">
               <button
                 type="button"
                 onClick={() => {
@@ -171,10 +174,10 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                   setIsOpen(false);
                   window.history.pushState(null, '', '/workspaces');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg hover:bg-slate-800 text-[11px] font-medium text-slate-300 hover:text-white transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-[10px] hover:bg-white/[0.06] ui-caption font-medium text-slate-300 hover:text-white transition-all cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5 text-purple-400" />
-                All Workspaces Gateway
+                Workspaces Gateway
               </button>
               <button
                 type="button"
@@ -182,7 +185,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ compact = 
                   setShowCreateModal(true);
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-purple-600/20 hover:border-purple-500/30 border border-white/[0.06] text-xs font-semibold text-purple-300 hover:text-white transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[12px] bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/20 text-xs font-semibold text-purple-300 hover:text-white transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Create New Workspace

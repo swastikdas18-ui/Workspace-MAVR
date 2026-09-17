@@ -98,6 +98,17 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+function areArraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
 function normalizeFrontendUser(user: User): User {
   if (user.platformRole === 'founder' || user.platformRole === 'platform_admin') {
     return { ...user, role: 'admin' };
@@ -159,7 +170,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSystemLogs((prev) => [newLog, ...prev]);
   };
 
-  // Centralized backend data fetching
+  // Centralized backend data fetching with shallow reference preservation
   const refreshWorkspaceData = useCallback(async () => {
     try {
       const [projectsRes, tasksRes, teamsRes, docsRes, membersRes, crmRes, invitesRes] = await Promise.allSettled([
@@ -173,11 +184,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ]);
 
       if (projectsRes.status === 'fulfilled') {
-        setProjects(projectsRes.value?.projects || []);
+        const nextProjects = projectsRes.value?.projects || [];
+        setProjects((prev) => areArraysEqual(prev, nextProjects) ? prev : nextProjects);
       }
       if (tasksRes.status === 'fulfilled') {
         const fetchedTasks = tasksRes.value?.tasks || [];
-        setTasks(fetchedTasks);
+        setTasks((prev) => areArraysEqual(prev, fetchedTasks) ? prev : fetchedTasks);
 
         // Dynamically harvest assignees attached to tasks into user cache
         const taskAssignees = fetchedTasks
@@ -186,6 +198,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (taskAssignees.length > 0) {
           setUsers((prev) => {
+            let hasNewUser = false;
             const userMap = new Map<string, User>(prev.map((u) => [u.id, u]));
             taskAssignees.forEach((a: any) => {
               if (!userMap.has(a.id) || !userMap.get(a.id)?.name) {
@@ -196,27 +209,31 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                   role: a.role || 'employee',
                   avatar: a.avatar || undefined,
                 });
+                hasNewUser = true;
               }
             });
-            return Array.from(userMap.values());
+            return hasNewUser ? Array.from(userMap.values()) : prev;
           });
         }
       }
       if (teamsRes.status === 'fulfilled') {
-        setTeams(teamsRes.value?.teams || []);
+        const nextTeams = teamsRes.value?.teams || [];
+        setTeams((prev) => areArraysEqual(prev, nextTeams) ? prev : nextTeams);
       }
       if (docsRes.status === 'fulfilled') {
-        setDocuments(docsRes.value?.documents || []);
+        const nextDocs = docsRes.value?.documents || [];
+        setDocuments((prev) => areArraysEqual(prev, nextDocs) ? prev : nextDocs);
       }
       if (crmRes.status === 'fulfilled') {
-        setCrmRecords(crmRes.value?.leads || []);
+        const nextLeads = crmRes.value?.leads || [];
+        setCrmRecords((prev) => areArraysEqual(prev, nextLeads) ? prev : nextLeads);
       }
       if (invitesRes.status === 'fulfilled' && invitesRes.value?.invites) {
         const rawInvites = invitesRes.value.invites;
         const pendingInvites = rawInvites.filter(
           (inv: any) => !inv.accepted_at && !inv.acceptedAt
         );
-        setInvites(pendingInvites);
+        setInvites((prev) => areArraysEqual(prev, pendingInvites) ? prev : pendingInvites);
       }
       if (membersRes.status === 'fulfilled') {
         const rawMembers = membersRes.value?.members || [];
@@ -228,18 +245,30 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (fetchedUsers.length > 0) {
           setUsers((prev) => {
             const userMap = new Map<string, User>(prev.map((u) => [u.id, u]));
-            fetchedUsers.forEach((u: User) => userMap.set(u.id, u));
-            return Array.from(userMap.values());
+            let changed = false;
+            fetchedUsers.forEach((u: User) => {
+              const existing = userMap.get(u.id);
+              if (!existing || existing.role !== u.role || existing.teamId !== u.teamId || existing.name !== u.name) {
+                userMap.set(u.id, u);
+                changed = true;
+              }
+            });
+            return changed ? Array.from(userMap.values()) : prev;
           });
         }
-        setCurrentWorkspace((prev) => prev ? { ...prev, member_count: rawMembers.length || 1 } : prev);
+        setCurrentWorkspace((prev) => {
+          if (!prev) return prev;
+          const newCount = rawMembers.length || 1;
+          if (prev.member_count === newCount) return prev;
+          return { ...prev, member_count: newCount };
+        });
       }
 
       // Also refresh workspace list with live counts
       try {
         const wsRes = await api.getWorkspaces();
         if (wsRes?.workspaces && wsRes.workspaces.length > 0) {
-          setUserWorkspaces(wsRes.workspaces.map((w: any) => ({
+          const nextWsList = wsRes.workspaces.map((w: any) => ({
             id: w.id,
             name: w.name,
             slug: w.slug,
@@ -249,7 +278,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             logo: w.logo || undefined,
             role: w.roleInWorkspace || w.role || 'employee',
             member_count: w.memberCount || 1,
-          })));
+          }));
+          setUserWorkspaces((prev) => areArraysEqual(prev, nextWsList) ? prev : nextWsList);
         }
       } catch (_) {}
     } catch (err) {

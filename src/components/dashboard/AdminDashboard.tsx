@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   FolderKanban, CheckSquare, Users, DollarSign, 
@@ -20,49 +20,84 @@ export const AdminDashboard: React.FC = () => {
 
   const { execData, peopleAnalytics, automationAnalytics } = useAdminDashboardData(currentWorkspace?.id);
 
-  // Fallback to active state if async endpoint is loading or offline
-  const memberCount = execData?.memberCount ?? Math.max(1, users.length || 1);
-  const activeMembersToday = execData?.activeMembersToday ?? Math.max(1, Math.min(memberCount, Math.ceil(memberCount * 0.8)));
-  const departmentsCount = execData?.departmentsCount ?? teams.length;
+  // Memoized metrics calculation to eliminate redundant loops on renders
+  const {
+    memberCount, activeMembersToday, departmentsCount,
+    completedProjects, inProgressProjects, planningProjects, reviewProjects, blockedProjects, activeProjects,
+    completedTasks, openTasks, overdueTasks, dueTodayTasks, completedThisWeekTasks,
+    openDeals, pipelineValue, wonRevenue, lostDeals,
+    documentCount, wikiCount,
+    projectsAtRisk, teamWorkload, recentActivity
+  } = useMemo(() => {
+    const memCount = execData?.memberCount ?? Math.max(1, users.length || 1);
+    const activeToday = execData?.activeMembersToday ?? Math.max(1, Math.min(memCount, Math.ceil(memCount * 0.8)));
+    const deptCount = execData?.departmentsCount ?? teams.length;
 
-  const completedProjects = execData?.completedProjects ?? projects.filter(p => p.status === 'completed').length;
-  const inProgressProjects = execData?.inProgressProjects ?? projects.filter(p => p.status === 'in_progress').length;
-  const planningProjects = execData?.planningProjects ?? projects.filter(p => p.status === 'planning').length;
-  const reviewProjects = execData?.reviewProjects ?? projects.filter(p => p.status === 'review').length;
-  const blockedProjects = execData?.blockedProjects ?? projects.filter(p => (p.status as any) === 'blocked').length;
-  const activeProjects = execData?.activeProjects ?? (planningProjects + inProgressProjects + reviewProjects + blockedProjects);
+    const compProjects = execData?.completedProjects ?? projects.filter(p => p.status === 'completed').length;
+    const inProgProjects = execData?.inProgressProjects ?? projects.filter(p => p.status === 'in_progress').length;
+    const planProjects = execData?.planningProjects ?? projects.filter(p => p.status === 'planning').length;
+    const revProjects = execData?.reviewProjects ?? projects.filter(p => p.status === 'review').length;
+    const blkProjects = execData?.blockedProjects ?? projects.filter(p => (p.status as any) === 'blocked').length;
+    const actProjects = execData?.activeProjects ?? (planProjects + inProgProjects + revProjects + blkProjects);
 
-  const completedTasks = execData?.completedTasks ?? tasks.filter(t => (t.status as any) === 'completed' || (t.status as any) === 'done').length;
-  const openTasks = execData?.openTasks ?? tasks.filter(t => (t.status as any) !== 'completed' && (t.status as any) !== 'done').length;
-  const overdueTasks = execData?.overdueTasks ?? 0;
-  const dueTodayTasks = execData?.dueTodayTasks ?? 0;
-  const completedThisWeekTasks = execData?.completedThisWeekTasks ?? completedTasks;
+    const compTasks = execData?.completedTasks ?? tasks.filter(t => (t.status as any) === 'completed' || (t.status as any) === 'done').length;
+    const opnTasks = execData?.openTasks ?? tasks.filter(t => (t.status as any) !== 'completed' && (t.status as any) !== 'done').length;
+    const ovrTasks = execData?.overdueTasks ?? 0;
+    const dtTasks = execData?.dueTodayTasks ?? 0;
+    const compWkTasks = execData?.completedThisWeekTasks ?? compTasks;
 
-  const openDeals = execData?.openDeals ?? crmRecords.filter(c => c.status !== 'won' && c.status !== 'lost').length;
-  const pipelineValue = execData?.pipelineValue ?? crmRecords.filter(c => c.status !== 'lost').reduce((acc, curr) => acc + (curr.deal_value || 0), 0);
-  const wonRevenue = execData?.wonRevenue ?? crmRecords.filter(c => c.status === 'won').reduce((acc, curr) => acc + (curr.deal_value || 0), 0);
-  const lostDeals = execData?.lostDeals ?? crmRecords.filter(c => c.status === 'lost').length;
+    const opnDeals = execData?.openDeals ?? crmRecords.filter(c => c.status !== 'won' && c.status !== 'lost').length;
+    const pipeValue = execData?.pipelineValue ?? crmRecords.filter(c => c.status !== 'lost').reduce((acc, curr) => acc + (curr.deal_value || 0), 0);
+    const wRevenue = execData?.wonRevenue ?? crmRecords.filter(c => c.status === 'won').reduce((acc, curr) => acc + (curr.deal_value || 0), 0);
+    const lstDeals = execData?.lostDeals ?? crmRecords.filter(c => c.status === 'lost').length;
 
-  const documentCount = execData?.documentCount ?? documents.length;
-  const wikiCount = execData?.wikiCount ?? documents.filter((d: any) => d.type === 'wiki' || d.category === 'sop' || d.name?.endsWith('.md')).length;
+    const docCount = execData?.documentCount ?? documents.length;
+    const wkCount = execData?.wikiCount ?? documents.filter((d: any) => d.type === 'wiki' || d.category === 'sop' || d.name?.endsWith('.md')).length;
 
-  const projectsAtRisk = execData?.projectsAtRisk ?? [];
-  const teamWorkload = execData?.teamWorkload ?? teams.map(t => ({
-    teamId: t.id,
-    teamName: t.name,
-    openTasks: tasks.filter(task => ((task as any).teamId === t.id || (task as any).team_id === t.id) && task.status !== 'completed').length,
-    completedTasks: tasks.filter(task => ((task as any).teamId === t.id || (task as any).team_id === t.id) && task.status === 'completed').length,
-    completionRate: 0,
-  }));
+    const pAtRisk = execData?.projectsAtRisk ?? [];
+    const tWorkload = execData?.teamWorkload ?? teams.map(t => ({
+      teamId: t.id,
+      teamName: t.name,
+      openTasks: tasks.filter(task => ((task as any).teamId === t.id || (task as any).team_id === t.id) && task.status !== 'completed').length,
+      completedTasks: tasks.filter(task => ((task as any).teamId === t.id || (task as any).team_id === t.id) && task.status === 'completed').length,
+      completionRate: 0,
+    }));
 
-  const recentActivity = execData?.recentActivity ?? systemLogs.map(l => ({
-    id: l.id,
-    type: 'activity',
-    title: l.action,
-    actorName: l.user_name,
-    timestamp: l.timestamp,
-    module: l.module,
-  }));
+    const recActivity = execData?.recentActivity ?? systemLogs.map(l => ({
+      id: l.id,
+      type: 'activity',
+      title: l.action,
+      actorName: l.user_name,
+      timestamp: l.timestamp,
+      module: l.module,
+    }));
+
+    return {
+      memberCount: memCount,
+      activeMembersToday: activeToday,
+      departmentsCount: deptCount,
+      completedProjects: compProjects,
+      inProgressProjects: inProgProjects,
+      planningProjects: planProjects,
+      reviewProjects: revProjects,
+      blockedProjects: blkProjects,
+      activeProjects: actProjects,
+      completedTasks: compTasks,
+      openTasks: opnTasks,
+      overdueTasks: ovrTasks,
+      dueTodayTasks: dtTasks,
+      completedThisWeekTasks: compWkTasks,
+      openDeals: opnDeals,
+      pipelineValue: pipeValue,
+      wonRevenue: wRevenue,
+      lostDeals: lstDeals,
+      documentCount: docCount,
+      wikiCount: wkCount,
+      projectsAtRisk: pAtRisk,
+      teamWorkload: tWorkload,
+      recentActivity: recActivity
+    };
+  }, [execData, users, teams, projects, tasks, crmRecords, documents, systemLogs]);
 
   return (
     <div className="space-y-8">

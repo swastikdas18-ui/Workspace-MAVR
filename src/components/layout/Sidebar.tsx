@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
   LayoutDashboard, Building2, FolderKanban, CheckSquare, FileText, 
@@ -26,8 +26,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCommandPalette,
 }) => {
   const { currentRole, activeTab, setActiveTab, currentWorkspace, currentUser, logout, systemLogs } = useWorkspace();
-  // Core Navigation Pillars mapped to role specifications
-  const getCoreNavItems = () => {
+  
+  // Core Navigation Pillars mapped to role specifications (memoized)
+  const coreNavItems = useMemo(() => {
     if (currentRole === 'admin') {
       return [
         { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, badge: null },
@@ -64,12 +65,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'SOPs' },
       { id: 'time', label: 'Time Logs', icon: Clock, badge: null },
     ];
-  };
+  }, [currentRole]);
 
   // Secondary Labs & Enterprise Extensions
   const SHOW_LABS_EXTENSIONS = false;
 
-  const getLabsNavItems = () => {
+  const labsNavItems = useMemo(() => {
     if (!SHOW_LABS_EXTENSIONS) return [];
     if (currentRole === 'admin') {
       return [
@@ -83,10 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
     return [];
-  };
-
-  const coreNavItems = getCoreNavItems();
-  const labsNavItems = getLabsNavItems();
+  }, [currentRole]);
 
   const handleNavClick = (id: string) => {
     setActiveTab(id);

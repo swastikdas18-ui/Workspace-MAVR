@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Project, ProjectStatus, Department } from '../../types';
 import { api } from '../../lib/api';
@@ -110,20 +110,22 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const [tagsInput, setTagsInput] = useState('');
 
   // Project visibility is resolved by the server from verified workspace, department,
-  // and project memberships. Apply only presentation filters here.
-  const visibleProjects = projects.filter((p) => {
-    if (selectedStatus !== 'all' && p.status !== selectedStatus) {
-      return false;
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = p.title.toLowerCase().includes(q);
-      const matchDesc = p.description?.toLowerCase().includes(q);
-      const matchTag = p.tags?.some(t => t.toLowerCase().includes(q));
-      if (!matchTitle && !matchDesc && !matchTag) return false;
-    }
-    return true;
-  });
+  // and project memberships. Apply only presentation filters here (memoized).
+  const visibleProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (selectedStatus !== 'all' && p.status !== selectedStatus) {
+        return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = p.title.toLowerCase().includes(q);
+        const matchDesc = p.description?.toLowerCase().includes(q);
+        const matchTag = p.tags?.some(t => t.toLowerCase().includes(q));
+        if (!matchTitle && !matchDesc && !matchTag) return false;
+      }
+      return true;
+    });
+  }, [projects, selectedStatus, searchQuery]);
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -43,21 +43,32 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const isKeyboardNavRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => {
+      setQuery('');
+      setSelectedIndex(0);
+      isKeyboardNavRef.current = false;
+      const raf = requestAnimationFrame(() => {
         try {
           inputRef.current?.focus();
         } catch {
           // Ignore focus errors
         }
-      }, 50);
-      setQuery('');
-      setSelectedIndex(0);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(raf);
     }
   }, [isOpen]);
+
+  // Auto-scroll selected command item into view smoothly
+  useEffect(() => {
+    if (!listContainerRef.current) return;
+    const selectedEl = listContainerRef.current.querySelector<HTMLElement>(`[data-testid="command-item-${safeSelectedIndex}"]`);
+    if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+      selectedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [safeSelectedIndex]);
 
   // Define quick navigation items based on role
   const navCommands = useMemo<CommandItem[]>(() => {
@@ -384,6 +395,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Handle keyboard navigation with boundary verification
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    isKeyboardNavRef.current = true;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (allItems.length === 0 ? 0 : (prev + 1) % allItems.length));
@@ -521,7 +533,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           }
                         }
                       }}
-                      onMouseEnter={() => setSelectedIndex(idx)}
+                      onMouseMove={() => {
+                        if (isKeyboardNavRef.current) {
+                          isKeyboardNavRef.current = false;
+                        }
+                        if (selectedIndex !== idx) {
+                          setSelectedIndex(idx);
+                        }
+                      }}
                       data-testid={`command-item-${idx}`}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
                         isSelected

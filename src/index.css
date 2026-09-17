@@ -41,12 +41,29 @@
     --shadow-glass-lg: 0 12px 32px -8px rgba(28, 25, 23, 0.08), 0 4px 12px -2px rgba(28, 25, 23, 0.04);
   }
 
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--color-bg-base);
     color: var(--color-ink);
     overflow-x: hidden;
+    min-height: 100vh;
   }
+}
+
+/* Hardware accelerated layer compositing to eliminate paint lag */
+.ui-card,
+.ui-card-interactive,
+.ui-card-solid,
+.glass-panel {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Custom Scrollbars in Warm Ivory */

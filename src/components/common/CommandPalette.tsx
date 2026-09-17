@@ -429,7 +429,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md"
+            className="fixed inset-0 bg-stone-950/40 backdrop-blur-sm"
             data-testid="command-palette-backdrop"
           />
 
@@ -439,11 +439,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -10 }}
             transition={{ duration: 0.18 }}
-            className="relative w-full max-w-xl bg-[#0F172A] border border-white/[0.12] rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[70vh]"
+            className="relative w-full max-w-xl bg-white border border-[#E8E3DA] rounded-2xl shadow-[0_24px_50px_rgba(28,25,23,0.18)] overflow-hidden z-10 flex flex-col max-h-[70vh]"
           >
             {/* Search Input Bar */}
-            <div className="p-3.5 border-b border-white/[0.08] flex items-center gap-3 bg-[#111827]">
-              <Search className="w-5 h-5 text-purple-400 shrink-0" aria-hidden="true" />
+            <div className="p-3.5 border-b border-[#E8E3DA] flex items-center gap-3 bg-[#FAF8F5]">
+              <Search className="w-5 h-5 text-amber-700 shrink-0" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
@@ -455,7 +455,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 onKeyDown={handleKeyDown}
                 placeholder="Type a command or search workspace initiatives..."
                 aria-label="Command search input"
-                className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+                className="w-full bg-transparent text-sm text-stone-900 placeholder-stone-400 focus:outline-none font-medium"
                 data-testid="command-palette-input"
               />
               {query && (
@@ -466,13 +466,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     setSelectedIndex(0);
                     inputRef.current?.focus();
                   }}
-                  className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors"
+                  className="text-stone-400 hover:text-stone-700 p-1 rounded-md hover:bg-stone-200 transition-colors"
                   aria-label="Clear search query"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
-              <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded border border-white/[0.06] select-none">
+              <span className="text-[10px] font-mono text-stone-500 bg-[#F5F2EB] px-1.5 py-0.5 rounded border border-[#E2DDD3] select-none">
                 ESC
               </span>
             </div>
@@ -480,25 +480,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             {/* Command List */}
             <div 
               ref={listContainerRef}
-              className="overflow-y-auto p-2 divide-y divide-white/[0.04] max-h-[50vh]"
+              className="overflow-y-auto p-2 divide-y divide-stone-100 max-h-[50vh]"
               role="listbox"
               aria-label="Search results"
               data-testid="command-palette-list"
             >
               {allItems.length === 0 ? (
                 <div className="p-8 text-center" data-testid="command-palette-empty">
-                  <div className="w-10 h-10 rounded-full bg-slate-800/80 border border-white/[0.06] text-slate-400 flex items-center justify-center mx-auto mb-2">
+                  <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border border-[#E8E3DA] text-stone-400 flex items-center justify-center mx-auto mb-2">
                     <Search className="w-4 h-4 opacity-60" />
                   </div>
-                  <p className="text-xs font-medium text-slate-400">
+                  <p className="text-xs font-semibold text-stone-700">
                     No matching commands or resources found
                   </p>
                   {query && (
-                    <p className="text-[11px] text-slate-500 mt-1 font-mono truncate max-w-xs mx-auto">
+                    <p className="text-[11px] text-stone-500 mt-1 font-mono truncate max-w-xs mx-auto">
                       &quot;{query}&quot;
                     </p>
                   )}
-                  <p className="text-[11px] text-slate-600 mt-2">
+                  <p className="text-[11px] text-stone-400 mt-2">
                     Try searching for projects, tasks, documents, or navigation destinations.
                   </p>
                 </div>
@@ -525,19 +525,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       data-testid={`command-item-${idx}`}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
                         isSelected
-                          ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/30 ring-1 ring-purple-400/40'
-                          : 'text-slate-300 hover:bg-slate-800/60'
+                          ? 'bg-[#1C1917] text-white shadow-md shadow-stone-900/10'
+                          : 'text-stone-700 hover:bg-[#F5F2EB]'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-purple-400 border border-white/[0.06]'}`}>
+                        <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-[#FAF8F5] text-amber-700 border border-[#E8E3DA]'}`}>
                           <Icon className="w-4 h-4" />
                         </div>
                         <span className="truncate">{item.label}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                          isSelected ? 'bg-purple-900/60 text-purple-200' : 'bg-slate-800/80 text-slate-400'
+                          isSelected ? 'bg-white/10 text-stone-200' : 'bg-[#FAF8F5] text-stone-500 border border-[#E8E3DA]'
                         }`}>
                           {item.category}
                         </span>
@@ -550,20 +550,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </div>
 
             {/* Footer Navigation Hints */}
-            <div className="p-2.5 bg-[#020617] border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-500 px-4 select-none">
+            <div className="p-2.5 bg-[#FAF8F5] border-t border-[#E8E3DA] flex items-center justify-between text-[11px] text-stone-500 px-4 select-none">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="bg-slate-800 px-1 rounded text-[9px] text-slate-300">↑</kbd>
-                  <kbd className="bg-slate-800 px-1 rounded text-[9px] text-slate-300">↓</kbd> to navigate
+                  <kbd className="bg-white border border-[#E8E3DA] px-1.5 py-0.5 rounded text-[10px] text-stone-600 font-mono shadow-xs">↑</kbd>
+                  <kbd className="bg-white border border-[#E8E3DA] px-1.5 py-0.5 rounded text-[10px] text-stone-600 font-mono shadow-xs">↓</kbd> to navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="bg-slate-800 px-1 rounded text-[9px] text-slate-300">↵</kbd> to select
+                  <kbd className="bg-white border border-[#E8E3DA] px-1.5 py-0.5 rounded text-[10px] text-stone-600 font-mono shadow-xs">↵</kbd> to select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="bg-slate-800 px-1 rounded text-[9px] text-slate-300">ESC</kbd> to close
+                  <kbd className="bg-white border border-[#E8E3DA] px-1.5 py-0.5 rounded text-[10px] text-stone-600 font-mono shadow-xs">ESC</kbd> to close
                 </span>
               </div>
-              <span className="text-[10px] text-purple-400 font-medium">Workspace OS Search Engine</span>
+              <span className="text-[10px] text-amber-800 font-bold">Workspace OS Search</span>
             </div>
           </motion.div>
         </div>

@@ -1,11 +1,10 @@
 import React from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
-  GraduationCap, CheckSquare, BookOpen, CheckCircle2, Clock, 
-  Sparkles, Download, ArrowRight, BookMarked, ShieldCheck, Play
+  CheckSquare, BookOpen, CheckCircle2, Clock, 
+  Download, BookMarked, Play
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
-import { motion } from 'motion/react';
 
 export const InternDashboard: React.FC = () => {
   const { 
@@ -26,21 +25,21 @@ export const InternDashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Intern Welcome Banner */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#111827] via-[#0F172A] to-[#064E3B] border border-white/[0.08] p-6 sm:p-8 overflow-hidden shadow-2xl">
+      <div className="ui-card p-6 sm:p-8 relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+              <span className="ui-caption font-bold text-emerald-800 uppercase tracking-wider">
                 Internship & Learning Sandbox
               </span>
-              <span className="text-slate-500">•</span>
-              <span className="text-xs text-slate-400">Guarded Workspace Mode</span>
+              <span className="text-stone-400">•</span>
+              <span className="ui-mono text-stone-500 font-medium">Guarded Workspace Mode</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            <h1 className="ui-h1 text-stone-900 font-heading">
               Welcome to Workspace OS, {currentUser.name}
             </h1>
-            <p className="text-sm text-slate-400 mt-1.5 max-w-2xl leading-relaxed">
+            <p className="ui-body text-stone-600 mt-1.5 max-w-2xl leading-relaxed font-normal">
               Master the engineering and product workflows. Complete your assigned learning tasks and review onboarding guides.
             </p>
           </div>
@@ -48,9 +47,9 @@ export const InternDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('documents')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="ui-btn ui-btn-primary"
             >
-              <BookOpen className="w-4 h-4" />
+              <BookOpen className="w-4 h-4 text-amber-300" />
               <span>Learning Guides</span>
             </button>
           </div>
@@ -103,52 +102,52 @@ export const InternDashboard: React.FC = () => {
       {/* Two Column Layout: Learning Tasks & Onboarding Resources */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Learning Tasks Queue */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
+        <div className="ui-card p-6 shadow-sm">
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E8E3DA]">
             <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-base font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+                <CheckSquare className="w-4 h-4 text-emerald-700" />
                 <span>Assigned Learning Tasks</span>
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">Execution & status updates</p>
+              <p className="text-xs text-stone-500 mt-0.5 font-normal">Execution & status updates</p>
             </div>
-            <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-white/[0.06]">
+            <span className="text-[10px] font-mono bg-stone-100 text-stone-600 px-2.5 py-1 rounded-full border border-[#E8E3DA] font-semibold">
               Sandbox Controlled
             </span>
           </div>
 
           <div className="space-y-3">
             {myTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-stone-400">
                 No learning tasks assigned.
               </div>
             ) : (
               myTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.06] hover:border-emerald-500/30 transition-all"
+                  className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] hover:border-[#D5CFC3] transition-all shadow-2xs"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full font-mono uppercase ${
                           task.status === 'completed'
-                            ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             : task.status === 'in_progress'
-                            ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
-                            : 'bg-slate-800 text-slate-400'
+                            ? 'bg-sky-50 text-sky-800 border border-sky-200'
+                            : 'bg-stone-100 text-stone-600 border border-stone-200'
                         }`}>
                           {task.status.replace('_', ' ')}
                         </span>
-                        <span className="text-[11px] text-slate-400 font-mono">Due: {task.due_date}</span>
+                        <span className="text-[11px] text-stone-500 font-mono">Due: {task.due_date}</span>
                       </div>
-                      <p className={`text-xs sm:text-sm font-semibold text-white ${
-                        task.status === 'completed' ? 'line-through text-slate-500' : ''
+                      <p className={`text-xs sm:text-sm font-semibold text-stone-900 ${
+                        task.status === 'completed' ? 'line-through text-stone-400' : ''
                       }`}>
                         {task.title}
                       </p>
                       {task.description && (
-                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">{task.description}</p>
+                        <p className="text-xs text-stone-600 mt-1 leading-relaxed font-normal">{task.description}</p>
                       )}
                     </div>
 
@@ -156,18 +155,18 @@ export const InternDashboard: React.FC = () => {
                       {task.status === 'todo' && (
                         <button
                           onClick={() => updateTaskStatus(task.id, 'in_progress')}
-                          className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500 text-blue-300 hover:text-white border border-blue-500/20 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-stone-800 border border-[#E8E3DA] text-xs font-semibold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          <Play className="w-3 h-3" />
+                          <Play className="w-3 h-3 text-emerald-700" />
                           <span>Start</span>
                         </button>
                       )}
                       {task.status !== 'completed' && (
                         <button
                           onClick={() => updateTaskStatus(task.id, 'completed')}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-300 hover:text-white border border-emerald-500/20 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-[#1C1917] hover:bg-[#292524] text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                           <span>Done</span>
                         </button>
                       )}
@@ -180,40 +179,40 @@ export const InternDashboard: React.FC = () => {
         </div>
 
         {/* Learning Resources & Documents */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
+        <div className="ui-card p-6 shadow-sm">
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E8E3DA]">
             <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-purple-400" />
+              <h3 className="text-base font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+                <BookOpen className="w-4 h-4 text-stone-700" />
                 <span>Knowledge & Onboarding Guides</span>
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">Reference technical documentation</p>
+              <p className="text-xs text-stone-500 mt-0.5 font-normal">Reference technical documentation</p>
             </div>
-            <span className="text-xs text-slate-400">{learningDocs.length} guides</span>
+            <span className="text-xs text-stone-500 font-medium">{learningDocs.length} guides</span>
           </div>
 
           <div className="space-y-3">
             {learningDocs.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-stone-400">
                 No learning guides available.
               </div>
             ) : (
               learningDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-3.5 rounded-xl bg-[#0F172A] border border-white/[0.04] hover:border-purple-500/30 flex items-center justify-between gap-3 transition-all group"
+                  className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] hover:border-amber-400/60 flex items-center justify-between gap-3 transition-all group shadow-2xs"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">
+                    <p className="text-xs font-semibold text-stone-900 group-hover:text-amber-800 transition-colors truncate">
                       {doc.title}
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-stone-500 mt-0.5 font-medium">
                       {doc.category} • {doc.file_size} • {doc.file_type.toUpperCase()}
                     </p>
                   </div>
                   <button
                     onClick={() => incrementDocDownload(doc.id)}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-[#7C3AED] text-slate-300 hover:text-white border border-white/[0.06] transition-all cursor-pointer shadow-sm"
+                    className="p-2 rounded-xl bg-white hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-[#E8E3DA] transition-all cursor-pointer shadow-xs"
                     title="Download Document"
                   >
                     <Download className="w-3.5 h-3.5" />

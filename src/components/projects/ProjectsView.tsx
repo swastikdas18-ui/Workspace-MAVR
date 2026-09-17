@@ -207,14 +207,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const getStatusBadge = (status: ProjectStatus) => {
     switch (status) {
       case 'completed':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
       case 'in_progress':
-        return 'bg-purple-500/10 text-purple-300 border-purple-500/20';
+        return 'bg-sky-50 text-sky-800 border-sky-200';
       case 'review':
-        return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+        return 'bg-amber-50 text-amber-800 border-amber-200';
       case 'planning':
       default:
-        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+        return 'bg-stone-100 text-stone-700 border-stone-200';
     }
   };
 
@@ -236,19 +236,19 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             : 'Track milestone delivery, update progress, and collaborate with team members.'
         }
         badge={
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono border border-white/[0.08]">
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-white text-stone-700 font-mono border border-[#E8E3DA] font-semibold shadow-2xs">
             {visibleProjects.length} Initiatives
           </span>
         }
         actions={
           <div className="flex items-center gap-3">
             {/* View Mode Switcher */}
-            <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
+            <div className="flex items-center p-1 bg-[#FAF8F5] border border-[#E8E3DA] rounded-xl text-xs">
               <button
                 onClick={() => setViewMode('board')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'board'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'board'
+                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
                   }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -256,9 +256,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'list'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'list'
+                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
                   }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -266,9 +266,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
               </button>
               <button
                 onClick={() => setViewMode('timeline')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'timeline'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'timeline'
+                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
                   }`}
               >
                 <Calendar className="w-3.5 h-3.5" />
@@ -280,7 +280,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-[#111827] border border-white/[0.08] text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-purple-500 transition-colors"
+              className="bg-white border border-[#E8E3DA] text-xs text-stone-800 rounded-xl px-3 py-2 focus:outline-none focus:border-amber-600 font-medium transition-colors cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="planning">Planning</option>
@@ -293,9 +293,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             {permissions.projects.create && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1C1917] hover:bg-[#292524] text-white text-xs font-semibold shadow-md shadow-stone-900/10 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 text-amber-300" />
                 <span>New Initiative</span>
               </button>
             )}
@@ -313,21 +313,21 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
           onAction={() => setIsCreateModalOpen(true)}
         />
       ) : viewMode === 'board' ? (
-        /* KANBAN BOARD VIEW WITH PHASE 1 WORKFLOW ACTIONS */
+        /* KANBAN BOARD WITH PHASE 1 WORKFLOW ACTIONS */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {statuses.map((status) => {
             const columnProjects = visibleProjects.filter((p) => p.status === status.id);
             return (
-              <div key={status.id} className="flex flex-col bg-[#0F172A]/60 border border-white/[0.06] rounded-[24px] p-4 min-h-[520px]">
+              <div key={status.id} className="flex flex-col bg-[#F5F2EB]/60 border border-[#E8E3DA] rounded-[24px] p-4 min-h-[520px] shadow-2xs">
                 {/* Column Header */}
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06] px-1">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#E8E3DA] px-1">
                   <div className="flex items-center gap-2">
-                    <span className="ui-caption font-semibold text-white tracking-tight">{status.label}</span>
-                    <span className="ui-mono px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                    <span className="ui-caption font-bold text-stone-900 tracking-tight">{status.label}</span>
+                    <span className="ui-mono px-2 py-0.5 rounded-full bg-white text-stone-600 border border-[#E8E3DA] font-semibold text-[10px]">
                       {columnProjects.length}
                     </span>
                   </div>
-                  <span className="ui-caption text-slate-500 hidden sm:inline">{status.desc}</span>
+                  <span className="ui-caption text-stone-500 hidden sm:inline font-medium">{status.desc}</span>
                 </div>
 
                 {/* Project Cards in Column */}

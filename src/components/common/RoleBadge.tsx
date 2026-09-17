@@ -21,31 +21,31 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
         return {
           label: 'Admin',
           icon: Shield,
-          styles: 'bg-purple-500/10 text-purple-300 border-purple-500/20 shadow-[0_2px_8px_0_rgba(0,0,0,0.2)]',
+          styles: 'bg-amber-100 text-amber-900 border-amber-300/80 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
         };
       case 'employee':
         return {
           label: 'Employee',
           icon: Briefcase,
-          styles: 'bg-blue-500/10 text-blue-300 border-blue-500/20 shadow-[0_2px_8px_0_rgba(0,0,0,0.2)]',
+          styles: 'bg-blue-50 text-blue-900 border-blue-200 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
         };
       case 'intern':
         return {
           label: 'Intern',
           icon: GraduationCap,
-          styles: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20 shadow-[0_2px_8px_0_rgba(0,0,0,0.2)]',
+          styles: 'bg-emerald-50 text-emerald-900 border-emerald-200 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
         };
       case 'guest':
         return {
           label: 'Guest',
           icon: UserRound,
-          styles: 'bg-slate-500/10 text-slate-300 border-slate-500/20 shadow-[0_2px_8px_0_rgba(0,0,0,0.2)]',
+          styles: 'bg-stone-100 text-stone-700 border-stone-300 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
         };
       default:
         return {
           label: 'Guest',
           icon: UserRound,
-          styles: 'bg-slate-500/10 text-slate-300 border-slate-500/20 shadow-[0_2px_8px_0_rgba(0,0,0,0.2)]',
+          styles: 'bg-stone-100 text-stone-700 border-stone-300 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
         };
     }
   };

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -20,34 +20,34 @@ export interface KPIWidgetProps {
 
 const colorMap = {
   purple: {
-    border: 'hover:border-purple-500/30',
-    iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    sparkline: '#A855F7',
+    border: 'hover:border-amber-600/30',
+    iconBg: 'bg-amber-50 text-amber-800 border-amber-200',
+    sparkline: '#D97706',
   },
   blue: {
     border: 'hover:border-blue-500/30',
-    iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    sparkline: '#3B82F6',
+    iconBg: 'bg-blue-50 text-blue-700 border-blue-200',
+    sparkline: '#2563EB',
   },
   emerald: {
     border: 'hover:border-emerald-500/30',
-    iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    sparkline: '#10B981',
+    iconBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    sparkline: '#059669',
   },
   amber: {
     border: 'hover:border-amber-500/30',
-    iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    sparkline: '#F59E0B',
+    iconBg: 'bg-amber-50 text-amber-800 border-amber-200',
+    sparkline: '#D97706',
   },
   rose: {
     border: 'hover:border-rose-500/30',
-    iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-    sparkline: '#F43F5E',
+    iconBg: 'bg-rose-50 text-rose-700 border-rose-200',
+    sparkline: '#E11D48',
   },
   slate: {
-    border: 'hover:border-slate-500/30',
-    iconBg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-    sparkline: '#94A3B8',
+    border: 'hover:border-stone-400/30',
+    iconBg: 'bg-stone-100 text-stone-700 border-stone-200',
+    sparkline: '#78716C',
   },
 };
 
@@ -87,8 +87,8 @@ export const KPIWidget: React.FC<KPIWidgetProps> = React.memo(({
       className={`group relative ui-card-interactive p-5 ${currentTheme.border} ${onClick ? 'cursor-pointer' : ''} overflow-hidden flex flex-col justify-between ${className}`}
     >
       {/* Card Header */}
-      <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/[0.04]">
-        <span className="ui-caption font-semibold uppercase tracking-wider text-slate-400">{label}</span>
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-[#E8E3DA]">
+        <span className="ui-caption font-bold uppercase tracking-wider text-stone-500">{label}</span>
         <div className={`p-2 rounded-[14px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />
         </div>
@@ -99,7 +99,7 @@ export const KPIWidget: React.FC<KPIWidgetProps> = React.memo(({
         <span className="ui-h2">{value}</span>
 
         {hasSparkline && (
-          <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+          <div className="opacity-80 group-hover:opacity-100 transition-opacity">
             <svg width={width} height={height} className="overflow-visible">
               <polyline
                 fill="none"
@@ -115,16 +115,16 @@ export const KPIWidget: React.FC<KPIWidgetProps> = React.memo(({
       </div>
 
       {/* Card Footer: Trend & Telemetry */}
-      <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs">
+      <div className="pt-3 border-t border-[#E8E3DA] flex items-center justify-between text-xs">
         {trend ? (
           <div className="flex items-center gap-2">
             <span
               className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[14px] ${
                 trend.direction === 'up'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : trend.direction === 'down'
-                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : 'bg-stone-100 text-stone-600 border border-stone-200'
               }`}
             >
               {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}
@@ -132,10 +132,10 @@ export const KPIWidget: React.FC<KPIWidgetProps> = React.memo(({
               {trend.direction === 'neutral' && <Minus className="w-3 h-3" />}
               {trend.value}
             </span>
-            <span className="text-slate-400 text-[11px]">{trend.label || 'vs last month'}</span>
+            <span className="text-stone-500 text-[11px]">{trend.label || 'vs last month'}</span>
           </div>
         ) : (
-          <span className="text-slate-400 text-[11px]">{subtitle || 'Live telemetry'}</span>
+          <span className="text-stone-400 text-[11px]">{subtitle || 'Live telemetry'}</span>
         )}
       </div>
     </motion.div>

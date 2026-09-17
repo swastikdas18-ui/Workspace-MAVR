@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 
 export interface SectionCardProps {
@@ -36,7 +36,7 @@ export const SectionCard: React.FC<SectionCardProps> = React.memo(({
       className={`${baseClasses} ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {header && (
-        <div className={`flex items-center justify-between gap-3 pb-3 border-b border-white/[0.04] ${headerClassName}`}>
+        <div className={`flex items-center justify-between gap-3 pb-3 border-b border-[#E8E3DA] ${headerClassName}`}>
           {header}
         </div>
       )}
@@ -46,7 +46,7 @@ export const SectionCard: React.FC<SectionCardProps> = React.memo(({
       </div>
 
       {footer && (
-        <div className={`pt-3 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 ${footerClassName}`}>
+        <div className={`pt-3 border-t border-[#E8E3DA] flex items-center justify-between text-xs text-stone-500 ${footerClassName}`}>
           {footer}
         </div>
       )}

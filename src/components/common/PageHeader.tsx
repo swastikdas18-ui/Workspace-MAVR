@@ -26,19 +26,19 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className="mb-8">
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
+        <nav className="flex items-center gap-1.5 text-xs text-stone-400 mb-2">
           {breadcrumbs.map((item, idx) => (
             <React.Fragment key={idx}>
-              {idx > 0 && <span className="text-slate-600">/</span>}
+              {idx > 0 && <span className="text-stone-300">/</span>}
               {item.onClick ? (
                 <button
                   onClick={item.onClick}
-                  className="hover:text-purple-400 transition-colors font-medium cursor-pointer"
+                  className="hover:text-amber-800 transition-colors font-medium cursor-pointer"
                 >
                   {item.label}
                 </button>
               ) : (
-                <span className={idx === breadcrumbs.length - 1 ? 'text-slate-300 font-medium' : ''}>
+                <span className={idx === breadcrumbs.length - 1 ? 'text-stone-700 font-semibold' : ''}>
                   {item.label}
                 </span>
               )}
@@ -57,7 +57,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             {badge && <div>{badge}</div>}
           </div>
           {description && (
-            <p className="mt-2 ui-body text-slate-400 max-w-2xl">
+            <p className="mt-2 ui-body text-stone-600 max-w-2xl">
               {description}
             </p>
           )}
@@ -68,7 +68,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </div>
 
       {/* Additional filter / subheader controls if provided */}
-      {children && <div className="mt-6 pt-4 border-t border-white/[0.08]">{children}</div>}
+      {children && <div className="mt-6 pt-4 border-t border-[#E8E3DA]">{children}</div>}
     </div>
   );
 };

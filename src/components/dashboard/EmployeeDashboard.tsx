@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { 
-  FolderKanban, CheckSquare, Users, DollarSign, 
-  Clock, CheckCircle2, ArrowRight, Plus, Sparkles,
-  Calendar, Layers, FileText, Play, Pause, Square, Timer,
-  Send, CheckCircle, AlertTriangle, Flame, ShieldAlert
+  CheckSquare, 
+  CheckCircle2, Plus, Sparkles,
+  Calendar, Layers, Play, Square, Timer,
+  Send, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
 import { api } from '../../lib/api';
-import { motion, AnimatePresence } from 'motion/react';
 
 export const EmployeeDashboard: React.FC = () => {
   const { 
-    currentUser, projects, tasks, crmRecords, setActiveTab, refreshData, addToast 
+    currentUser, projects, tasks, setActiveTab, refreshData, addToast 
   } = useWorkspace();
 
   // Time Tracking State for Employee Widgets
-  const [todayMinutes, setTodayMinutes] = useState(0);
   const [weeklyMinutes, setWeeklyMinutes] = useState(0);
-  const [recentTimeEntries, setRecentTimeEntries] = useState<any[]>([]);
   const [activeTimer, setActiveTimer] = useState<any>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [taskFilter, setTaskFilter] = useState<'all' | 'today' | 'overdue' | 'in_progress' | 'review' | 'done'>('all');
@@ -27,7 +24,6 @@ export const EmployeeDashboard: React.FC = () => {
   // Phase 4: People OS Employee V2 State
   const [leaveBalances, setLeaveBalances] = useState<any | null>(null);
   const [myGoals, setMyGoals] = useState<any[]>([]);
-  const [todayAttendance, setTodayAttendance] = useState<any | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
 
   const loadTimeData = useCallback(async () => {
@@ -43,32 +39,25 @@ export const EmployeeDashboard: React.FC = () => {
       if (leaveRes?.balances) setLeaveBalances(leaveRes.balances);
       if (goalsRes?.goals) setMyGoals(goalsRes.goals);
       if (attRes) {
-        setTodayAttendance(attRes.record);
         setIsCheckedIn(attRes.isCheckedIn);
       }
 
       if (entriesRes && Array.isArray(entriesRes.entries)) {
         const myEntries = entriesRes.entries.filter((e: any) => e.userId === currentUser.id);
-        setRecentTimeEntries(myEntries.slice(0, 4));
 
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
         const weekAgo = todayStart - 7 * 24 * 60 * 60 * 1000;
 
-        let todayMins = 0;
         let weekMins = 0;
 
         for (const e of myEntries) {
           const entryTime = new Date(e.startTime).getTime();
-          if (entryTime >= todayStart) {
-            todayMins += e.durationMinutes || 0;
-          }
           if (entryTime >= weekAgo) {
             weekMins += e.durationMinutes || 0;
           }
         }
 
-        setTodayMinutes(todayMins);
         setWeeklyMinutes(weekMins);
       }
 
@@ -214,31 +203,31 @@ export const EmployeeDashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Top Greeting & Action Header */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#111827] via-[#0F172A] to-[#172554] border border-white/[0.08] p-6 sm:p-8 overflow-hidden shadow-2xl">
+      <div className="ui-card p-6 sm:p-8 relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+              <span className="ui-caption font-bold text-amber-800 uppercase tracking-wider">
                 Execution Engine Hub
               </span>
-              <span className="text-slate-500">•</span>
-              <span className="text-xs text-slate-400">Personal Work Queue</span>
+              <span className="text-stone-400">•</span>
+              <span className="ui-mono text-stone-500 font-medium">Personal Work Queue</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            <h1 className="ui-h1 text-stone-900 font-heading">
               Good day, {currentUser.name}
             </h1>
-            <p className="text-sm text-slate-400 mt-1.5 max-w-2xl leading-relaxed">
-              You have <span className="text-white font-semibold">{myInProgressTasks.length + myTodoTasks.length} active tasks</span> ({myOverdueTasks.length} overdue) across <span className="text-white font-semibold">{assignedProjects.length} initiatives</span>.
+            <p className="ui-body text-stone-600 mt-1.5 max-w-2xl leading-relaxed font-normal">
+              You have <span className="text-stone-900 font-semibold">{myInProgressTasks.length + myTodoTasks.length} active tasks</span> ({myOverdueTasks.length} overdue) across <span className="text-stone-900 font-semibold">{assignedProjects.length} initiatives</span>.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('tasks')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="ui-btn ui-btn-primary"
             >
-              <CheckSquare className="w-4 h-4" />
+              <CheckSquare className="w-4 h-4 text-amber-300" />
               <span>Full Task Board</span>
             </button>
           </div>
@@ -247,21 +236,21 @@ export const EmployeeDashboard: React.FC = () => {
 
       {/* Active Stopwatch Live Widget */}
       {activeTimer && (
-        <div className="bg-gradient-to-r from-blue-950/80 via-slate-900 to-indigo-950/80 border border-blue-500/40 p-5 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-amber-50/80 border border-amber-200/80 p-5 rounded-2xl shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300/60 flex items-center justify-center text-amber-800">
               <Timer className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                   Timer Running
                 </span>
-                <span className="text-xs text-white font-medium truncate max-w-xs sm:max-w-md">
+                <span className="text-xs text-stone-900 font-semibold truncate max-w-xs sm:max-w-md">
                   {activeTimer.notes || 'Initiative work'}
                 </span>
               </div>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-white mt-1">
+              <p className="text-xl sm:text-2xl font-mono font-bold text-stone-900 mt-1">
                 {formatTimer(elapsedSeconds)}
               </p>
             </div>
@@ -270,13 +259,13 @@ export const EmployeeDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('time')}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-white/[0.08] transition-colors cursor-pointer"
+              className="ui-btn ui-btn-secondary"
             >
               Open Timesheet
             </button>
             <button
               onClick={handleStopTimer}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-rose-600/20 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-rose-600/20 transition-all cursor-pointer"
             >
               <Square className="w-3.5 h-3.5" />
               <span>Stop & Save</span>
@@ -330,27 +319,27 @@ export const EmployeeDashboard: React.FC = () => {
 
       {/* Main Focus Area: Tasks Execution Queue & Projects */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Tasks Queue with Phase 2 Filtering & Execution */}
-        <div className="lg:col-span-2 bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+        {/* My Tasks Queue with Filtering & Execution */}
+        <div className="lg:col-span-2 ui-card p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8E3DA]">
             <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-purple-400" />
+              <h3 className="text-base font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+                <CheckSquare className="w-4 h-4 text-amber-700" />
                 <span>My Execution Tasks</span>
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">Real-time task lifecycle & action queue</p>
+              <p className="text-xs text-stone-500 mt-0.5 font-normal">Real-time task lifecycle & action queue</p>
             </div>
 
             {/* Task Filter Tabs */}
-            <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-white/[0.06] overflow-x-auto text-xs">
+            <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8E3DA] overflow-x-auto text-xs">
               {(['all', 'today', 'overdue', 'in_progress', 'review', 'done'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setTaskFilter(tab)}
-                  className={`px-2.5 py-1 rounded-lg font-medium transition-colors capitalize whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all capitalize whitespace-nowrap cursor-pointer ${
                     taskFilter === tab
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#1C1917] text-white shadow-xs'
+                      : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
                   {tab === 'in_progress' ? 'In Progress' : tab}
@@ -361,7 +350,7 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="space-y-3">
             {filteredTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-stone-400">
                 No tasks match the selected filter.
               </div>
             ) : (
@@ -374,84 +363,89 @@ export const EmployeeDashboard: React.FC = () => {
                 return (
                   <div
                     key={task.id}
-                    className="p-4 rounded-xl bg-[#0F172A] border border-white/[0.04] hover:border-white/[0.08] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] hover:border-[#D5CFC3] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs"
                   >
                     <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            isUrgent ? 'bg-rose-500' : isHigh ? 'bg-amber-500' : 'bg-blue-500'
+                            isUrgent ? 'bg-rose-500' : isHigh ? 'bg-amber-500' : 'bg-sky-500'
                           }`}
                         />
-                        <p className="text-xs font-semibold text-white truncate">{task.title}</p>
+                        <p className="text-xs font-semibold text-stone-900 truncate">{task.title}</p>
                         
                         {/* Status Badge */}
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
                           task.status === 'done' || task.status === 'completed'
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             : task.status === 'review'
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
                             : task.status === 'in_progress'
-                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                            : 'bg-slate-700/50 text-slate-400 border-slate-600/30'
+                            ? 'bg-sky-50 text-sky-800 border-sky-200'
+                            : 'bg-stone-100 text-stone-600 border-stone-200'
                         }`}>
                           {task.status.replace('_', ' ')}
                         </span>
 
                         {isBlocked && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
                             <ShieldAlert className="w-3 h-3" />
                             <span>Blocked</span>
                           </span>
                         )}
 
                         {isOverdue && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
                             Overdue
                           </span>
                         )}
                       </div>
 
-                      <p className="text-[11px] text-slate-400 truncate max-w-lg">
+                      <p className="text-[11px] text-stone-600 truncate max-w-lg">
                         {task.description || 'No description provided.'}
                       </p>
 
-                      <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono">
+                      <div className="flex items-center gap-3 text-[10px] text-stone-400 font-mono">
                         <span>Due: {task.due_date || (task as any).dueDate}</span>
-                        {task.story_points && <span>Points: {task.story_points}</span>}
-                        {task.estimated_hours && <span>Est: {task.estimated_hours}h</span>}
+                        {task.project_id && (
+                          <span>Initiative: {projects.find((p) => p.id === task.project_id)?.title || 'Assigned'}</span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Quick Action Buttons */}
                     <div className="flex items-center gap-2 shrink-0">
-                      {task.status === 'todo' || task.status === 'backlog' ? (
+                      {task.status === 'todo' && (
                         <button
                           onClick={() => handleStartTask(task.id)}
                           disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-stone-800 border border-[#E8E3DA] text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                         >
-                          <Play className="w-3.5 h-3.5" />
-                          <span>Start Task</span>
+                          <Play className="w-3 h-3 text-emerald-700" />
+                          <span>Start</span>
                         </button>
-                      ) : task.status === 'in_progress' ? (
+                      )}
+
+                      {task.status === 'in_progress' && (
                         <button
                           onClick={() => handleSubmitReview(task.id)}
                           disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-xl bg-[#1C1917] hover:bg-[#292524] text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                         >
-                          <Send className="w-3.5 h-3.5" />
+                          <Send className="w-3 h-3 text-amber-300" />
                           <span>Submit Review</span>
                         </button>
-                      ) : task.status === 'review' ? (
-                        <span className="text-xs font-medium text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>In Review</span>
+                      )}
+
+                      {task.status === 'review' && (
+                        <span className="text-[11px] text-amber-800 font-semibold px-2 py-1 bg-amber-50 rounded-lg border border-amber-200">
+                          In Review
                         </span>
-                      ) : (
-                        <span className="text-xs font-medium text-emerald-400 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Completed</span>
+                      )}
+
+                      {(task.status === 'done' || task.status === 'completed') && (
+                        <span className="text-[11px] text-emerald-800 font-semibold px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
+                          Resolved
                         </span>
                       )}
                     </div>
@@ -462,19 +456,19 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Assigned Initiatives & Progress Cards */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
-            <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-blue-400" />
+        {/* Assigned Projects Column */}
+        <div className="ui-card p-6 space-y-4 flex flex-col">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
+            <h3 className="text-base font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+              <Layers className="w-4 h-4 text-stone-700" />
               <span>Assigned Initiatives</span>
             </h3>
-            <span className="text-xs text-slate-400">{assignedProjects.length} projects</span>
+            <span className="text-xs text-stone-500 font-medium">{assignedProjects.length} projects</span>
           </div>
 
           <div className="space-y-3.5 flex-1">
             {assignedProjects.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-stone-400">
                 No assigned projects.
               </div>
             ) : (
@@ -487,25 +481,25 @@ export const EmployeeDashboard: React.FC = () => {
                   <div
                     key={proj.id}
                     onClick={() => setActiveTab('projects')}
-                    className="p-3.5 rounded-xl bg-[#0F172A] border border-white/[0.04] hover:border-white/[0.1] transition-all cursor-pointer group"
+                    className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] hover:border-amber-400/60 transition-all cursor-pointer group shadow-2xs"
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors">
+                      <p className="text-xs font-semibold text-stone-900 group-hover:text-amber-800 transition-colors">
                         {proj.title}
                       </p>
-                      <span className="text-xs font-mono font-bold text-blue-400">{calculatedProgress}%</span>
+                      <span className="text-xs font-mono font-bold text-stone-800">{calculatedProgress}%</span>
                     </div>
 
-                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden my-2">
+                    <div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden my-2">
                       <div
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all"
+                        className="bg-amber-700 h-full rounded-full transition-all"
                         style={{ width: `${calculatedProgress}%` }}
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between text-[11px] text-stone-500">
                       <span>{completedCount}/{projectTasks.length} tasks</span>
-                      <span className="capitalize text-slate-400">{proj.status.replace('_', ' ')}</span>
+                      <span className="capitalize text-stone-600 font-medium">{proj.status.replace('_', ' ')}</span>
                     </div>
                   </div>
                 );
@@ -518,33 +512,33 @@ export const EmployeeDashboard: React.FC = () => {
       {/* Employee Dashboard V2: People OS Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Widget 1: My Performance */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-            <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="ui-card p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
+            <h3 className="text-sm font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+              <Sparkles className="w-4 h-4 text-amber-700" />
               <span>My Performance</span>
             </h3>
-            <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="text-[10px] uppercase font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
               Top Tier
             </span>
           </div>
 
           <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Task Completion Rate</span>
-              <span className="font-bold text-slate-100">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Task Completion Rate</span>
+              <span className="font-bold text-stone-900">
                 {myTasks.length > 0 ? Math.round((myCompletedTasks.length / myTasks.length) * 100) : 100}%
               </span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Weekly Focused Time</span>
-              <span className="font-bold text-blue-400">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Weekly Focused Time</span>
+              <span className="font-bold text-stone-900">
                 {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
               </span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Today Clock Status</span>
-              <span className={`font-semibold ${isCheckedIn ? 'text-emerald-400' : 'text-slate-400'}`}>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Today Clock Status</span>
+              <span className={`font-semibold ${isCheckedIn ? 'text-emerald-700' : 'text-stone-500'}`}>
                 {isCheckedIn ? 'Checked In' : 'Checked Out'}
               </span>
             </div>
@@ -552,36 +546,36 @@ export const EmployeeDashboard: React.FC = () => {
         </div>
 
         {/* Widget 2: My Leave Balances */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-            <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-purple-400" />
+        <div className="ui-card p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
+            <h3 className="text-sm font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+              <Calendar className="w-4 h-4 text-amber-700" />
               <span>My Leave Quota</span>
             </h3>
             <button
               onClick={() => setActiveTab('teams')}
-              className="text-[11px] text-purple-400 hover:text-purple-300 font-medium transition"
+              className="text-[11px] text-amber-800 hover:text-amber-900 font-semibold transition cursor-pointer"
             >
               Request &rarr;
             </button>
           </div>
 
           <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Annual Leave</span>
-              <span className="font-bold text-slate-200">
-                {leaveBalances?.annual?.remaining ?? 20} <span className="text-slate-500 font-normal">/ 20d</span>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Annual Leave</span>
+              <span className="font-bold text-stone-900">
+                {leaveBalances?.annual?.remaining ?? 20} <span className="text-stone-400 font-normal">/ 20d</span>
               </span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Sick Leave</span>
-              <span className="font-bold text-slate-200">
-                {leaveBalances?.sick?.remaining ?? 10} <span className="text-slate-500 font-normal">/ 10d</span>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Sick Leave</span>
+              <span className="font-bold text-stone-900">
+                {leaveBalances?.sick?.remaining ?? 10} <span className="text-stone-400 font-normal">/ 10d</span>
               </span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-              <span className="text-slate-400">Pending Requests</span>
-              <span className="font-bold text-amber-400">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA]">
+              <span className="text-stone-600 font-medium">Pending Requests</span>
+              <span className="font-bold text-amber-800">
                 {leaveBalances?.pendingCount ?? 0} request(s)
               </span>
             </div>
@@ -589,15 +583,15 @@ export const EmployeeDashboard: React.FC = () => {
         </div>
 
         {/* Widget 3: My Goals (OKRs) */}
-        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-            <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
-              <Layers className="w-4 h-4 text-cyan-400" />
+        <div className="ui-card p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
+            <h3 className="text-sm font-semibold text-stone-900 tracking-tight flex items-center gap-2 font-heading">
+              <Layers className="w-4 h-4 text-stone-700" />
               <span>My Goals (OKRs)</span>
             </h3>
             <button
               onClick={() => setActiveTab('teams')}
-              className="text-[11px] text-cyan-400 hover:text-cyan-300 font-medium transition"
+              className="text-[11px] text-amber-800 hover:text-amber-900 font-semibold transition cursor-pointer"
             >
               View All &rarr;
             </button>
@@ -605,19 +599,19 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="space-y-3 text-xs">
             {myGoals.length === 0 ? (
-              <div className="py-6 text-center text-slate-500">
+              <div className="py-6 text-center text-stone-400">
                 No active OKRs registered.
               </div>
             ) : (
               myGoals.slice(0, 2).map((g) => (
-                <div key={g.id} className="p-3 rounded-xl bg-slate-900/60 border border-white/5 space-y-1.5">
+                <div key={g.id} className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="font-medium text-slate-200 truncate max-w-[180px]">{g.title}</span>
-                    <span className="font-bold text-cyan-400">{g.progress}%</span>
+                    <span className="font-semibold text-stone-900 truncate max-w-[180px]">{g.title}</span>
+                    <span className="font-bold text-amber-800">{g.progress}%</span>
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-cyan-500 to-purple-500 h-full rounded-full"
+                      className="bg-amber-700 h-full rounded-full"
                       style={{ width: `${g.progress}%` }}
                     />
                   </div>

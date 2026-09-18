@@ -8,6 +8,7 @@ import {
 } from '../lib/mockData';
 import { ROLE_PERMISSIONS, RolePermissions } from '../lib/auth';
 import { api } from '../lib/api';
+import { realtimeClient } from '../lib/realtime';
 
 interface ToastMessage {
   id: string;
@@ -287,19 +288,47 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
-  // Live real-time background synchronization (every 8s and on window focus)
+  // Live real-time background synchronization (WebSocket event push + polling fallback + window focus)
   useEffect(() => {
     if (isLandingPage || !currentUser?.id) return;
+
+    // 1. Immediate push updates via active WebSocket
+    const unsubProjectEvents = realtimeClient.on('project_*' as any, () => refreshWorkspaceData());
+    const unsubTaskEvents = realtimeClient.on('task_*' as any, () => refreshWorkspaceData());
+    const unsubLeadEvents = realtimeClient.on('lead_*' as any, () => refreshWorkspaceData());
+    const unsubDocEvents = realtimeClient.on('doc_*' as any, () => refreshWorkspaceData());
+    const unsubTeamEvents = realtimeClient.on('team_*' as any, () => refreshWorkspaceData());
+    const unsubGenericEvents = realtimeClient.on('*', (_payload, msg) => {
+      const type = msg?.type || '';
+      if (
+        type.includes('created') ||
+        type.includes('updated') ||
+        type.includes('deleted') ||
+        type.includes('status') ||
+        type.includes('assigned')
+      ) {
+        refreshWorkspaceData();
+      }
+    });
+
+    // 2. Periodic sync fallback (every 8s)
     const interval = setInterval(() => {
       refreshWorkspaceData();
     }, 8000);
 
+    // 3. Tab visibility / focus restore
     const onFocus = () => {
       refreshWorkspaceData();
     };
     window.addEventListener('focus', onFocus);
 
     return () => {
+      unsubProjectEvents();
+      unsubTaskEvents();
+      unsubLeadEvents();
+      unsubDocEvents();
+      unsubTeamEvents();
+      unsubGenericEvents();
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
     };

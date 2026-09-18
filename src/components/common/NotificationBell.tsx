@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { api } from '../../lib/api';
+import { realtimeClient } from '../../lib/realtime';
 
 interface Notification {
   id: string;
@@ -161,8 +162,33 @@ export const NotificationBell: React.FC = () => {
 
   useEffect(() => {
     fetchNotifications();
+
+    // Instant real-time push notification receiver
+    const unsubNotif = realtimeClient.on('notification_created', (payload: any) => {
+      if (payload) {
+        const newNotif: Notification = {
+          id: payload.id || `notif-${Date.now()}`,
+          title: payload.title || 'Workspace Update',
+          message: payload.message || '',
+          type: payload.type || 'system',
+          priority: payload.priority || 'medium',
+          entityType: payload.entityType || payload.entity_type,
+          entityId: payload.entityId || payload.entity_id,
+          link: payload.link,
+          isRead: false,
+          archived: false,
+          createdAt: payload.createdAt || new Date(),
+          metadata: payload.metadata,
+        };
+        setNotifications((prev) => [newNotif, ...prev.filter((item) => item.id !== newNotif.id)]);
+      }
+    });
+
     const pollInterval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(pollInterval);
+    return () => {
+      unsubNotif();
+      clearInterval(pollInterval);
+    };
   }, [activeTab]);
 
   const unreadCount = notifications.filter((n) => !n.isRead && !n.archived).length;

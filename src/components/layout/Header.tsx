@@ -8,6 +8,7 @@ import {
 import { RoleBadge } from '../common/RoleBadge';
 import { NotificationBell } from '../common/NotificationBell';
 import { motion, AnimatePresence } from 'motion/react';
+import { useRealtimeContext } from '../../lib/realtime';
 
 interface HeaderProps {
   onOpenMobileSidebar: () => void;
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
     currentUser, currentRole, searchQuery, setSearchQuery, 
     activeTab, currentWorkspace, systemLogs, permissions, setActiveTab
   } = useWorkspace();
+  const { isConnected, onlineCount } = useRealtimeContext();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showNewActionMenu, setShowNewActionMenu] = useState(false);
 
@@ -222,6 +224,23 @@ export const Header: React.FC<HeaderProps> = ({
             </AnimatePresence>
           </div>
         )}
+
+        {/* Real-time Workspace Connectivity & Online Presence Badge */}
+        <div 
+          className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E3DA] text-xs font-medium shadow-2xs select-none"
+          title={isConnected ? `Live WebSocket Connected • ${onlineCount} active in workspace` : 'Connecting to real-time engine...'}
+        >
+          <span className="relative flex h-2 w-2">
+            {isConnected && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            )}
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`}></span>
+          </span>
+          <span className="text-stone-600 text-[11px] font-medium flex items-center gap-1">
+            <span className="ui-mono font-semibold text-stone-800">{onlineCount}</span>
+            <span className="hidden lg:inline text-stone-500">online</span>
+          </span>
+        </div>
 
         {/* Role Badge */}
         <RoleBadge role={currentRole} size="md" />

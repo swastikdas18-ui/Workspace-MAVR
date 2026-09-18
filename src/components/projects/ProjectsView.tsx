@@ -231,15 +231,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={currentRole === 'admin' ? 'Strategic Initiatives & Team Projects' : 'Assigned Projects & Team Roadmaps'}
+        title={currentRole === 'admin' ? 'Projects & Roadmaps' : 'My Projects'}
         description={
           currentRole === 'admin'
-            ? 'Executive roadmap, milestone tracking, and cross-functional project allocation across teams and individuals.'
-            : 'Track milestone delivery, update progress, and collaborate with team members.'
+            ? 'Plan, organize, and track team projects and milestone progress across your workspace.'
+            : 'Track project milestones, update status, and collaborate with your teammates.'
         }
         badge={
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-white text-stone-700 font-mono border border-[#E8E3DA] font-semibold shadow-2xs">
-            {visibleProjects.length} Initiatives
+            {visibleProjects.length} Projects
           </span>
         }
         actions={

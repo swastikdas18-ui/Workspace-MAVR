@@ -208,17 +208,17 @@ export const EmployeeDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="ui-caption font-bold text-amber-800 uppercase tracking-wider">
-                Execution Engine Hub
+                My Workspace
               </span>
               <span className="text-stone-400">•</span>
-              <span className="ui-mono text-stone-500 font-medium">Personal Work Queue</span>
+              <span className="ui-mono text-stone-500 font-medium">My Assigned Tasks</span>
             </div>
 
             <h1 className="ui-h1 text-stone-900 font-heading">
               Good day, {currentUser.name}
             </h1>
             <p className="ui-body text-stone-600 mt-1.5 max-w-2xl leading-relaxed font-normal">
-              You have <span className="text-stone-900 font-semibold">{myInProgressTasks.length + myTodoTasks.length} active tasks</span> ({myOverdueTasks.length} overdue) across <span className="text-stone-900 font-semibold">{assignedProjects.length} initiatives</span>.
+              You have <span className="text-stone-900 font-semibold">{myInProgressTasks.length + myTodoTasks.length} active tasks</span> ({myOverdueTasks.length} overdue) across <span className="text-stone-900 font-semibold">{assignedProjects.length} projects</span>.
             </p>
           </div>
 

@@ -338,11 +338,11 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="Execution Engine & Task Board"
-        description="Linear state machine: Backlog → Todo → In Progress → Review → Done with live project progress recalculation."
+        title="Tasks Board"
+        description="Organize, assign, and prioritize tasks from backlog to completion."
         badge={
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono border border-white/[0.08]">
-            {visibleTasks.length} Active Work Items
+            {visibleTasks.length} Tasks
           </span>
         }
         actions={

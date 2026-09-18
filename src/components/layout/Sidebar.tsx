@@ -31,38 +31,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const coreNavItems = useMemo(() => {
     if (currentRole === 'admin') {
       return [
-        { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, badge: null },
-        { id: 'crm', label: 'CRM Pipeline', icon: DollarSign, badge: 'Attio' },
-        { id: 'projects', label: 'Projects & Initiatives', icon: FolderKanban, badge: 'All' },
-        { id: 'tasks', label: 'Tasks Engine', icon: CheckSquare, badge: 'Flow' },
-        { id: 'teams', label: 'People OS', icon: Users, badge: null },
-        { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'Docs' },
-        { id: 'settings', label: 'Settings & Config', icon: Settings, badge: null },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
+        { id: 'projects', label: 'Projects', icon: FolderKanban, badge: null },
+        { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: null },
+        { id: 'crm', label: 'Sales & CRM', icon: DollarSign, badge: null },
+        { id: 'teams', label: 'Team Members', icon: Users, badge: null },
+        { id: 'knowledge', label: 'Docs & Wiki', icon: BookOpen, badge: null },
+        { id: 'settings', label: 'Settings', icon: Settings, badge: null },
       ];
     }
 
     if (currentRole === 'employee') {
       return [
-        { id: 'dashboard', label: 'Productivity Hub', icon: LayoutDashboard, badge: null },
-        { id: 'tasks', label: 'Tasks & Board', icon: CheckSquare, badge: 'Flow' },
-        { id: 'projects', label: 'Assigned Projects', icon: FolderKanban, badge: 'Active' },
-        { id: 'teams', label: 'People OS', icon: Users, badge: null },
-        { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'Docs' },
+        { id: 'dashboard', label: 'My Dashboard', icon: LayoutDashboard, badge: null },
+        { id: 'tasks', label: 'My Tasks', icon: CheckSquare, badge: null },
+        { id: 'projects', label: 'Projects', icon: FolderKanban, badge: null },
+        { id: 'teams', label: 'Team Directory', icon: Users, badge: null },
+        { id: 'knowledge', label: 'Docs & Wiki', icon: BookOpen, badge: null },
         { id: 'settings', label: 'Settings', icon: Settings, badge: null },
       ];
     }
 
     if (currentRole === 'guest') {
       return [
-        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: 'Deliverables' },
+        { id: 'portal', label: 'Client Portal', icon: Sparkles, badge: null },
       ];
     }
 
-    // Intern Role: strictly Command Sandbox, Learning Tasks, Knowledge Center, Time
+    // Intern Role: strictly Dashboard, Learning Tasks, Docs, Time
     return [
-      { id: 'dashboard', label: 'Learning Sandbox', icon: LayoutDashboard, badge: 'Overview' },
-      { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: 'Curriculum' },
-      { id: 'knowledge', label: 'Knowledge Center', icon: BookOpen, badge: 'SOPs' },
+      { id: 'dashboard', label: 'Intern Dashboard', icon: LayoutDashboard, badge: null },
+      { id: 'tasks', label: 'Assigned Tasks', icon: CheckSquare, badge: null },
+      { id: 'knowledge', label: 'Learning Guides', icon: BookOpen, badge: null },
       { id: 'time', label: 'Time Logs', icon: Clock, badge: null },
     ];
   }, [currentRole]);

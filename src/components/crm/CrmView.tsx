@@ -122,15 +122,15 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={currentRole === 'admin' ? 'B2B Revenue CRM Pipeline' : 'Assigned Client Deals'}
+        title={currentRole === 'admin' ? 'Sales Pipeline & CRM' : 'My Deals & Leads'}
         description={
           currentRole === 'admin'
-            ? 'Account lifecycle tracking, deal pipeline stages, revenue forecasting, and client communication.'
-            : 'Track conversations, update negotiation notes, and advance client opportunities.'
+            ? 'Track deals through pipeline stages, monitor revenue forecasts, and manage customer contacts.'
+            : 'Track conversations, update negotiation notes, and close client deals.'
         }
         badge={
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono font-bold">
-            ₹{totalValue.toLocaleString()} Pipeline
+            ₹{totalValue.toLocaleString()} Total Pipeline
           </span>
         }
         actions={
@@ -146,7 +146,7 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Pipeline Board</span>
+                <span className="hidden sm:inline">Kanban Board</span>
               </button>
               <button
                 onClick={() => setActiveTab('table')}
@@ -157,7 +157,7 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Data Grid</span>
+                <span className="hidden sm:inline">Table View</span>
               </button>
             </div>
 

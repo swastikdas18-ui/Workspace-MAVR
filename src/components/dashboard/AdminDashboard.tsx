@@ -102,14 +102,14 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* ========================================================================= */}
-      {/* PRIORITY 1: COMMAND CENTER WELCOME & QUICK ACTIONS */}
+      {/* PRIORITY 1: DASHBOARD OVERVIEW & QUICK ACTIONS */}
       {/* ========================================================================= */}
       <div className="ui-card p-6 sm:p-8 relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="ui-caption font-bold text-amber-800 uppercase tracking-wider">
-                Command Center
+                Workspace Overview
               </span>
               <span className="text-stone-400">•</span>
               <span className="ui-mono text-stone-500 font-medium">Workspace: {currentWorkspace.name}</span>
@@ -119,7 +119,7 @@ export const AdminDashboard: React.FC = () => {
               Welcome back, {currentUser.name}
             </h1>
             <p className="ui-body text-stone-600 max-w-2xl font-normal">
-              Real-time operational status across initiatives, team velocity, deal pipelines, and workspace collaboration.
+              Here is what is happening across your projects, team members, sales pipeline, and documents today.
             </p>
           </div>
 
@@ -130,7 +130,7 @@ export const AdminDashboard: React.FC = () => {
               className="ui-btn ui-btn-primary"
             >
               <Plus className="w-3.5 h-3.5 text-amber-300" />
-              <span>Create Project</span>
+              <span>New Project</span>
             </button>
 
             <button
@@ -138,7 +138,7 @@ export const AdminDashboard: React.FC = () => {
               className="ui-btn ui-btn-secondary"
             >
               <CheckSquare className="w-3.5 h-3.5 text-stone-700" />
-              <span>Create Task</span>
+              <span>New Task</span>
             </button>
 
             <button
@@ -162,22 +162,22 @@ export const AdminDashboard: React.FC = () => {
               className="ui-btn ui-btn-secondary"
             >
               <FileUp className="w-3.5 h-3.5 text-stone-700" />
-              <span>Upload Doc</span>
+              <span>Upload File</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Workspace OS Pro Banner - Warm Ivory */}
+      {/* Workspace Plan Banner - Warm Ivory */}
       <div className="px-4 py-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-2.5">
           <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
           <p className="ui-caption text-stone-700">
-            <strong className="text-stone-900 font-bold">Workspace OS Full Suite:</strong> Unmetered operations across projects, tasks engine, team directory, document vault, automations, and CRM.
+            <strong className="text-stone-900 font-bold">Workspace Active:</strong> Everything you need to manage projects, tasks, team directory, files, automations, and sales in one place.
           </p>
         </div>
         <span className="ui-mono text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 font-bold shrink-0">
-          Enterprise Tier
+          Unlimited Plan
         </span>
       </div>
 
@@ -185,17 +185,17 @@ export const AdminDashboard: React.FC = () => {
       <OnboardingChecklist />
 
       {/* ========================================================================= */}
-      {/* PRIORITY 2: CORE OPERATING KPIS */}
+      {/* PRIORITY 2: KEY PERFORMANCE METRICS */}
       {/* ========================================================================= */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="ui-caption font-bold uppercase tracking-wider text-stone-500">
-              Company Operational Telemetry
+              Key Metrics at a Glance
             </h2>
           </div>
           <span className="ui-mono text-[10px] text-stone-400 font-medium">
-            Live Telemetry
+            Live Updates
           </span>
         </div>
 
@@ -258,22 +258,22 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* PRIORITY 3: PROJECT & TASK EXECUTION METRICS */}
+      {/* PRIORITY 3: PROJECT & TASK PROGRESS */}
       {/* ========================================================================= */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="ui-caption font-bold uppercase tracking-wider text-stone-500">
-            Project & Sprint Execution
+            Projects & Task Progress
           </h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Initiatives Matrix / Projects Status */}
+          {/* Projects Status */}
           <div className="ui-card p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
               <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
                 <FolderKanban className="w-4 h-4 text-sky-700" />
-                <span>Projects Status</span>
+                <span>Projects Overview</span>
               </h3>
               <button
                 onClick={() => setActiveTab('projects')}
@@ -338,12 +338,12 @@ export const AdminDashboard: React.FC = () => {
             )}
           </div>
 
-          {/* Task Velocity & Engine Telemetry */}
+          {/* Task Velocity */}
           <div className="ui-card p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
               <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
                 <CheckSquare className="w-4 h-4 text-amber-700" />
-                <span>Sprint Task Velocity</span>
+                <span>Task Completion</span>
               </h3>
               <button
                 onClick={() => setActiveTab('tasks')}
@@ -357,7 +357,7 @@ export const AdminDashboard: React.FC = () => {
             {/* Velocity Progress Bar */}
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-stone-600 font-medium">Task Completion Rate</span>
+                <span className="text-stone-600 font-medium">Completion Rate</span>
                 <span className="text-stone-900 font-mono font-bold">
                   {tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%
                 </span>
@@ -369,7 +369,7 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
               <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 font-medium">
-                <span>{completedTasks} resolved</span>
+                <span>{completedTasks} completed</span>
                 <span>{openTasks} active</span>
               </div>
             </div>
@@ -386,12 +386,12 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Team Workload & Department Allocation */}
+          {/* Team Workload */}
           <div className="ui-card p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
               <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
                 <Users className="w-4 h-4 text-stone-700" />
-                <span>Department Workload</span>
+                <span>Team Workload</span>
               </h3>
               <button
                 onClick={() => setActiveTab('teams')}
@@ -437,12 +437,12 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* PRIORITY 4: SECONDARY TELEMETRY & OPERATIONS */}
+      {/* PRIORITY 4: WORKSPACE ACTIVITY & FILES */}
       {/* ========================================================================= */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="ui-caption font-bold uppercase tracking-wider text-stone-500">
-            Workspace Activity & Operational Analytics
+            Recent Activity & Knowledge
           </h2>
         </div>
 
@@ -490,31 +490,31 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
               <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
                 <FileText className="w-4 h-4 text-amber-700" />
-                <span>Document Vault</span>
+                <span>Docs & Files</span>
               </h3>
               <button
                 onClick={() => setActiveTab('documents')}
                 className="ui-caption text-amber-800 hover:text-amber-900 font-semibold flex items-center gap-1 cursor-pointer"
               >
-                <span>Vault</span>
+                <span>View All</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-stone-500 font-medium">Total Assets</span>
+                <span className="ui-caption text-stone-500 font-medium">Total Files</span>
                 <div className="ui-h2 text-stone-900 mt-1">{documentCount}</div>
               </div>
               <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-amber-800 font-semibold">Wiki / SOPs</span>
+                <span className="ui-caption text-amber-800 font-semibold">Wiki / Guides</span>
                 <div className="ui-h2 text-amber-800 mt-1">{wikiCount}</div>
               </div>
             </div>
 
             <div className="space-y-2 pt-1">
               <span className="ui-caption font-bold uppercase tracking-wider text-stone-500">
-                Recent Knowledge Assets
+                Recent Documents
               </span>
               <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                 {documents.slice(0, 4).map((doc: any) => (
@@ -534,7 +534,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Executive People Operating System Telemetry */}
+        {/* Team & Personnel Overview */}
         <div className="ui-card p-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#E8E3DA]">
             <div className="flex items-center gap-3">
@@ -543,13 +543,13 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
-                  <span>Executive People Operating System</span>
+                  <span>Team & Personnel</span>
                   <span className="ui-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
-                    HR & Talent
+                    Directory
                   </span>
                 </h3>
                 <p className="ui-body text-stone-500 mt-0.5 font-normal">
-                  Workforce capacity, daily presence, OKR milestone execution, and talent metrics.
+                  Team size, active members today, department breakdowns, and task completion.
                 </p>
               </div>
             </div>
@@ -557,7 +557,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('teams')}
               className="ui-btn ui-btn-secondary"
             >
-              <span>Manage People OS</span>
+              <span>Manage Team</span>
               <ArrowRight className="w-3.5 h-3.5 text-stone-600" />
             </button>
           </div>
@@ -566,14 +566,14 @@ export const AdminDashboard: React.FC = () => {
             {/* Workforce Breakdown */}
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-2">
               <div className="flex items-center justify-between ui-caption text-stone-500 font-medium">
-                <span>Workforce Roster</span>
+                <span>Team Members</span>
                 <Users className="w-3.5 h-3.5 text-stone-600" />
               </div>
               <div className="ui-h2 text-stone-900">
                 {peopleAnalytics?.workforce?.totalEmployees ?? users.length} <span className="ui-caption font-normal text-stone-500">Members</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#E8E3DA]">
-                <span>{peopleAnalytics?.workforce?.departmentsCount ?? teams.length} Departments</span>
+                <span>{peopleAnalytics?.workforce?.departmentsCount ?? teams.length} Teams</span>
                 <span>{peopleAnalytics?.workforce?.internsCount ?? users.filter(u => u.role === 'intern').length} Interns</span>
               </div>
             </div>
@@ -596,11 +596,11 @@ export const AdminDashboard: React.FC = () => {
             {/* Hiring & Growth */}
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-2">
               <div className="flex items-center justify-between ui-caption text-stone-500 font-medium">
-                <span>Hiring & Joinees</span>
+                <span>Open Positions</span>
                 <UserPlus className="w-3.5 h-3.5 text-sky-700" />
               </div>
               <div className="ui-h2 text-sky-700">
-                {peopleAnalytics?.hiring?.openPositions ?? 0} <span className="ui-caption font-normal text-stone-500">Openings</span>
+                {peopleAnalytics?.hiring?.openPositions ?? 0} <span className="ui-caption font-normal text-stone-500">Open</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#E8E3DA]">
                 <span>New Joinees: {peopleAnalytics?.hiring?.newJoineesCount ?? users.length}</span>
@@ -610,20 +610,20 @@ export const AdminDashboard: React.FC = () => {
             {/* Performance & OKRs */}
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-2">
               <div className="flex items-center justify-between ui-caption text-stone-500 font-medium">
-                <span>Average Goal Velocity</span>
+                <span>Goal Progress</span>
                 <TrendingUp className="w-3.5 h-3.5 text-stone-700" />
               </div>
               <div className="ui-h2 text-stone-900">
                 {peopleAnalytics?.performance?.averageGoalProgress ?? (tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0)}%
               </div>
               <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-[#E8E3DA]">
-                <span>At-Risk OKRs: {peopleAnalytics?.performance?.atRiskCount ?? 0}</span>
+                <span>At-Risk Goals: {peopleAnalytics?.performance?.atRiskCount ?? 0}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Executive Automation Engine Telemetry */}
+        {/* Automations & Workflows */}
         <div className="ui-card p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E3DA]">
             <div className="flex items-center gap-3">
@@ -632,13 +632,13 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
-                  <span>Executive Automation Engine</span>
+                  <span>Automations & Workflows</span>
                   <span className="ui-mono text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 font-semibold">
-                    Live Pipelines
+                    Active
                   </span>
                 </h3>
                 <p className="ui-body text-stone-500 mt-0.5 font-normal">
-                  Automated event triggers, condition evaluations, and dispatch telemetry.
+                  Background tasks, event triggers, and rule executions.
                 </p>
               </div>
             </div>
@@ -646,18 +646,18 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('automations')}
               className="ui-btn ui-btn-secondary"
             >
-              <span>Open Automation Studio</span>
+              <span>View Automations</span>
               <ArrowRight className="w-3.5 h-3.5 text-stone-600" />
             </button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-              <span className="ui-caption font-semibold text-stone-500">Automations Executed</span>
+              <span className="ui-caption font-semibold text-stone-500">Automations Run</span>
               <div className="ui-h2 text-stone-900 mt-1">
                 {automationAnalytics?.totalExecutions ?? (automationAnalytics?.automationExecutions ?? 0)}
               </div>
-              <span className="text-[11px] text-emerald-700 font-medium">Triggered by system events</span>
+              <span className="text-[11px] text-emerald-700 font-medium">System triggers & actions</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
@@ -665,15 +665,15 @@ export const AdminDashboard: React.FC = () => {
               <div className="ui-h2 text-emerald-700 mt-1">
                 {automationAnalytics?.successRate !== undefined ? `${automationAnalytics.successRate}%` : '100%'}
               </div>
-              <span className="text-[11px] text-stone-500 font-medium">Zero fatal pipeline failures</span>
+              <span className="text-[11px] text-stone-500 font-medium">Completed smoothly</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-              <span className="ui-caption font-semibold text-stone-500">Failed Automations</span>
+              <span className="ui-caption font-semibold text-stone-500">Failed Runs</span>
               <div className="ui-h2 text-stone-600 mt-1">
                 {automationAnalytics?.failedExecutions ?? (automationAnalytics?.failedCount ?? 0)}
               </div>
-              <span className="text-[11px] text-emerald-700 font-medium">All conditions resolved</span>
+              <span className="text-[11px] text-emerald-700 font-medium">All running as expected</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
@@ -681,7 +681,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="ui-h2 text-amber-800 mt-1">
                 {automationAnalytics?.activeRules ?? (automationAnalytics?.totalRules ?? 0)} Rules
               </div>
-              <span className="text-[11px] text-stone-500 font-medium">Configured in Automation Studio</span>
+              <span className="text-[11px] text-stone-500 font-medium">Configured workflows</span>
             </div>
           </div>
         </div>

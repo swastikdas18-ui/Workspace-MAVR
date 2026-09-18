@@ -30,17 +30,17 @@ export const InternDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="ui-caption font-bold text-emerald-800 uppercase tracking-wider">
-                Internship & Learning Sandbox
+                Intern Dashboard
               </span>
               <span className="text-stone-400">•</span>
-              <span className="ui-mono text-stone-500 font-medium">Guarded Workspace Mode</span>
+              <span className="ui-mono text-stone-500 font-medium">Learning & Tasks</span>
             </div>
 
             <h1 className="ui-h1 text-stone-900 font-heading">
               Welcome to Workspace OS, {currentUser.name}
             </h1>
             <p className="ui-body text-stone-600 mt-1.5 max-w-2xl leading-relaxed font-normal">
-              Master the engineering and product workflows. Complete your assigned learning tasks and review onboarding guides.
+              Track your assigned tasks, review learning materials, and collaborate with your mentors.
             </p>
           </div>
 

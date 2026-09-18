@@ -294,7 +294,7 @@ export const NotificationBell: React.FC = () => {
       <button
         id="notification-bell-btn"
         onClick={() => setIsOpen((v) => !v)}
-        className="relative p-2 rounded-xl bg-white border border-[#E8E3DA] hover:bg-stone-50 transition-all text-stone-600 hover:text-stone-900 cursor-pointer shadow-xs"
+        className="relative p-2 rounded-xl bg-[#111827] border border-[#1E293B] hover:bg-slate-800 transition-all text-slate-400 hover:text-slate-100 cursor-pointer shadow-xs"
         aria-label="Open notifications"
       >
         <Bell className="w-4 h-4" />
@@ -302,7 +302,7 @@ export const NotificationBell: React.FC = () => {
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 bg-amber-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 shadow-sm"
+            className="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 shadow-sm"
           >
             {unreadCount > 9 ? '9+' : unreadCount}
           </motion.span>
@@ -318,15 +318,15 @@ export const NotificationBell: React.FC = () => {
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             id="notification-panel"
-            className="absolute right-0 top-12 w-88 sm:w-[440px] bg-white border border-[#E8E3DA] rounded-2xl shadow-[0_16px_40px_rgba(28,25,23,0.15)] overflow-hidden z-50 flex flex-col"
+            className="absolute right-0 top-12 w-88 sm:w-[440px] bg-[#151D2E] border border-[#1E293B] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.6)] overflow-hidden z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-[#E8E3DA] flex items-center justify-between bg-[#FAF8F5]">
+            <div className="px-4 py-3 border-b border-[#1E293B] flex items-center justify-between bg-[#0F172A]/80">
               <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-amber-700" />
-                <span className="text-xs font-bold text-stone-900 uppercase tracking-wider">Notification Center</span>
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">Notification Center</span>
                 {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded-full font-mono">
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-mono">
                     {unreadCount} new
                   </span>
                 )}
@@ -335,7 +335,7 @@ export const NotificationBell: React.FC = () => {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-[11px] text-stone-500 hover:text-amber-800 font-medium flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50 transition-all cursor-pointer"
+                    className="text-[11px] text-slate-400 hover:text-emerald-300 font-medium flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
                     title="Mark all as read"
                   >
                     <CheckCheck className="w-3 h-3" />
@@ -344,7 +344,7 @@ export const NotificationBell: React.FC = () => {
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition-all cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -352,15 +352,15 @@ export const NotificationBell: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="px-3 pt-2.5 pb-1.5 border-b border-[#E8E3DA] bg-[#FAF8F5]">
+            <div className="px-3 pt-2.5 pb-1.5 border-b border-[#1E293B] bg-[#0F172A]/60">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5" />
                 <input
                   type="text"
                   placeholder="Search by title or message..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-[#E8E3DA] rounded-lg pl-8 pr-3 py-1 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-amber-600 transition"
+                  className="w-full bg-[#111827] border border-[#1E293B] rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                 />
                 {searchQuery && (
                   <button

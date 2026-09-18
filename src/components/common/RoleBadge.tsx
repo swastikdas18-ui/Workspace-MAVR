@@ -21,31 +21,31 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
         return {
           label: 'Admin',
           icon: Shield,
-          styles: 'bg-amber-100 text-amber-900 border-amber-300/80 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
+          styles: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_1px_3px_rgba(16,185,129,0.2)]',
         };
       case 'employee':
         return {
           label: 'Employee',
           icon: Briefcase,
-          styles: 'bg-blue-50 text-blue-900 border-blue-200 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
+          styles: 'bg-sky-500/15 text-sky-300 border-sky-500/30 shadow-[0_1px_3px_rgba(14,165,233,0.2)]',
         };
       case 'intern':
         return {
           label: 'Intern',
           icon: GraduationCap,
-          styles: 'bg-emerald-50 text-emerald-900 border-emerald-200 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
+          styles: 'bg-teal-500/15 text-teal-300 border-teal-500/30 shadow-[0_1px_3px_rgba(20,184,166,0.2)]',
         };
       case 'guest':
         return {
           label: 'Guest',
           icon: UserRound,
-          styles: 'bg-stone-100 text-stone-700 border-stone-300 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
+          styles: 'bg-slate-800 text-slate-300 border-slate-700',
         };
       default:
         return {
           label: 'Guest',
           icon: UserRound,
-          styles: 'bg-stone-100 text-stone-700 border-stone-300 shadow-[0_1px_2px_rgba(28,25,23,0.04)]',
+          styles: 'bg-slate-800 text-slate-300 border-slate-700',
         };
     }
   };

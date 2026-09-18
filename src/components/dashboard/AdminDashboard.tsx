@@ -104,21 +104,21 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {/* PRIORITY 1: DASHBOARD OVERVIEW & QUICK ACTIONS */}
       {/* ========================================================================= */}
-      <div className="ui-card p-6 sm:p-8 relative overflow-hidden">
+      <div className="ui-card p-6 sm:p-8 relative overflow-hidden bg-[#151D2E] border border-[#1E293B]">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="ui-caption font-bold text-amber-800 uppercase tracking-wider">
+              <span className="ui-caption font-bold text-emerald-400 uppercase tracking-wider">
                 Workspace Overview
               </span>
-              <span className="text-stone-400">•</span>
-              <span className="ui-mono text-stone-500 font-medium">Workspace: {currentWorkspace.name}</span>
+              <span className="text-slate-600">•</span>
+              <span className="ui-mono text-slate-400 font-medium">Workspace: {currentWorkspace.name}</span>
             </div>
 
-            <h1 className="ui-h1 text-stone-900 font-heading">
+            <h1 className="ui-h1 text-white font-heading">
               Welcome back, {currentUser.name}
             </h1>
-            <p className="ui-body text-stone-600 max-w-2xl font-normal">
+            <p className="ui-body text-slate-400 max-w-2xl font-normal">
               Here is what is happening across your projects, team members, sales pipeline, and documents today.
             </p>
           </div>
@@ -129,7 +129,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('projects')}
               className="ui-btn ui-btn-primary"
             >
-              <Plus className="w-3.5 h-3.5 text-amber-300" />
+              <Plus className="w-3.5 h-3.5 text-slate-950" />
               <span>New Project</span>
             </button>
 
@@ -137,7 +137,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('tasks')}
               className="ui-btn ui-btn-secondary"
             >
-              <CheckSquare className="w-3.5 h-3.5 text-stone-700" />
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
               <span>New Task</span>
             </button>
 
@@ -145,7 +145,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('teams')}
               className="ui-btn ui-btn-secondary"
             >
-              <UserPlus className="w-3.5 h-3.5 text-stone-700" />
+              <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
               <span>Invite Member</span>
             </button>
 
@@ -153,7 +153,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('crm')}
               className="ui-btn ui-btn-secondary"
             >
-              <DollarSign className="w-3.5 h-3.5 text-stone-700" />
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
               <span>Add Deal</span>
             </button>
 
@@ -161,22 +161,22 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('documents')}
               className="ui-btn ui-btn-secondary"
             >
-              <FileUp className="w-3.5 h-3.5 text-stone-700" />
+              <FileUp className="w-3.5 h-3.5 text-emerald-400" />
               <span>Upload File</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Workspace Plan Banner - Warm Ivory */}
-      <div className="px-4 py-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+      {/* Workspace Plan Banner - Emerald Glow */}
+      <div className="px-4 py-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-2.5">
-          <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
-          <p className="ui-caption text-stone-700">
-            <strong className="text-stone-900 font-bold">Workspace Active:</strong> Everything you need to manage projects, tasks, team directory, files, automations, and sales in one place.
+          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <p className="ui-caption text-slate-300">
+            <strong className="text-white font-bold">Workspace Active:</strong> Everything you need to manage projects, tasks, team directory, files, automations, and sales in one place.
           </p>
         </div>
-        <span className="ui-mono text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 font-bold shrink-0">
+        <span className="ui-mono text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shrink-0">
           Unlimited Plan
         </span>
       </div>
@@ -190,11 +190,11 @@ export const AdminDashboard: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="ui-caption font-bold uppercase tracking-wider text-stone-500">
+            <h2 className="ui-caption font-bold uppercase tracking-wider text-slate-400">
               Key Metrics at a Glance
             </h2>
           </div>
-          <span className="ui-mono text-[10px] text-stone-400 font-medium">
+          <span className="ui-mono text-[10px] text-emerald-400 font-medium">
             Live Updates
           </span>
         </div>

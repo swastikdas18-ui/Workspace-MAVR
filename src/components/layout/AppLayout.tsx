@@ -228,7 +228,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FBF9F5] flex flex-col font-sans text-stone-900 selection:bg-amber-200 selection:text-stone-900">
+    <div className="min-h-screen bg-[#0B0F17] flex flex-col font-sans text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300">
       <div className="flex flex-1 overflow-hidden">
         {/* Responsive Enterprise Sidebar */}
         <Sidebar
@@ -240,7 +240,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         />
 
         {/* Main Content Viewport */}
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-gradient-to-b from-[#F7F4EE]/70 to-[#FBF9F5]">
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-gradient-to-b from-[#0F172A] to-[#0B0F17]">
           <Header
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}

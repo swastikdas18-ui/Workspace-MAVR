@@ -100,25 +100,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={() => handleNavClick(item.id)}
         className={`group relative w-full flex items-center gap-3 px-3 py-2 rounded-[14px] text-xs font-medium transition-all duration-150 cursor-pointer ${
           isActive
-            ? 'text-stone-950 font-semibold'
-            : 'text-stone-600 hover:text-stone-900 hover:bg-[#EFECE6]'
+            ? 'text-white font-semibold'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
         } ${isCollapsed ? 'justify-center px-2' : ''}`}
         title={isCollapsed ? item.label : undefined}
       >
-        {/* Animated selection background badge (Editorial warm stone) */}
+        {/* Animated selection background badge (Midnight Obsidian Elevation) */}
         {isActive && (
           <motion.div
             layoutId="sidebarActiveBackground"
-            className="absolute inset-0 bg-[#EAE5DC] border border-[#DDD7CC] rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.03)]"
+            className="absolute inset-0 bg-emerald-500/10 border border-emerald-500/20 rounded-[14px] shadow-[0_1px_4px_rgba(16,185,129,0.15)]"
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
           />
         )}
 
-        {/* Left accent bar for active item (Terracotta) */}
+        {/* Left accent bar for active item (Emerald) */}
         {isActive && (
           <motion.div
             layoutId="sidebarActivePill"
-            className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-[#C2410C] rounded-full shadow-[0_0_6px_rgba(194,65,12,0.4)]"
+            className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-[#10B981] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]"
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
           />
         )}
@@ -126,22 +126,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="relative z-10 flex items-center justify-center shrink-0 w-4 h-4">
           <Icon
             className={`w-4 h-4 transition-colors duration-150 ${
-              isActive ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'
+              isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'
             }`}
           />
         </div>
 
         {!isCollapsed && (
           <div className="relative z-10 flex items-center justify-between flex-1 min-w-0">
-            <span className={`truncate text-left tracking-tight ${isActive ? 'font-bold text-stone-950' : 'font-medium'}`}>
+            <span className={`truncate text-left tracking-tight ${isActive ? 'font-bold text-white' : 'font-medium'}`}>
               {item.label}
             </span>
             {item.badge && (
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-[8px] font-mono shrink-0 ml-1.5 ${
                   isActive
-                    ? 'bg-[#DDD7CC] text-stone-800 border border-[#D0C9BD]'
-                    : 'bg-[#EAE5DC] text-stone-600 border border-[#E0DBD0]'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700'
                 }`}
               >
                 {item.badge}
@@ -154,9 +154,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#F5F2EB] border-r border-[#E8E3DA] text-stone-700 select-none">
+    <div className="flex flex-col h-full bg-[#0B0F17] border-r border-[#1E293B] text-slate-300 select-none">
       {/* TOP SECTION: Workspace Brand & Switcher */}
-      <div className="p-3 border-b border-[#E8E3DA] bg-[#EFECE4]">
+      <div className="p-3 border-b border-[#1E293B] bg-[#0F172A]/70">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <WorkspaceSelector compact={isCollapsed} />
@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Collapse toggle on desktop */}
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:flex p-1.5 rounded-[10px] text-stone-400 hover:text-stone-800 hover:bg-stone-200/60 transition-colors cursor-pointer shrink-0"
+            className="hidden lg:flex p-1.5 rounded-[10px] text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer shrink-0"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -178,13 +178,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-3 pt-3">
           <button
             onClick={onOpenCommandPalette}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-[14px] bg-[#FFFFFF] border border-[#E8E3DA] hover:border-amber-600/40 text-stone-500 hover:text-stone-900 text-xs transition-all shadow-[0_1px_2px_rgba(28,25,23,0.04)] group cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-[14px] bg-[#111827] border border-[#1E293B] hover:border-emerald-500/40 text-slate-400 hover:text-slate-200 text-xs transition-all shadow-[0_1px_3px_rgba(0,0,0,0.3)] group cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
-              <span className="font-medium text-stone-700 group-hover:text-stone-950">Quick Find</span>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span className="font-medium text-slate-300 group-hover:text-white">Quick Find</span>
             </div>
-            <kbd className="text-[10px] font-mono text-stone-500 bg-[#F5F2EB] px-1.5 py-0.5 rounded-[6px] border border-[#E2DDD3]">
+            <kbd className="text-[10px] font-mono text-slate-400 bg-[#1E293B] px-1.5 py-0.5 rounded-[6px] border border-slate-700">
               ⌘K
             </kbd>
           </button>
@@ -194,7 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* MIDDLE SECTION: Navigation Items */}
       <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
         {!isCollapsed && (
-          <div className="px-3 py-1.5 ui-caption font-semibold uppercase tracking-wider text-stone-400">
+          <div className="px-3 py-1.5 ui-caption font-semibold uppercase tracking-wider text-slate-500">
             Workspace
           </div>
         )}
@@ -205,11 +205,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             <div className="pt-3 pb-1">
               {!isCollapsed ? (
-                <div className="px-3 py-1 ui-caption font-semibold uppercase tracking-wider text-amber-800/80 border-t border-[#E8E3DA] pt-3">
+                <div className="px-3 py-1 ui-caption font-semibold uppercase tracking-wider text-emerald-400/80 border-t border-[#1E293B] pt-3">
                   Extensions
                 </div>
               ) : (
-                <div className="border-t border-[#E8E3DA] my-2" />
+                <div className="border-t border-[#1E293B] my-2" />
               )}
             </div>
             {labsNavItems.map(renderNavItem)}
@@ -218,15 +218,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* BOTTOM SECTION: User Profile, Activity, Logout */}
-      <div className="p-3 border-t border-[#E8E3DA] bg-[#EFECE4]">
-        <div className={`flex items-center gap-2.5 p-1.5 rounded-[16px] hover:bg-stone-200/50 transition-colors ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className="p-3 border-t border-[#1E293B] bg-[#0F172A]/70">
+        <div className={`flex items-center gap-2.5 p-1.5 rounded-[16px] hover:bg-slate-800/60 transition-colors ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div 
             onClick={() => setActiveTab('settings')}
             className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
           >
             <div className="relative shrink-0">
               <UserAvatar name={currentUser.name} avatar={currentUser.avatar} size="md" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#EFECE4]" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#0F172A]" />
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">

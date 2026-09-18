@@ -61,15 +61,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   }, [isOpen]);
 
-  // Auto-scroll selected command item into view smoothly
-  useEffect(() => {
-    if (!listContainerRef.current) return;
-    const selectedEl = listContainerRef.current.querySelector<HTMLElement>(`[data-testid="command-item-${safeSelectedIndex}"]`);
-    if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
-      selectedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  }, [safeSelectedIndex]);
-
   // Define quick navigation items based on role
   const navCommands = useMemo<CommandItem[]>(() => {
     try {
@@ -142,7 +133,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         actions.push({
           id: 'action-project',
           label: 'Create New Project',
-          icon: Plus,
+          icon: FolderKanban,
           category: 'Quick Actions',
           action: () => {
             onClose();
@@ -158,8 +149,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       if (permissions?.crm?.createRecord && typeof onOpenCreateLead === 'function') {
         actions.push({
           id: 'action-lead',
-          label: 'Add CRM Lead',
-          icon: Plus,
+          label: 'Add CRM Deal',
+          icon: DollarSign,
           category: 'Quick Actions',
           action: () => {
             onClose();
@@ -176,7 +167,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         actions.push({
           id: 'action-doc',
           label: 'Upload Document',
-          icon: FileUp,
+          icon: FileText,
           category: 'Quick Actions',
           action: () => {
             onClose();
@@ -256,34 +247,36 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
     // 2. Tasks
     try {
-      const safeTasks = Array.isArray(tasks) ? tasks : [];
-      safeTasks
-        .filter(t => {
-          if (!t || typeof t !== 'object') return false;
-          const title = String(t.title || '');
-          const desc = String(t.description || '');
-          return title.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-        })
-        .slice(0, 4)
-        .forEach((t, idx) => {
-          const title = String(t.title || 'Untitled Task');
-          const id = t.id ? String(t.id) : `task-idx-${idx}`;
-          matches.push({
-            id: `task-${id}`,
-            label: `Task: ${title}`,
-            icon: CheckSquare,
-            category: 'Tasks',
-            action: () => {
-              try {
-                setActiveTab('tasks');
-              } catch (err) {
-                SentryClient.captureException(err, { extra: { action: 'openTask', taskId: id } });
-              } finally {
-                onClose();
-              }
-            },
+      if (permissions?.tasks?.viewAssigned || permissions?.tasks?.viewAll) {
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        safeTasks
+          .filter(t => {
+            if (!t || typeof t !== 'object') return false;
+            const title = String(t.title || '');
+            const desc = String(t.description || '');
+            return title.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+          })
+          .slice(0, 4)
+          .forEach((t, idx) => {
+            const title = String(t.title || 'Untitled Task');
+            const id = t.id ? String(t.id) : `task-idx-${idx}`;
+            matches.push({
+              id: `task-${id}`,
+              label: `Task: ${title}`,
+              icon: CheckSquare,
+              category: 'Tasks',
+              action: () => {
+                try {
+                  setActiveTab('tasks');
+                } catch (err) {
+                  SentryClient.captureException(err, { extra: { action: 'openTask', taskId: id } });
+                } finally {
+                  onClose();
+                }
+              },
+            });
           });
-        });
+      }
     } catch (err) {
       SentryClient.captureException(err, { extra: { context: 'searchTasks' } });
     }
@@ -392,6 +385,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     if (selectedIndex >= allItems.length) return allItems.length - 1;
     return selectedIndex;
   }, [selectedIndex, allItems.length]);
+
+  // Auto-scroll selected command item into view smoothly
+  useEffect(() => {
+    if (!listContainerRef.current) return;
+    const selectedEl = listContainerRef.current.querySelector<HTMLElement>(`[data-testid="command-item-${safeSelectedIndex}"]`);
+    if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+      selectedEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [safeSelectedIndex]);
 
   // Handle keyboard navigation with boundary verification
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

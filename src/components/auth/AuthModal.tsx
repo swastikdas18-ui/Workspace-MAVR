@@ -84,10 +84,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           });
         }
       } else if (mode === 'start-org') {
-        const res = await api.createWorkspace({
+        const res = await api.register({
           workspaceName: workspaceName.trim(),
-          adminName: name.trim(),
-          adminEmail: email.trim(),
+          name: name.trim(),
+          email: email.trim(),
           password,
         });
         if (res?.user) {

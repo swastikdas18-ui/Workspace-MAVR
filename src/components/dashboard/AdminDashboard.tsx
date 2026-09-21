@@ -262,7 +262,7 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================================= */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="ui-caption font-bold uppercase tracking-wider text-stone-500">
+          <h2 className="ui-caption font-bold uppercase tracking-wider text-slate-400">
             Projects & Task Progress
           </h2>
         </div>
@@ -270,14 +270,14 @@ export const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Projects Status */}
           <div className="ui-card p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
-              <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
-                <FolderKanban className="w-4 h-4 text-sky-700" />
+            <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
+              <h3 className="ui-h3 flex items-center gap-2 text-white font-heading">
+                <FolderKanban className="w-4 h-4 text-emerald-400" />
                 <span>Projects Overview</span>
               </h3>
               <button
                 onClick={() => setActiveTab('projects')}
-                className="ui-caption text-amber-800 hover:text-amber-900 font-semibold flex items-center gap-1 cursor-pointer"
+                className="ui-caption text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span>View All</span>
                 <ArrowRight className="w-3 h-3" />
@@ -285,39 +285,39 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-stone-500 font-medium">Planning</span>
-                <div className="ui-h2 text-stone-900 mt-1">{planningProjects}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-slate-400 font-medium">Planning</span>
+                <div className="ui-h2 text-white mt-1">{planningProjects}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-sky-700 font-semibold">In Progress</span>
-                <div className="ui-h2 text-sky-700 mt-1">{inProgressProjects}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-sky-400 font-semibold">In Progress</span>
+                <div className="ui-h2 text-sky-400 mt-1">{inProgressProjects}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-amber-800 font-semibold">In Review</span>
-                <div className="ui-h2 text-amber-800 mt-1">{reviewProjects}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-amber-400 font-semibold">In Review</span>
+                <div className="ui-h2 text-amber-400 mt-1">{reviewProjects}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-emerald-700 font-semibold">Completed</span>
-                <div className="ui-h2 text-emerald-700 mt-1">{completedProjects}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-emerald-400 font-semibold">Completed</span>
+                <div className="ui-h2 text-emerald-400 mt-1">{completedProjects}</div>
               </div>
             </div>
 
             {blockedProjects > 0 && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-rose-700 font-medium">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-rose-400 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span>Blocked Initiatives</span>
                 </div>
-                <span className="text-sm font-bold text-rose-700">{blockedProjects}</span>
+                <span className="text-sm font-bold text-rose-400">{blockedProjects}</span>
               </div>
             )}
 
             {/* Projects At Risk Alert Box */}
             {projectsAtRisk.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#E8E3DA]">
-                <span className="ui-caption font-semibold text-amber-800 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+              <div className="space-y-2 pt-2 border-t border-[#1E293B]">
+                <span className="ui-caption font-semibold text-amber-400 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                   <span>Deadlines At Risk</span>
                 </span>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -325,10 +325,10 @@ export const AdminDashboard: React.FC = () => {
                     <div
                       key={p.id}
                       onClick={() => setActiveTab('projects')}
-                      className="p-2 rounded-xl bg-amber-50/50 border border-amber-200/60 hover:border-amber-400 flex items-center justify-between text-xs cursor-pointer transition-colors"
+                      className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-400/40 flex items-center justify-between text-xs cursor-pointer transition-colors"
                     >
-                      <span className="text-stone-800 font-medium truncate max-w-[160px]">{p.title}</span>
-                      <span className="text-rose-700 font-mono text-[10px] shrink-0 font-bold">
+                      <span className="text-slate-200 font-medium truncate max-w-[160px]">{p.title}</span>
+                      <span className="text-rose-400 font-mono text-[10px] shrink-0 font-bold">
                         +{p.daysOverdue}d overdue
                       </span>
                     </div>
@@ -340,14 +340,14 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Task Velocity */}
           <div className="ui-card p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
-              <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
-                <CheckSquare className="w-4 h-4 text-amber-700" />
+            <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
+              <h3 className="ui-h3 flex items-center gap-2 text-white font-heading">
+                <CheckSquare className="w-4 h-4 text-emerald-400" />
                 <span>Task Completion</span>
               </h3>
               <button
                 onClick={() => setActiveTab('tasks')}
-                className="ui-caption text-amber-800 hover:text-amber-900 font-semibold flex items-center gap-1 cursor-pointer"
+                className="ui-caption text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span>View Board</span>
                 <ArrowRight className="w-3 h-3" />
@@ -355,47 +355,47 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Velocity Progress Bar */}
-            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-3">
+            <div className="p-4 rounded-2xl bg-[#111827] border border-[#1E293B] space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-stone-600 font-medium">Completion Rate</span>
-                <span className="text-stone-900 font-mono font-bold">
+                <span className="text-slate-400 font-medium">Completion Rate</span>
+                <span className="text-white font-mono font-bold">
                   {tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%
                 </span>
               </div>
-              <div className="w-full h-2 rounded-full bg-stone-200 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-600 to-emerald-600 rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                   style={{ width: `${tasks.length > 0 ? Math.min(100, Math.round((completedTasks / tasks.length) * 100)) : 0}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1 font-medium">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 font-medium">
                 <span>{completedTasks} completed</span>
                 <span>{openTasks} active</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-amber-800 font-semibold">Due Today</span>
-                <div className="ui-h2 text-stone-900 mt-1">{dueTodayTasks}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-amber-400 font-semibold">Due Today</span>
+                <div className="ui-h2 text-white mt-1">{dueTodayTasks}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E3DA]">
-                <span className="ui-caption text-rose-700 font-semibold">Overdue</span>
-                <div className="ui-h2 text-rose-700 mt-1">{overdueTasks}</div>
+              <div className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
+                <span className="ui-caption text-rose-400 font-semibold">Overdue</span>
+                <div className="ui-h2 text-rose-400 mt-1">{overdueTasks}</div>
               </div>
             </div>
           </div>
 
           {/* Team Workload */}
           <div className="ui-card p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E8E3DA]">
-              <h3 className="ui-h3 flex items-center gap-2 text-stone-900 font-heading">
-                <Users className="w-4 h-4 text-stone-700" />
+            <div className="flex items-center justify-between pb-3 border-b border-[#1E293B]">
+              <h3 className="ui-h3 flex items-center gap-2 text-white font-heading">
+                <Users className="w-4 h-4 text-emerald-400" />
                 <span>Team Workload</span>
               </h3>
               <button
                 onClick={() => setActiveTab('teams')}
-                className="ui-caption text-amber-800 hover:text-amber-900 font-semibold flex items-center gap-1 cursor-pointer"
+                className="ui-caption text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span>Directory</span>
                 <ArrowRight className="w-3 h-3" />
@@ -404,21 +404,21 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
               {teamWorkload.length === 0 ? (
-                <div className="text-center py-6 text-xs text-stone-400">
+                <div className="text-center py-6 text-xs text-slate-400">
                   No teams configured yet.
                 </div>
               ) : (
                 teamWorkload.map((team: any) => (
-                  <div key={team.teamId} className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E3DA] space-y-2">
+                  <div key={team.teamId} className="p-3 rounded-xl bg-[#111827] border border-[#1E293B] space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-stone-900 font-semibold truncate max-w-[140px]">{team.teamName}</span>
-                      <span className="text-[11px] font-mono text-amber-800 font-medium">
+                      <span className="text-white font-semibold truncate max-w-[140px]">{team.teamName}</span>
+                      <span className="text-[11px] font-mono text-emerald-400 font-medium">
                         {team.openTasks} active / {team.completedTasks} done
                       </span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-stone-200 overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
                       <div
-                        className="h-full bg-amber-700 rounded-full"
+                        className="h-full bg-emerald-500 rounded-full"
                         style={{
                           width: `${
                             team.openTasks + team.completedTasks > 0

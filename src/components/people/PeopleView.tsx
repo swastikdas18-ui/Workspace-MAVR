@@ -494,9 +494,9 @@ export const PeopleView: React.FC = () => {
                 setGeneratedInvite(null);
                 setIsInviteModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 stroke-[2.5]" />
               <span>Invite Member</span>
             </button>
           )}
@@ -521,16 +521,16 @@ export const PeopleView: React.FC = () => {
 
           <button
             onClick={() => setIsRequestLeaveModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition shadow-lg shadow-purple-500/20 cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/[0.08] text-xs font-semibold transition cursor-pointer"
           >
-            <Calendar className="w-3.5 h-3.5" />
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
             Request Leave
           </button>
         </div>
       </PageHeader>
 
       {/* Clean MVP Sub-Tabs Bar */}
-      <div className="flex border-b border-white/10 gap-2 overflow-x-auto pb-1">
+      <div className="flex border-b border-[#1E293B] gap-2 overflow-x-auto pb-1">
         {(currentRole === 'admin'
           ? [
               { id: 'directory', label: 'Employee Directory', icon: Users },
@@ -558,14 +558,14 @@ export const PeopleView: React.FC = () => {
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-medium transition whitespace-nowrap border-b-2 cursor-pointer ${
                 isActive
-                  ? 'border-purple-500 text-purple-300 bg-purple-500/10'
+                  ? 'border-emerald-500 text-emerald-300 bg-emerald-500/10'
                   : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/5'
               }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
               {tab.id === 'invitations' && invites.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 font-mono">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
                   {invites.length}
                 </span>
               )}
@@ -606,9 +606,9 @@ export const PeopleView: React.FC = () => {
                   setGeneratedInvite(null);
                   setIsInviteModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
-                <UserPlus className="w-4 h-4" />
+                <UserPlus className="w-4 h-4 stroke-[2.5]" />
                 <span>Invite Member</span>
               </button>
             )}
@@ -635,13 +635,13 @@ export const PeopleView: React.FC = () => {
                     key={inv.id}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/40 transition flex flex-col justify-between"
+                    className="p-5 rounded-2xl bg-[#111827] border border-[#1E293B] hover:border-emerald-500/40 transition flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-start justify-between">
                         <div className="min-w-0 pr-2">
                           <h4 className="font-semibold text-slate-100 text-sm truncate">{inv.email}</h4>
-                          <p className="text-xs text-purple-400 capitalize mt-0.5 font-medium">
+                          <p className="text-xs text-emerald-400 capitalize mt-0.5 font-medium">
                             Role: {inv.role}
                           </p>
                         </div>
@@ -923,9 +923,9 @@ export const PeopleView: React.FC = () => {
 
           {/* Active Department Filter Banner */}
           {selectedDepartmentFilter && (
-            <div className="flex items-center justify-between p-3 px-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-xs text-purple-200">
+            <div className="flex items-center justify-between p-3 px-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-200">
               <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-purple-400" />
+                <Building2 className="w-4 h-4 text-emerald-400" />
                 <span>
                   Showing members in department:{' '}
                   <strong className="text-white">
@@ -935,7 +935,7 @@ export const PeopleView: React.FC = () => {
               </div>
               <button
                 onClick={() => setSelectedDepartmentFilter('')}
-                className="text-purple-400 hover:text-white font-medium flex items-center gap-1 transition cursor-pointer"
+                className="text-emerald-400 hover:text-white font-medium flex items-center gap-1 transition cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" /> Clear Filter (View All)
               </button>
@@ -949,7 +949,7 @@ export const PeopleView: React.FC = () => {
                 key={prof.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-5 rounded-xl bg-slate-900/40 border border-white/10 hover:border-purple-500/40 transition flex flex-col justify-between"
+                className="p-5 rounded-2xl bg-[#111827] border border-[#1E293B] hover:border-emerald-500/40 transition flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between">
@@ -957,7 +957,7 @@ export const PeopleView: React.FC = () => {
                       <UserAvatar name={prof.user?.name || prof.name || (prof.user?.email ? prof.user.email.split('@')[0] : 'Staff')} avatar={prof.user?.avatar} size="lg" />
                       <div>
                         <h4 className="font-semibold text-slate-100 text-sm">{prof.user?.name || prof.name || (prof.user?.email ? prof.user.email.split('@')[0] : 'Staff')}</h4>
-                        <p className="text-xs text-purple-400 font-medium">{prof.designation}</p>
+                        <p className="text-xs text-emerald-400 font-medium">{prof.designation}</p>
                         <p className="text-xs text-slate-400">{prof.user?.email || prof.email}</p>
                       </div>
                     </div>

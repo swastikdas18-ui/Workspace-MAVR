@@ -141,7 +141,7 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                 onClick={() => setActiveTab('pipeline')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   activeTab === 'pipeline'
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -152,7 +152,7 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
                 onClick={() => setActiveTab('table')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   activeTab === 'table'
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -164,9 +164,9 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
             {permissions.crm.createRecord && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 stroke-[2.5]" />
                 <span>Add Deal</span>
               </button>
             )}

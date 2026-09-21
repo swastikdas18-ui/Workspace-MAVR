@@ -209,14 +209,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
   const getStatusBadge = (status: ProjectStatus) => {
     switch (status) {
       case 'completed':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
       case 'in_progress':
-        return 'bg-sky-50 text-sky-800 border-sky-200';
+        return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
       case 'review':
-        return 'bg-amber-50 text-amber-800 border-amber-200';
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
       case 'planning':
       default:
-        return 'bg-stone-100 text-stone-700 border-stone-200';
+        return 'bg-slate-800/80 text-slate-300 border-slate-700/60';
     }
   };
 
@@ -238,19 +238,19 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             : 'Track project milestones, update status, and collaborate with your teammates.'
         }
         badge={
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-white text-stone-700 font-mono border border-[#E8E3DA] font-semibold shadow-2xs">
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900/90 text-emerald-400 font-mono border border-emerald-500/20 font-semibold shadow-xs">
             {visibleProjects.length} Projects
           </span>
         }
         actions={
           <div className="flex items-center gap-3">
             {/* View Mode Switcher */}
-            <div className="flex items-center p-1 bg-[#FAF8F5] border border-[#E8E3DA] rounded-xl text-xs">
+            <div className="flex items-center p-1 bg-[#111827] border border-[#1E293B] rounded-xl text-xs">
               <button
                 onClick={() => setViewMode('board')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'board'
-                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -259,8 +259,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
               <button
                 onClick={() => setViewMode('list')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'list'
-                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -269,8 +269,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
               <button
                 onClick={() => setViewMode('timeline')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'timeline'
-                    ? 'bg-[#1C1917] text-white font-semibold shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
                 <Calendar className="w-3.5 h-3.5" />
@@ -282,7 +282,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-white border border-[#E8E3DA] text-xs text-stone-800 rounded-xl px-3 py-2 focus:outline-none focus:border-amber-600 font-medium transition-colors cursor-pointer"
+              className="bg-[#111827] border border-[#1E293B] text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500/50 font-medium transition-colors cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="planning">Planning</option>
@@ -295,9 +295,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             {permissions.projects.create && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1C1917] hover:bg-[#292524] text-white text-xs font-semibold shadow-md shadow-stone-900/10 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                <Plus className="w-4 h-4 text-amber-300" />
+                <Plus className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                 <span>New Initiative</span>
               </button>
             )}
@@ -320,16 +320,16 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
           {statuses.map((status) => {
             const columnProjects = visibleProjects.filter((p) => p.status === status.id);
             return (
-              <div key={status.id} className="flex flex-col bg-[#F5F2EB]/60 border border-[#E8E3DA] rounded-[24px] p-4 min-h-[520px] shadow-2xs">
+              <div key={status.id} className="flex flex-col bg-[#111827]/70 backdrop-blur-md border border-[#1E293B] rounded-[24px] p-4 min-h-[520px] shadow-sm">
                 {/* Column Header */}
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#E8E3DA] px-1">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E293B] px-1">
                   <div className="flex items-center gap-2">
-                    <span className="ui-caption font-bold text-stone-900 tracking-tight">{status.label}</span>
-                    <span className="ui-mono px-2 py-0.5 rounded-full bg-white text-stone-600 border border-[#E8E3DA] font-semibold text-[10px]">
+                    <span className="ui-caption font-bold text-slate-200 tracking-tight">{status.label}</span>
+                    <span className="ui-mono px-2 py-0.5 rounded-full bg-[#1E293B] text-emerald-400 border border-emerald-500/20 font-semibold text-[10px]">
                       {columnProjects.length}
                     </span>
                   </div>
-                  <span className="ui-caption text-stone-500 hidden sm:inline font-medium">{status.desc}</span>
+                  <span className="ui-caption text-slate-400 hidden sm:inline font-medium">{status.desc}</span>
                 </div>
 
                 {/* Project Cards in Column */}
@@ -370,7 +370,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         <div className="py-3 flex-1 space-y-2.5">
                           <h4
                             onClick={() => handleSelectProject(project)}
-                            className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors cursor-pointer leading-snug"
+                            className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors cursor-pointer leading-snug"
                           >
                             {project.title}
                           </h4>
@@ -381,7 +381,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {/* Assigned Department Badge */}
                           {assignedDept && (
                             <div className="flex flex-wrap gap-1.5 pt-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] font-medium">
                                 <Building2 className="w-2.5 h-2.5" />
                                 {assignedDept.name}
                               </span>
@@ -391,12 +391,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {/* Progress Bar */}
                           <div className="pt-1">
                             <div className="flex items-center justify-between text-[11px] mb-1">
-                              <span className="text-slate-500 font-medium">Progress</span>
-                              <span className="font-mono font-bold text-purple-400">{project.progress}%</span>
+                              <span className="text-slate-400 font-medium">Progress</span>
+                              <span className="font-mono font-bold text-emerald-400">{project.progress}%</span>
                             </div>
                             <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
                               <div
-                                className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] h-full rounded-full transition-all duration-300"
+                                className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300"
                                 style={{ width: `${project.progress}%` }}
                               />
                             </div>
@@ -417,7 +417,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {project.status === 'planning' && (isLead || currentRole === 'admin') && (
                             <button
                               onClick={(e) => handleStartWork(project.id, e)}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm"
                             >
                               <Play className="w-3 h-3 fill-current" />
                               <span>Start Work</span>
@@ -430,12 +430,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                                 onClick={(e) => handleOpenProgressModal(project, e)}
                                 className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/[0.08] text-[11px] font-medium transition-colors cursor-pointer"
                               >
-                                <TrendingUp className="w-3 h-3 text-purple-400" />
+                                <TrendingUp className="w-3 h-3 text-emerald-400" />
                                 <span>Progress</span>
                               </button>
                               <button
                                 onClick={(e) => handleOpenSubmitReviewModal(project, e)}
-                                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-[11px] font-semibold transition-colors cursor-pointer"
+                                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-semibold transition-colors cursor-pointer"
                               >
                                 <Send className="w-3 h-3 text-amber-400" />
                                 <span>Submit Review</span>
@@ -530,7 +530,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                       className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
                     >
                       <td className="py-3.5 px-4 max-w-xs">
-                        <p className="font-semibold text-white group-hover:text-purple-300 transition-colors">
+                        <p className="font-semibold text-white group-hover:text-emerald-400 transition-colors">
                           {project.title}
                         </p>
                         <p className="text-slate-400 truncate text-[11px] mt-0.5">{project.description}</p>
@@ -544,16 +544,16 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden">
                             <div
-                              className="bg-purple-500 h-full rounded-full"
+                              className="bg-emerald-400 h-full rounded-full"
                               style={{ width: `${project.progress}%` }}
                             />
                           </div>
-                          <span className="font-mono text-purple-400 text-[11px] font-bold">{project.progress}%</span>
+                          <span className="font-mono text-emerald-400 text-[11px] font-bold">{project.progress}%</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
                         {assignedDept ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] font-medium">
                             <Building2 className="w-2.5 h-2.5" />
                             {assignedDept.name}
                           </span>
@@ -575,7 +575,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {project.status === 'planning' && (isLead || currentRole === 'admin') && (
                             <button
                               onClick={(e) => handleStartWork(project.id, e)}
-                              className="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 text-xs font-medium transition-colors"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/30 text-xs font-medium transition-colors"
                             >
                               Start Work
                             </button>
@@ -583,7 +583,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {project.status === 'in_progress' && (isAssigned || isLead || currentRole === 'admin') && (
                             <button
                               onClick={(e) => handleOpenProgressModal(project, e)}
-                              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
+                              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
                             >
                               Update
                             </button>
@@ -591,7 +591,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           {project.status === 'review' && (isLead || currentRole === 'admin') && (
                             <button
                               onClick={(e) => handleApprove(project.id, e)}
-                              className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
                             >
                               Approve
                             </button>
@@ -635,7 +635,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           (d) => d.id === project.department_id || d.id === project.departmentId
                         );
                         return assignedDept ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono">
                             <Building2 className="w-2.5 h-2.5" />
                             {assignedDept.name}
                           </span>
@@ -645,7 +645,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
                       <span>{project.start_date}</span>
                       <span>→</span>
-                      <span className="text-purple-400">{project.due_date}</span>
+                      <span className="text-emerald-400">{project.due_date}</span>
                     </div>
                   </div>
                   <div className="w-full bg-[#0F172A] h-7 rounded-xl p-1 relative border border-white/[0.04]">
@@ -653,7 +653,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                       initial={{ width: 0 }}
                       animate={{ width: `${durationWidth}%` }}
                       style={{ marginLeft: `${startOffset}%` }}
-                      className="h-full bg-gradient-to-r from-[#7C3AED] via-[#9333EA] to-[#A855F7] rounded-lg flex items-center px-2 text-[10px] font-semibold text-white shadow-md"
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-lg flex items-center px-2 text-[10px] font-semibold text-slate-950 shadow-md"
                     >
                       <span className="truncate">{project.progress}% Complete</span>
                     </motion.div>
@@ -702,7 +702,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     placeholder="e.g. Next-Gen Enterprise AI Orchestrator"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
@@ -714,7 +714,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     placeholder="Define core deliverables, technical scope, and expected outcome..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
@@ -726,7 +726,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                       required
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                     />
                   </div>
                   <div>
@@ -736,7 +736,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                       placeholder="e.g. $45,000"
                       value={budget}
                       onChange={(e) => setBudget(e.target.value)}
-                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                     />
                   </div>
                 </div>
@@ -745,10 +745,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                 {departments.length > 0 && (
                   <div>
                     <label className="block text-slate-300 font-medium mb-1.5 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                      <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Assign To Department</span>
                     </label>
-                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-purple-500/20">
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111827] rounded-xl border border-emerald-500/20">
                       {departments.map((dept) => {
                         const isSelected = selectedDepartmentId === dept.id;
                         return (
@@ -757,13 +757,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                             type="button"
                             onClick={() => setSelectedDepartmentId(isSelected ? '' : dept.id)}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
-                                ? 'bg-purple-600 text-white font-medium shadow-sm'
+                                ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
                                 : 'bg-slate-800 text-slate-400 hover:text-white'
                               }`}
                           >
-                            <Building2 className="w-3 h-3 text-purple-300" />
+                            <Building2 className="w-3 h-3 text-emerald-400" />
                             <span>{dept.name}</span>
-                            {isSelected && <Check className="w-3 h-3" />}
+                            {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
                           </button>
                         );
                       })}
@@ -783,13 +783,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                           type="button"
                           onClick={() => toggleMemberSelection(user.id)}
                           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer ${isSelected
-                              ? 'bg-[#7C3AED] text-white font-medium'
+                              ? 'bg-emerald-500 text-slate-950 font-semibold'
                               : 'bg-slate-800 text-slate-400 hover:text-white'
                             }`}
                         >
                           <UserAvatar user={user} size="sm" />
                           <span>{user.name}</span>
-                          {isSelected && <Check className="w-3 h-3" />}
+                          {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
                         </button>
                       );
                     })}
@@ -803,7 +803,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     placeholder="e.g. Infrastructure, Security, AI, Frontend"
                     value={tagsInput}
                     onChange={(e) => setTagsInput(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
@@ -817,7 +817,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold shadow-lg shadow-purple-600/25 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-lg shadow-emerald-500/20 cursor-pointer"
                   >
                     Launch Initiative
                   </button>
@@ -845,7 +845,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-purple-400" />
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
                   Log Progress Update
                 </h3>
                 <button
@@ -865,7 +865,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-slate-300 font-medium">Completion Percentage</label>
-                    <span className="text-sm font-bold font-mono text-purple-400">{progressValue}%</span>
+                    <span className="text-sm font-bold font-mono text-emerald-400">{progressValue}%</span>
                   </div>
                   <input
                     type="range"
@@ -874,7 +874,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     step="5"
                     value={progressValue}
                     onChange={(e) => setProgressValue(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   />
                   <div className="flex justify-between text-[10px] text-slate-500 font-mono">
                     <span>0% (Started)</span>
@@ -892,7 +892,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
                     placeholder="e.g. Completed API endpoint integrations and database migrations..."
                     value={progressNote}
                     onChange={(e) => setProgressNote(e.target.value)}
-                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
               </div>

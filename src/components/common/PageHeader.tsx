@@ -26,19 +26,19 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className="mb-8">
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="flex items-center gap-1.5 text-xs text-stone-400 mb-2">
+        <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
           {breadcrumbs.map((item, idx) => (
             <React.Fragment key={idx}>
-              {idx > 0 && <span className="text-stone-300">/</span>}
+              {idx > 0 && <span className="text-slate-600">/</span>}
               {item.onClick ? (
                 <button
                   onClick={item.onClick}
-                  className="hover:text-amber-800 transition-colors font-medium cursor-pointer"
+                  className="hover:text-emerald-400 transition-colors font-medium cursor-pointer"
                 >
                   {item.label}
                 </button>
               ) : (
-                <span className={idx === breadcrumbs.length - 1 ? 'text-stone-700 font-semibold' : ''}>
+                <span className={idx === breadcrumbs.length - 1 ? 'text-slate-200 font-semibold' : ''}>
                   {item.label}
                 </span>
               )}
@@ -51,13 +51,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="ui-h1 tracking-tight">
+            <h1 className="ui-h1 tracking-tight text-white">
               {title}
             </h1>
             {badge && <div>{badge}</div>}
           </div>
           {description && (
-            <p className="mt-2 ui-body text-stone-600 max-w-2xl">
+            <p className="mt-2 ui-body text-slate-400 max-w-2xl leading-relaxed">
               {description}
             </p>
           )}
@@ -68,7 +68,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </div>
 
       {/* Additional filter / subheader controls if provided */}
-      {children && <div className="mt-6 pt-4 border-t border-[#E8E3DA]">{children}</div>}
+      {children && <div className="mt-6 pt-4 border-t border-[#1E293B]">{children}</div>}
     </div>
   );
 };

@@ -16,3 +16,5 @@
 5. **UI Integrity**:
    - Do not redesign or alter the approved SaaS Split-Layout theme.
    - Preserve typography, container math, borders, backdrop blurs, and responsive behavior.
+6. **UI/UX Intelligence**:
+   - Always consult and apply the installed `.agents/skills/ui-ux-pro-max` skill for UI/UX patterns, accessibility (WCAG 2.1 AA), typography, color contrast, responsive layout, motion, and interaction polish.

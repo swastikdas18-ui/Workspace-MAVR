@@ -230,14 +230,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-stone-900 truncate group-hover:text-amber-800 transition-colors">
+                <p className="text-xs font-semibold text-slate-100 truncate group-hover:text-emerald-400 transition-colors">
                   {currentUser.name}
                 </p>
                 <div className="flex items-center gap-1.5">
-                  <span className="ui-caption text-stone-500 truncate max-w-[100px]">
+                  <span className="ui-caption text-slate-400 truncate max-w-[100px]">
                     {currentUser.title || currentUser.email}
                   </span>
-                  <span className="ui-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                  <span className="ui-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                     {currentRole}
                   </span>
                 </div>
@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && (
             <button
               onClick={logout}
-              className="p-1.5 rounded-[10px] text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shrink-0"
+              className="p-1.5 rounded-[10px] text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer shrink-0"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />

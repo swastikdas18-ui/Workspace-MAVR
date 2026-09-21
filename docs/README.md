@@ -21,6 +21,8 @@ Welcome to the **Workspace OS** technical documentation directory. This collecti
 
 ## 🏛️ Core Principles
 
+Current audit: [RBAC findings, permission matrix, endpoint evidence, and automated regression coverage](audits/rbac-audit.md). The 2026-09-22 audit reports unresolved authorization failures and explicit remaining verification gaps.
+
 1. **Source of Truth**: The `docs/` directory defines the authoritative specification for Workspace OS. Code must reflect the models and constraints documented here.
 2. **Three-Tier Role Model**:
    - **ADMIN**: Unrestricted management across Workspace, Projects, Tasks, Teams, Documents, CRM, Analytics, Billing, and Settings.

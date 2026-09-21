@@ -1044,6 +1044,43 @@ export const api = {
     });
   },
 
+  async getDepartmentMembers(departmentId: string) {
+    return await fetchApi<{ members: any[]; total: number }>(`/api/people/departments/${departmentId}/members`);
+  },
+
+  async addDepartmentMember(departmentId: string, userId: string) {
+    return await fetchApi<{ profile: any; message: string }>(`/api/people/departments/${departmentId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  async removeDepartmentMember(departmentId: string, memberId: string) {
+    return await fetchApi<{ success: boolean; profile: any; message: string }>(
+      `/api/people/departments/${departmentId}/members/${memberId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  async setDepartmentLead(departmentId: string, leadId: string | null) {
+    return await fetchApi<{ department: any; message: string }>(`/api/people/departments/${departmentId}/lead`, {
+      method: 'PATCH',
+      body: JSON.stringify({ leadId }),
+    });
+  },
+
+  async moveDepartmentMember(fromDeptId: string, toDeptId: string, memberId: string) {
+    return await fetchApi<{ profile: any; message: string }>(
+      `/api/people/departments/${fromDeptId}/members/${memberId}/move`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ toDepartmentId: toDeptId }),
+      }
+    );
+  },
+
   async getOrgChart() {
     return await fetchApi<{ root: any; unassigned: any[]; totalEmployees: number; departments: any[] }>('/api/people/org-chart');
   },

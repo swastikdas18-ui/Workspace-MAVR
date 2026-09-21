@@ -728,6 +728,132 @@ export class PeopleRepository {
     return this.upsertProfile(workspaceId, userId, { departmentId });
   }
 
+  /**
+   * Get members assigned to a department
+   */
+  static async getDepartmentMembers(workspaceId: string, departmentId: string): Promise<Array<EmployeeProfileEntity & { departmentPosition: 'lead' | 'member' }>> {
+    const dept = await this.getDepartmentById(workspaceId, departmentId);
+    if (!dept) {
+      const err: any = new Error('Department not found.');
+      err.code = 'DEPARTMENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    const profiles = await this.listProfiles(workspaceId);
+    const members = profiles.filter((p) => p.departmentId === departmentId || (dept.headId && p.userId === dept.headId));
+
+    return members.map((p) => ({
+      ...p,
+      departmentPosition: dept.headId === p.userId ? 'lead' : 'member',
+    }));
+  }
+
+  /**
+   * Add member to department
+   */
+  static async addDepartmentMember(workspaceId: string, departmentId: string, userId: string): Promise<EmployeeProfileEntity> {
+    const dept = await this.getDepartmentById(workspaceId, departmentId);
+    if (!dept) {
+      const err: any = new Error('Department not found.');
+      err.code = 'DEPARTMENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    const profile = await this.upsertProfile(workspaceId, userId, { departmentId });
+
+    // Also mirror to teamMembers if department has mirrored team
+    for (const [id, tm] of inMemoryDb.teamMembers.entries()) {
+      if (tm.teamId === departmentId && tm.userId === userId) {
+        return profile;
+      }
+    }
+    inMemoryDb.teamMembers.set(`tm-${departmentId}-${userId}`, {
+      id: `tm-${departmentId}-${userId}`,
+      teamId: departmentId,
+      userId,
+      roleInTeam: dept.headId === userId ? 'lead' : 'member',
+      joinedAt: new Date(),
+    });
+
+    return profile;
+  }
+
+  /**
+   * Remove member from department
+   */
+  static async removeDepartmentMember(workspaceId: string, departmentId: string, userId: string): Promise<EmployeeProfileEntity> {
+    const dept = await this.getDepartmentById(workspaceId, departmentId);
+    if (!dept) {
+      const err: any = new Error('Department not found.');
+      err.code = 'DEPARTMENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    // If target is department head, clear headId
+    if (dept.headId === userId) {
+      await this.updateDepartment(workspaceId, departmentId, { headId: null });
+    }
+
+    // Set departmentId to null
+    const profile = await this.upsertProfile(workspaceId, userId, { departmentId: null });
+
+    // Clean up mirrored team membership
+    for (const [id, tm] of inMemoryDb.teamMembers.entries()) {
+      if (tm.teamId === departmentId && tm.userId === userId) {
+        inMemoryDb.teamMembers.delete(id);
+      }
+    }
+
+    return profile;
+  }
+
+  /**
+   * Set or update department lead
+   */
+  static async setDepartmentLead(workspaceId: string, departmentId: string, leadId: string | null): Promise<DepartmentEntity> {
+    const dept = await this.getDepartmentById(workspaceId, departmentId);
+    if (!dept) {
+      const err: any = new Error('Department not found.');
+      err.code = 'DEPARTMENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    const updated = await this.updateDepartment(workspaceId, departmentId, { headId: leadId });
+    if (leadId) {
+      // Ensure lead is a member of this department
+      await this.upsertProfile(workspaceId, leadId, { departmentId });
+    }
+
+    return updated!;
+  }
+
+  /**
+   * Move member to another department
+   */
+  static async moveDepartmentMember(workspaceId: string, fromDepartmentId: string, toDepartmentId: string, userId: string): Promise<EmployeeProfileEntity> {
+    const fromDept = await this.getDepartmentById(workspaceId, fromDepartmentId);
+    const toDept = await this.getDepartmentById(workspaceId, toDepartmentId);
+
+    if (!toDept) {
+      const err: any = new Error('Target department not found.');
+      err.code = 'DEPARTMENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    // Clear headId from previous department if user was the head
+    if (fromDept && fromDept.headId === userId) {
+      await this.updateDepartment(workspaceId, fromDepartmentId, { headId: null });
+    }
+
+    // Assign to new department
+    return await this.addDepartmentMember(workspaceId, toDepartmentId, userId);
+  }
+
   // ===========================================================================
   // 4. LEAVE MANAGEMENT
   // ===========================================================================

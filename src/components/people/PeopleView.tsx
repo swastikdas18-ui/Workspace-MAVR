@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MetricCard } from '../common/MetricCard';
 import { UserAvatar } from '../common/UserAvatar';
 import { PageHeader } from '../common/PageHeader';
+import { DepartmentDetailsModal } from './DepartmentDetailsModal';
 
 export const PeopleView: React.FC = () => {
   const { 
@@ -64,6 +65,7 @@ export const PeopleView: React.FC = () => {
   const [selectedNewDeptId, setSelectedNewDeptId] = useState('');
   const [isEditDepartmentModalOpen, setIsEditDepartmentModalOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<any | null>(null);
+  const [selectedDepartmentDetails, setSelectedDepartmentDetails] = useState<any | null>(null);
   const [editDeptName, setEditDeptName] = useState('');
   const [editDeptDescription, setEditDeptDescription] = useState('');
   const [editDeptColor, setEditDeptColor] = useState('#7C3AED');
@@ -888,13 +890,14 @@ export const PeopleView: React.FC = () => {
                           </>
                         )}
                         <button
+                          type="button"
                           onClick={() => {
-                            setSelectedDepartmentFilter(dept.id);
-                            setActiveSubTab('directory');
+                            setSelectedDepartmentDetails(dept);
                           }}
-                          className="text-xs text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer px-1 py-1"
+                          className="text-xs px-2.5 py-1 rounded-lg bg-[#B8FF3B]/10 hover:bg-[#B8FF3B]/20 text-[#B8FF3B] border border-[#B8FF3B]/20 hover:border-[#B8FF3B]/40 font-medium flex items-center gap-1 transition cursor-pointer"
+                          title="View Department Details & Members"
                         >
-                          <span>View</span> <ArrowRight className="w-3 h-3" />
+                          <span>Manage Members</span> <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -2206,6 +2209,24 @@ export const PeopleView: React.FC = () => {
               </form>
             </motion.div>
           </div>
+        )}
+
+        {/* DEPARTMENT DETAILS & MEMBER MANAGEMENT MODAL */}
+        {selectedDepartmentDetails && (
+          <DepartmentDetailsModal
+            department={selectedDepartmentDetails}
+            isOpen={!!selectedDepartmentDetails}
+            onClose={() => setSelectedDepartmentDetails(null)}
+            onDepartmentUpdated={async () => {
+              await loadData();
+              const updated = departments.find((d) => d.id === selectedDepartmentDetails.id);
+              if (updated) {
+                setSelectedDepartmentDetails(updated);
+              }
+            }}
+            allDepartments={departments}
+            allProfiles={profiles}
+          />
         )}
       </AnimatePresence>
     </div>

@@ -4,9 +4,11 @@ import { PeopleService } from '../services/people-service.js';
 import { getAuthorizationContext } from '../middleware/rbac.js';
 
 export const peopleRouter = new Hono();
+export const departmentRouter = new Hono();
 
 // Enforce auth & session verification across all routes
 peopleRouter.use('*', authMiddleware);
+departmentRouter.use('*', authMiddleware);
 
 /**
  * Phase 36 (HIGH-01): requireAdmin now resolves workspace membership role
@@ -189,6 +191,110 @@ peopleRouter.delete('/departments/:id', requireAdmin, async (c) => {
     }, 400);
   }
 });
+
+// --- Department Handlers (accessible via both /api/people/departments and /departments) ---
+const listDepartmentMembersHandler = async (c: any) => {
+  try {
+    const workspace = c.get('workspace');
+    const departmentId = c.req.param('id');
+
+    const members = await PeopleService.getDepartmentMembers(workspace.id, departmentId);
+    return c.json({ members, total: members.length }, 200);
+  } catch (err: any) {
+    const status = err.status || 500;
+    return c.json({ error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to list department members.' } }, status);
+  }
+};
+
+const addDepartmentMemberHandler = async (c: any) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const departmentId = c.req.param('id');
+    const body = await c.req.json();
+
+    const targetUserId = body.userId || body.memberId || body.user_id || body.member_id;
+    if (!targetUserId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'userId or memberId is required.' } }, 400);
+    }
+
+    const profile = await PeopleService.addDepartmentMember(workspace.id, user.id, departmentId, targetUserId);
+    return c.json({ profile, message: 'Member added to department successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to add member to department.' } }, status);
+  }
+};
+
+const removeDepartmentMemberHandler = async (c: any) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const departmentId = c.req.param('id');
+    const memberId = c.req.param('memberId');
+
+    const profile = await PeopleService.removeDepartmentMember(workspace.id, user.id, departmentId, memberId);
+    return c.json({ success: true, profile, message: 'Member removed from department successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to remove member from department.' } }, status);
+  }
+};
+
+const setDepartmentLeadHandler = async (c: any) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const departmentId = c.req.param('id');
+    const body = await c.req.json();
+
+    const leadId = body.leadId !== undefined ? body.leadId : body.headId !== undefined ? body.headId : body.userId || null;
+    const department = await PeopleService.setDepartmentLead(workspace.id, user.id, departmentId, leadId);
+    return c.json({ department, message: 'Department lead updated successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update department lead.' } }, status);
+  }
+};
+
+const moveMemberHandler = async (c: any) => {
+  try {
+    const workspace = c.get('workspace');
+    const user = c.get('user');
+    const departmentId = c.req.param('id');
+    const paramMemberId = c.req.param('memberId');
+    const body = await c.req.json();
+
+    const targetUserId = paramMemberId || body.userId || body.memberId;
+    const toDepartmentId = body.toDepartmentId || body.targetDepartmentId || body.departmentId;
+
+    if (!targetUserId || !toDepartmentId) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'targetUserId and toDepartmentId are required.' } }, 400);
+    }
+
+    const profile = await PeopleService.moveDepartmentMember(workspace.id, user.id, departmentId, toDepartmentId, targetUserId);
+    return c.json({ profile, message: 'Member moved to new department successfully.' }, 200);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to move department member.' } }, status);
+  }
+};
+
+// Registered on peopleRouter (under /api/people/departments/... or /departments/...)
+peopleRouter.get('/departments/:id/members', listDepartmentMembersHandler);
+peopleRouter.post('/departments/:id/members', requireAdmin, addDepartmentMemberHandler);
+peopleRouter.delete('/departments/:id/members/:memberId', requireAdmin, removeDepartmentMemberHandler);
+peopleRouter.patch('/departments/:id/lead', requireAdmin, setDepartmentLeadHandler);
+peopleRouter.patch('/departments/:id/members/:memberId/move', requireAdmin, moveMemberHandler);
+peopleRouter.post('/departments/:id/members/move', requireAdmin, moveMemberHandler);
+
+// Registered on departmentRouter (mounted directly at /departments and /api/departments)
+departmentRouter.get('/:id/members', listDepartmentMembersHandler);
+departmentRouter.post('/:id/members', requireAdmin, addDepartmentMemberHandler);
+departmentRouter.delete('/:id/members/:memberId', requireAdmin, removeDepartmentMemberHandler);
+departmentRouter.patch('/:id/lead', requireAdmin, setDepartmentLeadHandler);
+departmentRouter.patch('/:id/members/:memberId/move', requireAdmin, moveMemberHandler);
+departmentRouter.post('/:id/members/move', requireAdmin, moveMemberHandler);
 
 /**
  * GET /api/people/org-chart - Get visual hierarchy org chart

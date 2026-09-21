@@ -130,6 +130,62 @@ export class PeopleService {
     return res;
   }
 
+  static async getDepartmentMembers(workspaceId: string, departmentId: string) {
+    return PeopleRepository.getDepartmentMembers(workspaceId, departmentId);
+  }
+
+  static async addDepartmentMember(workspaceId: string, actorId: string, departmentId: string, userId: string) {
+    const profile = await PeopleRepository.addDepartmentMember(workspaceId, departmentId, userId);
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'DEPARTMENT_ADD_MEMBER',
+      resource: 'department',
+      resourceId: departmentId,
+      newValues: { departmentId, userId },
+    });
+    return profile;
+  }
+
+  static async removeDepartmentMember(workspaceId: string, actorId: string, departmentId: string, userId: string) {
+    const profile = await PeopleRepository.removeDepartmentMember(workspaceId, departmentId, userId);
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'DEPARTMENT_REMOVE_MEMBER',
+      resource: 'department',
+      resourceId: departmentId,
+      newValues: { departmentId, userId },
+    });
+    return profile;
+  }
+
+  static async setDepartmentLead(workspaceId: string, actorId: string, departmentId: string, leadId: string | null) {
+    const dept = await PeopleRepository.setDepartmentLead(workspaceId, departmentId, leadId);
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'DEPARTMENT_SET_LEAD',
+      resource: 'department',
+      resourceId: departmentId,
+      newValues: { departmentId, leadId },
+    });
+    return dept;
+  }
+
+  static async moveDepartmentMember(workspaceId: string, actorId: string, fromDepartmentId: string, toDepartmentId: string, userId: string) {
+    const profile = await PeopleRepository.moveDepartmentMember(workspaceId, fromDepartmentId, toDepartmentId, userId);
+    await AuditRepository.log({
+      workspaceId,
+      userId: actorId,
+      action: 'DEPARTMENT_MOVE_MEMBER',
+      resource: 'department',
+      resourceId: toDepartmentId,
+      newValues: { fromDepartmentId, toDepartmentId, userId },
+    });
+    return profile;
+  }
+
   // 3. Org Chart
   static async getOrgChart(workspaceId: string) {
     return PeopleRepository.getOrgChart(workspaceId);

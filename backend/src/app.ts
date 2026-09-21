@@ -15,7 +15,7 @@ import { notificationRouter } from './routes/notifications.js';
 import { activityRouter } from './routes/activity.js';
 import { searchRouter } from './routes/search.js';
 import { automationRouter } from './routes/automations.js';
-import { peopleRouter } from './routes/people.js';
+import { peopleRouter, departmentRouter } from './routes/people.js';
 import { presenceRouter } from './routes/presence.js';
 import { healthRouter } from './routes/health.js';
 import { billingRouter } from './routes/billing.js';
@@ -272,6 +272,8 @@ app.route('/automations', automationRouter);
 
 app.route('/api/people', peopleRouter);
 app.route('/people', peopleRouter);
+app.route('/api/departments', departmentRouter);
+app.route('/departments', departmentRouter);
 
 app.route('/api/presence', presenceRouter);
 app.route('/presence', presenceRouter);

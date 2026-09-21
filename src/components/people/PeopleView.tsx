@@ -494,7 +494,7 @@ export const PeopleView: React.FC = () => {
                 setGeneratedInvite(null);
                 setIsInviteModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#B8FF3B] hover:bg-[#CCFF66] text-[#0F1115] text-xs font-bold shadow-md shadow-[#B8FF3B]/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
               <UserPlus className="w-4 h-4 stroke-[2.5]" />
               <span>Invite Member</span>
@@ -512,7 +512,7 @@ export const PeopleView: React.FC = () => {
           ) : (
             <button
               onClick={handleCheckIn}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#B8FF3B]/10 hover:bg-[#B8FF3B]/20 text-[#B8FF3B] border border-[#B8FF3B]/30 text-xs font-semibold transition cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5" />
               Check In
@@ -521,7 +521,7 @@ export const PeopleView: React.FC = () => {
 
           <button
             onClick={() => setIsRequestLeaveModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/[0.08] text-xs font-semibold transition cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#242936] hover:bg-[#2E3545] text-slate-200 border border-[#2A303D] text-xs font-semibold transition cursor-pointer"
           >
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             Request Leave
@@ -530,7 +530,7 @@ export const PeopleView: React.FC = () => {
       </PageHeader>
 
       {/* Clean MVP Sub-Tabs Bar */}
-      <div className="flex border-b border-[#1E293B] gap-2 overflow-x-auto pb-1">
+      <div className="flex border-b border-[#2A303D] gap-2 overflow-x-auto pb-1">
         {(currentRole === 'admin'
           ? [
               { id: 'directory', label: 'Employee Directory', icon: Users },
@@ -558,14 +558,14 @@ export const PeopleView: React.FC = () => {
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-medium transition whitespace-nowrap border-b-2 cursor-pointer ${
                 isActive
-                  ? 'border-emerald-500 text-emerald-300 bg-emerald-500/10'
+                  ? 'border-[#B8FF3B] text-[#B8FF3B] bg-[#B8FF3B]/10'
                   : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/5'
               }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
               {tab.id === 'invitations' && invites.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#B8FF3B]/20 text-[#B8FF3B] font-mono">
                   {invites.length}
                 </span>
               )}
@@ -579,14 +579,14 @@ export const PeopleView: React.FC = () => {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
             {/* Status Filter Buttons */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-900/60 border border-white/10 rounded-xl text-xs">
+            <div className="flex items-center gap-1.5 p-1 bg-[#171A21] border border-[#2A303D] rounded-xl text-xs">
               {(['all', 'pending', 'accepted', 'expired'] as const).map((st) => (
                 <button
                   key={st}
                   onClick={() => setInviteStatusFilter(st)}
                   className={`px-3 py-1.5 rounded-lg capitalize transition-colors cursor-pointer ${
                     inviteStatusFilter === st
-                      ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                      ? 'bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/30 font-semibold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >

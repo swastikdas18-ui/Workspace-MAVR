@@ -34,6 +34,7 @@ import { runProductionSplitBrainTests } from './production-split-brain.test';
 import { runTenantRoleIsolationTests } from './tenant-role-isolation.test';
 import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
+import { runWorkspaceMemberRemovalTests } from './workspace-member-removal.test';
 
 async function main() {
   try {
@@ -106,6 +107,8 @@ async function main() {
     await runRateLimitProtectionTests();
     console.log('\n>>> Starting Suite 38: Workspace OS — Cross-Tenant Isolation Security Regression');
     await runTenantIsolationSecurityTests();
+    console.log('\n>>> Starting Suite 39: Workspace OS — Workspace Member Removal System');
+    await runWorkspaceMemberRemovalTests();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

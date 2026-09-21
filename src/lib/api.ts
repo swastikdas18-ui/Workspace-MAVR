@@ -221,6 +221,15 @@ export const api = {
     );
   },
 
+  async removeWorkspaceMember(workspaceId: string, memberId: string) {
+    return await fetchApi<{ success: boolean; message: string }>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
   // Invites API
   async createInvite(data: { email: string; role: 'admin' | 'employee' | 'intern' | string; teamId?: string }) {
     return await fetchApi<{ invite: any }>('/api/invites', {

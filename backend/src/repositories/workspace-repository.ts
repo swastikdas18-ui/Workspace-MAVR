@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import { getDb, schema, inMemoryDb, Workspace, WorkspaceMember, User } from '../../packages/database/index.js';
 import { UserRole } from '../types';
+import { AuditRepository } from './audit-repository.js';
 
 export interface WorkspaceEntity {
   id: string;
@@ -574,22 +575,117 @@ export class WorkspaceRepository {
   }
 
   /**
-   * Remove member from workspace
+   * Remove member from workspace with validation, cascading cleanup, session termination, and audit log.
    */
   static async removeWorkspaceMember(
     workspaceId: string,
-    targetUserId: string
+    targetUserId: string,
+    actorUserId?: string,
+    metadata?: { ipAddress?: string | null; userAgent?: string | null }
   ): Promise<boolean> {
-    // In-memory removal
+    // 1. Validation: target cannot be self (admin cannot accidentally remove self)
+    if (actorUserId && actorUserId === targetUserId) {
+      const err: any = new Error('Admins cannot remove themselves from the workspace.');
+      err.code = 'CANNOT_REMOVE_SELF';
+      err.status = 400;
+      throw err;
+    }
+
+    // 2. Validation: check if target exists and belongs to workspace
+    const existingMember = await this.getWorkspaceMember(workspaceId, targetUserId);
+    if (!existingMember) {
+      const err: any = new Error('Target user does not belong to this workspace.');
+      err.code = 'MEMBER_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    // 3. Validation: workspace must retain at least one admin
+    if (existingMember.role === 'admin') {
+      const allMembers = await this.getWorkspaceMembers(workspaceId);
+      const adminCount = allMembers.filter((m) => m.role === 'admin').length;
+      if (adminCount <= 1) {
+        const err: any = new Error('Cannot remove member: workspace must retain at least one admin.');
+        err.code = 'CANNOT_REMOVE_LAST_ADMIN';
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    // 4. Action: Remove membership from in-memory and PostgreSQL
     for (const [id, mem] of inMemoryDb.workspaceMembers.entries()) {
       if (mem.workspaceId === workspaceId && mem.userId === targetUserId) {
         inMemoryDb.workspaceMembers.delete(id);
       }
     }
 
+    // 5. Action: Remove department assignments and team memberships
+    // In-memory team members cleanup
+    for (const [id, tm] of inMemoryDb.teamMembers.entries()) {
+      const team = inMemoryDb.teams.get(tm.teamId);
+      if (tm.userId === targetUserId && (!team || team.workspaceId === workspaceId)) {
+        inMemoryDb.teamMembers.delete(id);
+      }
+    }
+    // In-memory employee profile department & status cleanup
+    for (const [id, prof] of inMemoryDb.employeeProfiles.entries()) {
+      if (prof.workspaceId === workspaceId && prof.userId === targetUserId) {
+        prof.departmentId = null;
+        prof.status = 'terminated';
+        prof.updatedAt = new Date();
+        inMemoryDb.employeeProfiles.set(id, prof);
+      }
+    }
+    // In-memory departments lead cleanup if target was head
+    for (const [id, dept] of inMemoryDb.departments.entries()) {
+      if (dept.workspaceId === workspaceId && dept.headId === targetUserId) {
+        dept.headId = null;
+        dept.updatedAt = new Date();
+        inMemoryDb.departments.set(id, dept);
+      }
+    }
+
+    // 6. Action: Remove project assignments
+    for (const [id, pm] of inMemoryDb.projectMembers.entries()) {
+      const proj = inMemoryDb.projects.get(pm.projectId);
+      if (pm.userId === targetUserId && (!proj || proj.workspaceId === workspaceId)) {
+        inMemoryDb.projectMembers.delete(id);
+      }
+    }
+
+    // 7. Action: Terminate active sessions for target user scoped to this workspace
+    for (const [token, sess] of inMemoryDb.sessions.entries()) {
+      if (sess.userId === targetUserId && sess.workspaceId === workspaceId) {
+        inMemoryDb.sessions.delete(token);
+      }
+    }
+
+    // 8. Action: Create audit log
+    const auditUserId = actorUserId || targetUserId;
+    await AuditRepository.logAudit({
+      workspaceId,
+      userId: auditUserId,
+      action: 'workspace:member_removed',
+      resource: 'workspace_members',
+      resourceId: targetUserId,
+      oldValues: {
+        userId: targetUserId,
+        role: existingMember.role,
+        workspaceId,
+      },
+      newValues: {
+        status: 'removed',
+        removedBy: auditUserId,
+      },
+      ipAddress: metadata?.ipAddress || null,
+      userAgent: metadata?.userAgent || null,
+    });
+
+    // 9. Execute cascading cleanups in PostgreSQL if connected
     try {
       const db = getDb();
       if (db) {
+        // Delete membership
         await db
           .delete(schema.workspaceMembers)
           .where(
@@ -598,9 +694,82 @@ export class WorkspaceRepository {
               eq(schema.workspaceMembers.userId, targetUserId)
             )
           );
+
+        // Delete from project_members for projects in this workspace
+        const workspaceProjects = await db
+          .select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(eq(schema.projects.workspaceId, workspaceId));
+
+        if (workspaceProjects.length > 0) {
+          const pIds = workspaceProjects.map((p) => p.id);
+          for (const pId of pIds) {
+            await db
+              .delete(schema.projectMembers)
+              .where(
+                and(
+                  eq(schema.projectMembers.projectId, pId),
+                  eq(schema.projectMembers.userId, targetUserId)
+                )
+              );
+          }
+        }
+
+        // Delete from team_members for teams in this workspace
+        const workspaceTeams = await db
+          .select({ id: schema.teams.id })
+          .from(schema.teams)
+          .where(eq(schema.teams.workspaceId, workspaceId));
+
+        if (workspaceTeams.length > 0) {
+          const tIds = workspaceTeams.map((t) => t.id);
+          for (const tId of tIds) {
+            await db
+              .delete(schema.teamMembers)
+              .where(
+                and(
+                  eq(schema.teamMembers.teamId, tId),
+                  eq(schema.teamMembers.userId, targetUserId)
+                )
+              );
+          }
+        }
+
+        // Clear department head if target was head
+        await db
+          .update(schema.departments)
+          .set({ headId: null, updatedAt: new Date() })
+          .where(
+            and(
+              eq(schema.departments.workspaceId, workspaceId),
+              eq(schema.departments.headId, targetUserId)
+            )
+          );
+
+        // Update employee profile in this workspace
+        await db
+          .update(schema.employeeProfiles)
+          .set({ departmentId: null, status: 'terminated', updatedAt: new Date() })
+          .where(
+            and(
+              eq(schema.employeeProfiles.workspaceId, workspaceId),
+              eq(schema.employeeProfiles.userId, targetUserId)
+            )
+          );
+
+        // Terminate sessions for this workspace
+        await db
+          .delete(schema.sessions)
+          .where(
+            and(
+              eq(schema.sessions.userId, targetUserId),
+              eq(schema.sessions.workspaceId, workspaceId)
+            )
+          );
       }
       return true;
-    } catch {
+    } catch (err: any) {
+      console.warn('[WorkspaceRepository.removeWorkspaceMember] DB note:', err?.message);
       return true;
     }
   }

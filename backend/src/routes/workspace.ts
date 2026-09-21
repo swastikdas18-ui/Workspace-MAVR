@@ -256,47 +256,73 @@ workspaceRouter.patch('/settings', updateSettingsHandler);
 workspaceRouter.patch('/', updateSettingsHandler);
 
 /**
- * DELETE /workspace/members/:id - Remove member from workspace (Admin only)
+ * DELETE /:workspaceId/members/:memberId or /members/:id - Remove member from workspace (Admin only)
  */
-const deleteMemberHandler = async (c: any) => {
+const deleteWorkspaceMemberRouteHandler = async (c: any) => {
   try {
     const user = c.get('user');
-    const workspaceCtx = c.get('workspace');
-    const { role: effectiveRole } = await resolveMembershipRole(c);
+    const sessionWorkspace = c.get('workspace');
+    const paramWorkspaceId = c.req.param('workspaceId');
+    const targetWorkspaceId = paramWorkspaceId || sessionWorkspace?.id;
 
-    if (effectiveRole === 'employee' || effectiveRole === 'intern') {
+    if (!targetWorkspaceId) {
       return c.json(
-        { error: { code: 'FORBIDDEN', message: `Role [${effectiveRole.toUpperCase()}] is forbidden from removing workspace members.` } },
-        403
-      );
-    }
-
-    if (!workspaceCtx) {
-      return c.json(
-        { error: { code: 'NOT_FOUND', message: 'No active workspace found for session.' } },
+        { error: { code: 'NOT_FOUND', message: 'No active workspace specified or found for session.' } },
         404
       );
     }
 
-    const targetUserId = c.req.param('id');
+    // Role check: Admin only in target workspace
+    const { role: effectiveRole, workspaceId: verifiedWsId } = await resolveMembershipRole(c);
+
+    // If paramWorkspaceId is specified, check caller's membership in that specific workspace
+    let callerRole = effectiveRole;
+    if (paramWorkspaceId && verifiedWsId !== paramWorkspaceId) {
+      const callerMembership = await WorkspaceRepository.getWorkspaceMember(paramWorkspaceId, user.id);
+      callerRole = callerMembership ? callerMembership.role : 'employee';
+      if (!callerMembership) {
+        return c.json(
+          { error: { code: 'FORBIDDEN', message: 'You are not a member of the requested workspace.' } },
+          403
+        );
+      }
+    }
+
+    if (callerRole !== 'admin') {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: `Role [${callerRole.toUpperCase()}] is forbidden from removing workspace members.` } },
+        403
+      );
+    }
+
+    const targetUserId = c.req.param('memberId') || c.req.param('id');
     if (!targetUserId) {
       return c.json(
-        { error: { code: 'BAD_REQUEST', message: 'Target user ID is required.' } },
+        { error: { code: 'BAD_REQUEST', message: 'Target member ID is required.' } },
         400
       );
     }
 
-    await WorkspaceRepository.removeWorkspaceMember(workspaceCtx.id, targetUserId);
+    const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || null;
+    const userAgent = c.req.header('user-agent') || null;
+
+    await WorkspaceRepository.removeWorkspaceMember(targetWorkspaceId, targetUserId, user.id, {
+      ipAddress,
+      userAgent,
+    });
+
     return c.json({ success: true, message: 'Member removed from workspace successfully.' }, 200);
   } catch (err: any) {
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'MEMBER_NOT_FOUND' ? 404 : 400);
     return c.json(
-      { error: { code: 'BAD_REQUEST', message: err.message || 'Failed to remove member.' } },
-      400
+      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to remove member.' } },
+      status
     );
   }
 };
 
-workspaceRouter.delete('/members/:id', deleteMemberHandler);
+workspaceRouter.delete('/:workspaceId/members/:memberId', deleteWorkspaceMemberRouteHandler);
+workspaceRouter.delete('/members/:id', deleteWorkspaceMemberRouteHandler);
 
 /**
  * GET /workspace/members - List members of current workspace

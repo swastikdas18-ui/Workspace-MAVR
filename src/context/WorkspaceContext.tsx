@@ -83,10 +83,11 @@ interface WorkspaceContextType {
   updateCrmRecord: (id: string, updates: Partial<CrmRecord>) => boolean;
   deleteCrmRecord: (id: string) => boolean;
 
-  // Teams & Invites
+  // Teams & Invites & Members
   createTeam: (team: Omit<Team, 'id' | 'member_count' | 'workspace_id'>) => Promise<boolean>;
   inviteMember: (email: string, role: UserRole, teamId?: string) => Promise<WorkspaceInvite | null>;
   loadInvites: () => Promise<void>;
+  removeWorkspaceMember: (memberId: string) => Promise<boolean>;
   addTeamMembers: (teamId: string, userIds: string[]) => Promise<boolean>;
   removeTeamMember: (teamId: string, userId: string) => Promise<boolean>;
   moveTeamMember: (fromTeamId: string, toTeamId: string, userId: string) => Promise<boolean>;
@@ -1327,6 +1328,50 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const removeWorkspaceMember = async (memberId: string): Promise<boolean> => {
+    if (!currentWorkspace?.id) return false;
+    if (currentRole !== 'admin') {
+      addToast({
+        type: 'error',
+        title: 'Unauthorized',
+        message: 'Only administrators can remove workspace members.',
+      });
+      logAction(`Unauthorized attempt to remove member ${memberId}`, 'TEAMS', 'denied');
+      return false;
+    }
+
+    try {
+      const res = await api.removeWorkspaceMember(currentWorkspace.id, memberId);
+      addToast({
+        type: 'success',
+        title: 'Member Removed',
+        message: res?.message || 'Workspace member removed successfully.',
+      });
+      logAction(`Removed workspace member ${memberId} from workspace ${currentWorkspace.id}`, 'TEAMS');
+
+      // Optimistic / reactive local state update
+      setUsers((prev) => prev.filter((u) => u.id !== memberId));
+      setTeams((prev) =>
+        prev.map((t) => ({
+          ...t,
+          members: (t.members || []).filter((id) => id !== memberId),
+          member_count: Math.max(0, (t.member_count ?? 1) - ((t.members || []).includes(memberId) ? 1 : 0)),
+          lead_id: t.lead_id === memberId ? '' : t.lead_id,
+        }))
+      );
+
+      await refreshWorkspaceData();
+      return true;
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Removal Failed',
+        message: err.message || 'Failed to remove member from workspace.',
+      });
+      return false;
+    }
+  };
+
   const updateWorkspace = (updates: Partial<Workspace>): boolean => {
     if (!permissions.workspace.manage) {
       addToast({ type: 'error', title: 'Access Denied', message: 'Only Admins can update workspace configuration.' });
@@ -1397,6 +1442,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createTeam,
         inviteMember,
         loadInvites,
+        removeWorkspaceMember,
         addTeamMembers,
         removeTeamMember,
         moveTeamMember,

@@ -7,7 +7,7 @@ import {
   Search, Plus, CheckCircle2, XCircle, AlertCircle, MapPin, 
   Mail, Phone, Shield, ArrowRight, UserCheck, UserX, Star,
   TrendingUp, RefreshCw, ChevronDown, Check, X, Sparkles, Filter,
-  UserPlus, Copy, Send, Trash2
+  UserPlus, Copy, Send, Trash2, MoreVertical, UserMinus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MetricCard } from '../common/MetricCard';
@@ -18,7 +18,7 @@ export const PeopleView: React.FC = () => {
   const { 
     currentUser, currentRole, currentWorkspace, addToast,
     permissions, users, teams, createTeam, inviteMember, invites, loadInvites,
-    projects, tasks
+    removeWorkspaceMember, projects, tasks
   } = useWorkspace();
 
   const [activeSubTab, setActiveSubTab] = useState<'directory' | 'departments' | 'invitations' | 'orgchart' | 'leaves' | 'attendance' | 'goals' | 'performance'>('directory');
@@ -48,6 +48,10 @@ export const PeopleView: React.FC = () => {
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('');
   const [selectedEmploymentTypeFilter, setSelectedEmploymentTypeFilter] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<any | null>(null);
+  const [removeConfirmName, setRemoveConfirmName] = useState('');
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
+  const [activeActionMenuUserId, setActiveActionMenuUserId] = useState<string | null>(null);
 
   // Departments & Org Chart State
   const [departments, setDepartments] = useState<any[]>([]);
@@ -250,6 +254,35 @@ export const PeopleView: React.FC = () => {
         title: 'Failed to Delete Department',
         message: err.message || 'An error occurred while deleting the department.'
       });
+    }
+  };
+  const handleRemoveMemberSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberToRemove) return;
+
+    const targetUserId = memberToRemove.userId || memberToRemove.user?.id || memberToRemove.id;
+    const targetName = memberToRemove.user?.name || memberToRemove.name || (memberToRemove.user?.email ? memberToRemove.user.email.split('@')[0] : 'Member');
+
+    if (removeConfirmName.trim().toLowerCase() !== targetName.trim().toLowerCase()) {
+      addToast({
+        type: 'error',
+        title: 'Confirmation Name Mismatch',
+        message: 'Please type the exact member name to confirm removal.',
+      });
+      return;
+    }
+
+    setIsRemovingMember(true);
+    try {
+      const ok = await removeWorkspaceMember(targetUserId);
+      if (ok) {
+        setMemberToRemove(null);
+        setRemoveConfirmName('');
+        setActiveActionMenuUserId(null);
+        await loadData();
+      }
+    } finally {
+      setIsRemovingMember(false);
     }
   };
 
@@ -961,15 +994,56 @@ export const PeopleView: React.FC = () => {
                         <p className="text-xs text-slate-400">{prof.user?.email || prof.email}</p>
                       </div>
                     </div>
-                    <span
-                      className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
-                        prof.status === 'active'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                      }`}
-                    >
-                      {prof.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
+                          prof.status === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}
+                      >
+                        {prof.status}
+                      </span>
+
+                      {/* Actions Menu */}
+                      {currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && (
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const targetId = prof.userId || prof.user?.id || prof.id;
+                              setActiveActionMenuUserId(activeActionMenuUserId === targetId ? null : targetId);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                            title="Member Actions"
+                            aria-label="Member Actions"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {activeActionMenuUserId === (prof.userId || prof.user?.id || prof.id) && (
+                            <div 
+                              className="absolute right-0 mt-1 w-48 bg-[#171A21] border border-[#2A303D] rounded-xl shadow-xl z-20 py-1 overflow-hidden"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMemberToRemove(prof);
+                                  setRemoveConfirmName('');
+                                  setActiveActionMenuUserId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 transition cursor-pointer text-left font-medium"
+                              >
+                                <UserMinus className="w-3.5 h-3.5 shrink-0 text-rose-400" />
+                                <span>Remove From Workspace</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-4 space-y-1.5 text-xs text-slate-300">
@@ -2032,6 +2106,103 @@ export const PeopleView: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* REMOVE MEMBER CONFIRMATION MODAL */}
+        {memberToRemove && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#171A21] border border-rose-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2 text-rose-400">
+                  <UserMinus className="w-5 h-5 stroke-[2.5]" />
+                  <h3 className="font-bold text-slate-100 text-base">Remove Member</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMemberToRemove(null);
+                    setRemoveConfirmName('');
+                  }}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRemoveMemberSubmit} className="mt-5 space-y-4 text-xs">
+                {(() => {
+                  const targetName = memberToRemove.user?.name || memberToRemove.name || (memberToRemove.user?.email ? memberToRemove.user.email.split('@')[0] : 'Member');
+                  const isMatching = removeConfirmName.trim().toLowerCase() === targetName.trim().toLowerCase();
+
+                  return (
+                    <>
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-2">
+                        <p className="text-rose-200 font-medium leading-relaxed">
+                          This action will permanently revoke access for <strong className="text-white font-bold">{targetName}</strong>.
+                        </p>
+                        <ul className="list-disc list-inside text-rose-300/80 space-y-1 text-[11px]">
+                          <li>Revokes all workspace permissions and roles</li>
+                          <li>Unassigns from all projects and departments</li>
+                          <li>Immediately terminates all active sessions</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-slate-300 font-medium">
+                          Type <span className="font-bold text-white select-all">&quot;{targetName}&quot;</span> to confirm:
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={removeConfirmName}
+                          onChange={(e) => setRemoveConfirmName(e.target.value)}
+                          placeholder={targetName}
+                          autoFocus
+                          className="w-full bg-[#111827] border border-white/10 focus:border-rose-500 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-600 focus:outline-none transition text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberToRemove(null);
+                            setRemoveConfirmName('');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={!isMatching || isRemovingMember}
+                          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 shadow-lg shadow-rose-600/20"
+                        >
+                          {isRemovingMember ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Removing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserMinus className="w-3.5 h-3.5" />
+                              <span>Remove Member</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </form>
             </motion.div>
           </div>

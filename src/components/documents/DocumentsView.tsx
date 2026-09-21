@@ -306,9 +306,13 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
         <EmptyState
           icon={FileText}
           title="No Documents Found"
-          description="Upload an architecture blueprint, handbook, or policy file to get started."
+          description="Upload architecture blueprints, handbooks, or policy files. Shared documents are accessible to the whole organization."
           actionLabel={permissions.documents.createOrgDoc ? 'Upload Document' : undefined}
           onAction={() => setIsUploadModalOpen(true)}
+          actionIcon={UploadCloud}
+          secondaryLabel="Browse Shared Library"
+          onSecondaryAction={() => {/* toggle shared filter */}}
+          secondaryIcon={BookOpen}
         />
       ) : viewMode === 'grid' ? (
         /* NOTION GRID CARDS */

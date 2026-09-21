@@ -313,6 +313,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ routeProjectId, onRo
           description="Create your first strategic initiative and begin tracking milestones across the organization."
           actionLabel={permissions.projects.create ? 'Create Project' : undefined}
           onAction={() => setIsCreateModalOpen(true)}
+          secondaryLabel="Learn How Projects Work"
+          onSecondaryAction={() => window.open('https://docs.workspace-os.com/projects', '_blank')}
         />
       ) : viewMode === 'board' ? (
         /* KANBAN BOARD WITH PHASE 1 WORKFLOW ACTIONS */

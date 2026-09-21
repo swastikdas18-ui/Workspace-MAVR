@@ -14,6 +14,7 @@ import { MetricCard } from '../common/MetricCard';
 import { UserAvatar } from '../common/UserAvatar';
 import { PageHeader } from '../common/PageHeader';
 import { DepartmentDetailsModal } from './DepartmentDetailsModal';
+import { EmptyState } from '../common/EmptyState';
 
 export const PeopleView: React.FC = () => {
   const { 
@@ -737,9 +738,18 @@ export const PeopleView: React.FC = () => {
           </div>
 
           {invites.length === 0 && (
-            <div className="p-8 text-center bg-slate-900/20 border border-white/5 rounded-2xl text-slate-400 text-xs">
-              No active or historical invitations found. Click &quot;Invite Member&quot; to provision a new invitation token.
-            </div>
+            <EmptyState
+              icon={Mail}
+              title="No Pending Invitations"
+              description="Invite team members by email to provision workspace access. Generated invitation tokens expire after 7 days."
+              actionLabel={permissions?.teams?.manageTeams ? 'Invite Member' : undefined}
+              onAction={() => setIsInviteModalOpen(true)}
+              actionIcon={UserPlus}
+              secondaryLabel="Copy Invite Link"
+              onSecondaryAction={() => setIsInviteModalOpen(true)}
+              secondaryIcon={Copy}
+              size="compact"
+            />
           )}
         </div>
       )}
@@ -907,9 +917,17 @@ export const PeopleView: React.FC = () => {
           </div>
 
           {departments.length === 0 && (
-            <div className="p-8 text-center bg-slate-900/20 border border-white/5 rounded-2xl text-slate-400 text-xs">
-              No departments registered. Click &quot;Create Department&quot; to form an organizational unit.
-            </div>
+            <EmptyState
+              icon={Building2}
+              title="No Departments Yet"
+              description="Create organizational units to group employees by function. Assign leads, track workload, and manage headcount per department."
+              actionLabel={permissions?.teams?.manageTeams ? 'Create Department' : undefined}
+              onAction={() => setIsCreateTeamModalOpen(true)}
+              secondaryLabel="View Directory"
+              onSecondaryAction={() => setActiveSubTab('directory')}
+              secondaryIcon={Users}
+              size="compact"
+            />
           )}
         </div>
       )}
@@ -1094,30 +1112,20 @@ export const PeopleView: React.FC = () => {
           </div>
 
           {filteredProfiles.length === 0 && (
-            <div className="p-8 text-center bg-slate-900/20 border border-white/5 rounded-2xl text-slate-400 text-xs space-y-3">
-              <p>No employees found matching the current department or search filter.</p>
-              <div className="flex items-center justify-center gap-3">
-                {selectedDepartmentFilter && (
-                  <button
-                    onClick={() => setSelectedDepartmentFilter('')}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium cursor-pointer"
-                  >
-                    View All Employees
-                  </button>
-                )}
-                {permissions?.teams?.manageTeams && profiles.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setTargetReassignUser(profiles[0]);
-                      setSelectedNewDeptId(selectedDepartmentFilter || departments[0]?.id || '');
-                      setIsTransferModalOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold cursor-pointer"
-                  >
-                    Assign Employee to Department
-                  </button>
-                )}
-              </div>
+            <div className="col-span-full">
+              <EmptyState
+                icon={UserCheck}
+                title={selectedDepartmentFilter ? 'No Employees in This Department' : 'No Employees Found'}
+                description={selectedDepartmentFilter
+                  ? 'No employees are assigned to this department yet. Assign them from the Departments tab or change the filter.'
+                  : 'No employees match your current search or filter. Try broadening your criteria or invite new members.'}
+                actionLabel={selectedDepartmentFilter ? 'View All Employees' : undefined}
+                onAction={() => setSelectedDepartmentFilter('')}
+                actionIcon={Filter}
+                secondaryLabel={permissions?.teams?.manageTeams ? 'Invite Employee' : undefined}
+                onSecondaryAction={() => setIsInviteModalOpen(true)}
+                secondaryIcon={UserPlus}
+              />
             </div>
           )}
         </div>
@@ -1203,8 +1211,18 @@ export const PeopleView: React.FC = () => {
                   ))}
                   {leaves.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-500">
-                        No leave requests submitted yet.
+                      <td colSpan={6} className="py-10 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Calendar className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+                          <p className="text-xs font-semibold text-slate-400">No Leave Requests Yet</p>
+                          <p className="text-[11px] text-slate-500">Submit a leave request to get approval from your manager.</p>
+                          <button
+                            onClick={() => setIsRequestLeaveModalOpen(true)}
+                            className="mt-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition cursor-pointer"
+                          >
+                            Request Leave
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}

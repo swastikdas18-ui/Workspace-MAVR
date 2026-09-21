@@ -5,7 +5,7 @@ import {
   DollarSign, Plus, Phone, Mail, Building2, Trash2, Edit3, 
   Calendar, CheckCircle2, ChevronRight, X, User, TrendingUp,
   LayoutGrid, List, Sparkles, MessageSquare, ArrowUpRight,
-  IndianRupee, Award, Users, Target, Rocket, CheckCheck
+  IndianRupee, Award, Users, Target, Rocket, CheckCheck, Upload
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
@@ -215,9 +215,12 @@ export const CrmView: React.FC<CrmViewProps> = ({ routeLeadId, onRouteChange }) 
         <EmptyState
           icon={DollarSign}
           title="No Deals Found"
-          description="Create your first client record to populate the revenue pipeline."
+          description="Build your revenue pipeline by adding your first client deal. Track stages from lead to closed-won."
           actionLabel={permissions.crm.createRecord ? 'Add Deal' : undefined}
           onAction={() => setIsAddModalOpen(true)}
+          secondaryLabel="Import Contacts"
+          onSecondaryAction={() => setIsAddModalOpen(true)}
+          secondaryIcon={Upload}
         />
       ) : activeTab === 'pipeline' ? (
         /* PIPELINE KANBAN */

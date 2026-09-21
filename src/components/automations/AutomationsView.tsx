@@ -357,21 +357,30 @@ export const AutomationsView: React.FC = () => {
           {/* Rules List */}
           {filteredRules.length === 0 ? (
             <div className="p-12 text-center bg-[#111827] border border-white/[0.08] rounded-2xl space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mx-auto border border-purple-500/20">
+              <div className="w-12 h-12 rounded-2xl bg-[#B8FF3B]/[0.08] text-[#B8FF3B] border border-[#B8FF3B]/[0.18] flex items-center justify-center mx-auto">
                 <Zap className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-white">No Automation Rules Found</h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                No rules matched your filter criteria. Build a custom trigger pipeline or install a pre-configured template.
+                No rules matched your filter criteria. Build a custom trigger pipeline or install a pre-configured template to get started.
               </p>
               {currentRole === 'admin' && (
-                <button
-                  onClick={() => setIsCreateOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors cursor-pointer mt-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Build First Automation</span>
-                </button>
+                <div className="flex items-center gap-3 justify-center pt-1">
+                  <button
+                    onClick={() => setIsCreateOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#B8FF3B] hover:bg-[#CCFF66] text-[#0F1115] text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Build Automation</span>
+                  </button>
+                  <button
+                    onClick={() => setIsCreateOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1D212B] hover:bg-[#242936] text-slate-300 text-xs font-semibold border border-[#2A303D] transition-colors cursor-pointer"
+                  >
+                    <LayoutTemplate className="w-4 h-4" />
+                    <span>Use Template</span>
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -510,8 +519,12 @@ export const AutomationsView: React.FC = () => {
               <tbody className="divide-y divide-white/5">
                 {executions.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500">
-                      No executions recorded yet. Triggers will log real-time audit records as events occur.
+                    <td colSpan={5} className="py-10 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Activity className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+                        <p className="text-xs font-semibold text-slate-400">No Executions Yet</p>
+                        <p className="text-[11px] text-slate-500 max-w-xs text-center">Automation runs will appear here as events trigger your rules in real time.</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (

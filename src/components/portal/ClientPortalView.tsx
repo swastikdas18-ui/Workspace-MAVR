@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, CheckCircle2, AlertTriangle, FileText, Download, 
-  Send, ExternalLink, ShieldCheck, Clock, UserCheck, MessageSquare
+  Send, ExternalLink, ShieldCheck, Clock, UserCheck, MessageSquare, Package
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { DeliverableApprovalItem } from '../../types';
 import { PageHeader } from '../common/PageHeader';
+import { EmptyState } from '../common/EmptyState';
 
 export const ClientPortalView: React.FC = () => {
   const { currentRole, currentUser, currentWorkspace } = useWorkspace();
@@ -84,9 +85,16 @@ export const ClientPortalView: React.FC = () => {
       {/* DELIVERABLES LIST */}
       <div className="space-y-4">
         {approvals.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-[#111827] border border-white/[0.08] text-center text-xs text-slate-500">
-            No client deliverable packages or sign-off requests created for this workspace yet.
-          </div>
+          <EmptyState
+            icon={Package}
+            title="No Deliverable Packages Yet"
+            description="Create client-facing deliverable packages for sign-off, approval, and milestone tracking. Clients receive a secure magic link to review and approve."
+            actionLabel={currentRole === 'admin' ? 'Create Deliverable Package' : undefined}
+            onAction={() => {}}
+            actionIcon={Send}
+            secondaryLabel="Learn About Client Portal"
+            onSecondaryAction={() => window.open('https://docs.workspace-os.com/client-portal', '_blank')}
+          />
         ) : (
           approvals.map((approval) => (
             <div

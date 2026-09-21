@@ -404,8 +404,10 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
               {teamWorkload.length === 0 ? (
-                <div className="text-center py-6 text-xs text-slate-400">
-                  No teams configured yet.
+                <div className="flex flex-col items-center justify-center py-6 gap-2 text-center">
+                  <Users className="w-5 h-5 text-slate-700" strokeWidth={1.5} />
+                  <p className="text-xs font-semibold text-slate-500">No Teams Configured</p>
+                  <p className="text-[11px] text-slate-600">Create department teams to see workload distribution.</p>
                 </div>
               ) : (
                 teamWorkload.map((team: any) => (
@@ -461,8 +463,10 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="divide-y divide-[#E8E3DA] max-h-72 overflow-y-auto pr-1">
               {recentActivity.length === 0 ? (
-                <div className="text-center py-8 ui-caption text-stone-400">
-                  No recent workspace activity recorded yet.
+                <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                  <Activity className="w-5 h-5 text-slate-700" strokeWidth={1.5} />
+                  <p className="text-xs font-semibold text-slate-500">No Activity Yet</p>
+                  <p className="text-[11px] text-slate-600">Workspace actions — project updates, task changes, team events — will appear here in real time.</p>
                 </div>
               ) : (
                 recentActivity.map((act: any) => (

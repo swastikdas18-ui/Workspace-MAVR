@@ -9,6 +9,7 @@ import { TaskTimeEntryItem } from '../../types';
 import { PageHeader } from '../common/PageHeader';
 import { MetricCard } from '../common/MetricCard';
 import { api } from '../../lib/api';
+import { EmptyState } from '../common/EmptyState';
 
 export const TimeTrackingView: React.FC = () => {
   const { currentRole, currentUser, currentWorkspace, tasks, addToast } = useWorkspace();
@@ -434,9 +435,16 @@ export const TimeTrackingView: React.FC = () => {
 
         <div className="overflow-x-auto">
           {entries.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500">
-              No time entries recorded for this workspace yet. Start the stopwatch above to log your hours.
-            </div>
+            <EmptyState
+              icon={Clock}
+              title="No Time Entries Yet"
+              description="Start the stopwatch above to log your first hours. Track billable time per task and project for accurate revenue reporting."
+              actionLabel="Start Timer Now"
+              onAction={() => setIsTimerRunning(true)}
+              actionIcon={Play}
+              secondaryLabel="Learn About Time Tracking"
+              onSecondaryAction={() => window.open('https://docs.workspace-os.com/time-tracking', '_blank')}
+            />
           ) : (
             <table className="w-full text-left text-xs">
               <thead>

@@ -4,7 +4,7 @@ import {
   CheckSquare, 
   CheckCircle2, Plus, Sparkles,
   Calendar, Layers, Play, Square, Timer,
-  Send, AlertTriangle, ShieldAlert
+  Send, AlertTriangle, ShieldAlert, Target, FolderKanban
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
 import { api } from '../../lib/api';
@@ -350,8 +350,10 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="space-y-3">
             {filteredTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-stone-400">
-                No tasks match the selected filter.
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                <CheckSquare className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+                <p className="text-xs font-semibold text-slate-400">No Tasks Found</p>
+                <p className="text-[11px] text-slate-500 max-w-[200px]">No tasks match the selected filter. Try switching tabs or ask your manager for assignments.</p>
               </div>
             ) : (
               filteredTasks.slice(0, 8).map((task) => {
@@ -468,8 +470,10 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="space-y-3.5 flex-1">
             {assignedProjects.length === 0 ? (
-              <div className="py-12 text-center text-xs text-stone-400">
-                No assigned projects.
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                <FolderKanban className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+                <p className="text-xs font-semibold text-slate-400">No Projects Assigned</p>
+                <p className="text-[11px] text-slate-500 max-w-[200px]">You haven't been added to any projects yet. Contact your team lead or admin.</p>
               </div>
             ) : (
               assignedProjects.map((proj) => {
@@ -599,8 +603,10 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="space-y-3 text-xs">
             {myGoals.length === 0 ? (
-              <div className="py-6 text-center text-stone-400">
-                No active OKRs registered.
+              <div className="flex flex-col items-center justify-center py-6 gap-2 text-center">
+                <Target className="w-5 h-5 text-slate-600" strokeWidth={1.5} />
+                <p className="text-xs font-semibold text-slate-400">No Active OKRs</p>
+                <p className="text-[11px] text-slate-500 max-w-[180px]">Set your first quarterly objective to track your progress.</p>
               </div>
             ) : (
               myGoals.slice(0, 2).map((g) => (

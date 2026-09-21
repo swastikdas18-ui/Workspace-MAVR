@@ -7,6 +7,7 @@ import {
 import { api } from '../../lib/api';
 import { UserAvatar } from '../common/UserAvatar';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { EmptyState } from '../common/EmptyState';
 
 interface DepartmentDetailsModalProps {
   department: any;
@@ -293,24 +294,19 @@ export const DepartmentDetailsModal: React.FC<DepartmentDetailsModalProps> = ({
               <p className="text-xs">Loading department members...</p>
             </div>
           ) : filteredMembers.length === 0 ? (
-            <div className="text-center py-16 bg-[#171A21]/40 border border-[#2A303D] rounded-2xl space-y-3 p-6">
-              <Users className="w-8 h-8 text-slate-500 mx-auto" />
-              <p className="text-xs text-slate-400">
-                {members.length === 0
-                  ? 'No members currently assigned to this department.'
-                  : 'No department members match your search criteria.'}
-              </p>
-              {isAdmin && members.length === 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddMemberOpen(true)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Assign First Member
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={UserPlus}
+              title={members.length === 0 ? 'No Members Assigned' : 'No Members Match Search'}
+              description={
+                members.length === 0
+                  ? `${department.name} has no members yet. Assign employees to this department to track workload and ownership.`
+                  : 'No department members match your search. Try a different name or clear the search.'
+              }
+              actionLabel={isAdmin && members.length === 0 ? 'Assign First Member' : undefined}
+              onAction={() => setIsAddMemberOpen(true)}
+              actionIcon={UserPlus}
+              size="compact"
+            />
           ) : (
             <div className="grid grid-cols-1 gap-2.5">
               {filteredMembers.map((member) => {

@@ -270,10 +270,17 @@ export const TeamsView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {visibleTeams.length === 0 ? (
-            <div className="col-span-full p-12 text-center bg-[#111827] rounded-2xl border border-white/[0.08]">
-              <Users className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-white">No Teams Found</p>
-              <p className="text-xs text-slate-400 mt-1">Create your first department team to organize members.</p>
+            <div className="col-span-full">
+              <EmptyState
+                icon={Users}
+                title="No Teams Yet"
+                description="Organize your workforce into functional departments. Each team can have a lead, members, and its own colour identity."
+                actionLabel={permissions.teams.manageTeams ? 'Create First Team' : undefined}
+                onAction={() => setIsCreateTeamModalOpen(true)}
+                secondaryLabel="Invite Members"
+                onSecondaryAction={() => setIsInviteModalOpen(true)}
+                secondaryIcon={UserPlus}
+              />
             </div>
           ) : (
             visibleTeams.map((team) => {
@@ -554,11 +561,17 @@ export const TeamsView: React.FC = () => {
               {/* Members List */}
               <div className="flex-1 overflow-y-auto pr-1 divide-y divide-white/[0.04] space-y-1">
                 {getTeamMembers(activeSelectedTeam).length === 0 ? (
-                  <div className="p-8 text-center bg-[#111827]/50 rounded-2xl border border-white/[0.04]">
-                    <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                    <p className="text-xs font-medium text-slate-300">No members in this team yet</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Click "Add Members" above to assign colleagues.</p>
-                  </div>
+                  <EmptyState
+                    icon={UserPlus}
+                    title="No Members Yet"
+                    description={`${activeSelectedTeam.name} has no members assigned. Add colleagues to start collaborating.`}
+                    actionLabel={permissions.teams.manageTeams ? 'Add Members' : undefined}
+                    onAction={() => {
+                      setSelectedUserIdsToAdd([]);
+                      setIsAddMembersModalOpen(true);
+                    }}
+                    size="compact"
+                  />
                 ) : (
                   getTeamMembers(activeSelectedTeam).map((member) => {
                     const isLead = member.id === activeSelectedTeam.lead_id;

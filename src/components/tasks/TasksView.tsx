@@ -418,9 +418,11 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
         <EmptyState
           icon={CheckSquare}
           title="No Tasks Found"
-          description="Your backlog is completely clear or matches no active search criteria."
+          description="Your backlog is completely clear or no tasks match the active filter. Create a new work item to get started."
           actionLabel={permissions.tasks.create ? 'Create Work Item' : undefined}
           onAction={handleOpenCreateModal}
+          secondaryLabel="Browse Projects"
+          onSecondaryAction={() => {/* navigate to projects */}}
         />
       ) : viewMode === 'kanban' ? (
         /* KANBAN BOARD - 5 Phase 2 Columns */
@@ -898,8 +900,10 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                     {loadingActivities ? (
                       <div className="text-center py-6 text-slate-500">Loading audit trail...</div>
                     ) : activities.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500 border border-dashed border-white/[0.08] rounded-xl">
-                        No activity recorded yet.
+                      <div className="flex flex-col items-center justify-center py-8 gap-2 border border-dashed border-white/[0.08] rounded-xl">
+                        <History className="w-6 h-6 text-slate-600" strokeWidth={1.5} />
+                        <p className="text-xs font-semibold text-slate-400">No Activity Yet</p>
+                        <p className="text-[11px] text-slate-500 max-w-[200px] text-center">Status changes and updates will appear here as the team collaborates.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -928,8 +932,10 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                       {loadingComments ? (
                         <div className="text-center py-4 text-slate-500">Loading activity thread...</div>
                       ) : comments.length === 0 ? (
-                        <div className="text-center py-6 text-slate-600 border border-dashed border-white/[0.08] rounded-xl">
-                          No comments yet. Share an update below.
+                        <div className="flex flex-col items-center justify-center py-6 gap-2 border border-dashed border-white/[0.08] rounded-xl">
+                          <MessageSquare className="w-5 h-5 text-slate-600" strokeWidth={1.5} />
+                          <p className="text-xs font-semibold text-slate-400">No Comments Yet</p>
+                          <p className="text-[11px] text-slate-500">Start the thread — share an update below.</p>
                         </div>
                       ) : (
                         comments.map((c) => (

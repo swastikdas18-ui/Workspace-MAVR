@@ -375,8 +375,17 @@ export const WikiView: React.FC<WikiViewProps> = ({
 
           <div className="flex-1 overflow-y-auto space-y-1 pr-1">
             {visiblePages.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500">
-                No pages created yet.
+              <div className="flex flex-col items-center justify-center py-6 gap-1.5 text-center">
+                <BookOpen className="w-5 h-5 text-slate-600" strokeWidth={1.5} />
+                <p className="text-[11px] font-semibold text-slate-400">No Pages Yet</p>
+                {currentRole !== 'intern' && (
+                  <button
+                    onClick={() => openCreateModal(null)}
+                    className="mt-1 text-[11px] text-[#B8FF3B] hover:text-[#CCFF66] font-semibold transition-colors cursor-pointer"
+                  >
+                    + Create First Page
+                  </button>
+                )}
               </div>
             ) : (
               visiblePages.map((page) => {
@@ -570,38 +579,21 @@ export const WikiView: React.FC<WikiViewProps> = ({
             </div>
           ) : (
             <div className="py-12 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/[0.08] flex items-center justify-center mb-4 text-slate-400">
-                <BookOpen className="w-6 h-6 text-blue-400" />
-              </div>
-              <h3 className="text-base font-semibold text-white mb-1">
-                {pages.length === 0 ? "No pages yet" : "Page Not Found"}
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
-                {pages.length === 0
-                  ? "Create your first SOP, process document, or company policy."
-                  : routePageId
-                  ? `The requested document ID "${routePageId}" could not be found.`
-                  : "Select a wiki page from the sidebar navigation or create a new page."}
-              </p>
-              <div className="flex items-center gap-3">
-                {pages.length > 0 && (
-                  <button
-                    onClick={() => selectPage(pages[0].id)}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/[0.08] transition-colors cursor-pointer"
-                  >
-                    Go to {pages[0].title}
-                  </button>
-                )}
-                {currentRole !== 'intern' && (
-                  <button
-                    onClick={() => openCreateModal(null)}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Create Page</span>
-                  </button>
-                )}
-              </div>
+              <EmptyState
+                icon={BookOpen}
+                title={pages.length === 0 ? 'Your Knowledge Wiki is Empty' : 'Page Not Found'}
+                description={
+                  pages.length === 0
+                    ? 'Create your first SOP, process document, company policy, or playbook. Your team\'s institutional knowledge starts here.'
+                    : routePageId
+                    ? `The requested document ID "${routePageId}" could not be found in this workspace.`
+                    : 'Select a page from the sidebar or create a new one to get started.'
+                }
+                actionLabel={currentRole !== 'intern' ? 'Create First Page' : undefined}
+                onAction={() => openCreateModal(null)}
+                secondaryLabel={pages.length > 0 ? `Go to ${pages[0].title}` : undefined}
+                onSecondaryAction={() => pages.length > 0 && selectPage(pages[0].id)}
+              />
             </div>
           )}
         </div>

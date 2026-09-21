@@ -21,7 +21,7 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
         return {
           label: 'Admin',
           icon: Shield,
-          styles: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_1px_3px_rgba(16,185,129,0.2)]',
+          styles: 'bg-[#B8FF3B]/15 text-[#B8FF3B] border-[#B8FF3B]/30 shadow-[0_1px_4px_rgba(184,255,59,0.18)]',
         };
       case 'employee':
         return {

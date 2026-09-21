@@ -348,12 +348,12 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
         actions={
           <div className="flex items-center gap-3 flex-wrap">
             {/* View Mode Toggle */}
-            <div className="flex items-center p-1 bg-[#111827] border border-white/[0.08] rounded-xl text-xs">
+            <div className="flex items-center p-1 bg-[#171A21] border border-[#2A303D] rounded-xl text-xs">
               <button
                 onClick={() => setViewMode('kanban')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   viewMode === 'kanban'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                    ? 'bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/30 font-semibold shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -364,7 +364,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
                 onClick={() => setViewMode('list')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   viewMode === 'list'
-                    ? 'bg-[#7C3AED] text-white font-medium shadow-sm'
+                    ? 'bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/30 font-semibold shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -377,7 +377,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
             <select
               value={filterProject}
               onChange={(e) => setFilterProject(e.target.value)}
-              className="bg-[#111827] border border-white/[0.08] text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-purple-500 transition-colors"
+              className="bg-[#171A21] border border-[#2A303D] text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-[#B8FF3B]/50 transition-colors"
             >
               <option value="all">All Initiatives</option>
               {projects.map((p) => (
@@ -389,7 +389,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="bg-[#111827] border border-white/[0.08] text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-purple-500 transition-colors"
+              className="bg-[#171A21] border border-[#2A303D] text-xs text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-[#B8FF3B]/50 transition-colors"
             >
               <option value="all">All Priorities</option>
               <option value="critical">🚨 Critical</option>
@@ -403,9 +403,9 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
             {permissions.tasks.create && (
               <button
                 onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-semibold shadow-lg shadow-purple-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#B8FF3B] hover:bg-[#CCFF66] text-[#0F1115] text-xs font-bold shadow-md shadow-[#B8FF3B]/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 text-[#0F1115] stroke-[2.5]" />
                 <span>New Work Item</span>
               </button>
             )}
@@ -434,10 +434,10 @@ export const TasksView: React.FC<TasksViewProps> = ({ routeTaskId, onRouteChange
             return (
               <div
                 key={column.id}
-                className="bg-[#0F172A]/70 border border-white/[0.06] rounded-[24px] p-4 flex flex-col min-h-[560px]"
+                className="bg-[#171A21] border border-[#2A303D] rounded-[20px] p-4 flex flex-col min-h-[560px]"
               >
                 {/* Column Header */}
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06] px-1">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#2A303D] px-1">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${column.dotColor}`} />
                     <span className="ui-caption font-semibold text-white tracking-tight">{column.label}</span>

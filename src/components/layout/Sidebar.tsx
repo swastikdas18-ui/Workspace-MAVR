@@ -105,20 +105,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         } ${isCollapsed ? 'justify-center px-2' : ''}`}
         title={isCollapsed ? item.label : undefined}
       >
-        {/* Animated selection background badge (Midnight Obsidian Elevation) */}
+        {/* Animated selection background badge (Graphite Surface Elevation) */}
         {isActive && (
           <motion.div
             layoutId="sidebarActiveBackground"
-            className="absolute inset-0 bg-emerald-500/10 border border-emerald-500/20 rounded-[14px] shadow-[0_1px_4px_rgba(16,185,129,0.15)]"
+            className="absolute inset-0 bg-[#B8FF3B]/10 border border-[#B8FF3B]/25 rounded-[12px] shadow-[0_1px_6px_rgba(184,255,59,0.12)]"
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
           />
         )}
 
-        {/* Left accent bar for active item (Emerald) */}
+        {/* Left accent bar for active item (Signature Lime) */}
         {isActive && (
           <motion.div
             layoutId="sidebarActivePill"
-            className="absolute left-1.5 top-2.5 bottom-2.5 w-1 bg-[#10B981] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+            className="absolute left-1 top-2 bottom-2 w-1 bg-[#B8FF3B] rounded-full shadow-[0_0_10px_rgba(184,255,59,0.7)]"
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
           />
         )}
@@ -126,22 +126,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="relative z-10 flex items-center justify-center shrink-0 w-4 h-4">
           <Icon
             className={`w-4 h-4 transition-colors duration-150 ${
-              isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'
+              isActive ? 'text-[#B8FF3B]' : 'text-slate-400 group-hover:text-slate-200'
             }`}
           />
         </div>
 
         {!isCollapsed && (
           <div className="relative z-10 flex items-center justify-between flex-1 min-w-0">
-            <span className={`truncate text-left tracking-tight ${isActive ? 'font-bold text-white' : 'font-medium'}`}>
+            <span className={`truncate text-left tracking-tight ${isActive ? 'font-semibold text-white' : 'font-medium'}`}>
               {item.label}
             </span>
             {item.badge && (
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-[8px] font-mono shrink-0 ml-1.5 ${
+                className={`text-[10px] px-1.5 py-0.5 rounded-[6px] font-mono shrink-0 ml-1.5 ${
                   isActive
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    ? 'bg-[#B8FF3B]/20 text-[#B8FF3B] border border-[#B8FF3B]/30'
+                    : 'bg-[#242936] text-slate-400 border border-[#2A303D]'
                 }`}
               >
                 {item.badge}
@@ -154,9 +154,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0B0F17] border-r border-[#1E293B] text-slate-300 select-none">
+    <div className="flex flex-col h-full bg-[#171A21] border-r border-[#2A303D] text-slate-300 select-none">
       {/* TOP SECTION: Workspace Brand & Switcher */}
-      <div className="p-3 border-b border-[#1E293B] bg-[#0F172A]/70">
+      <div className="p-3 border-b border-[#2A303D] bg-[#12141A]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <WorkspaceSelector compact={isCollapsed} />
@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Collapse toggle on desktop */}
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:flex p-1.5 rounded-[10px] text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer shrink-0"
+            className="hidden lg:flex p-1.5 rounded-[8px] text-slate-400 hover:text-slate-100 hover:bg-[#242936] transition-colors cursor-pointer shrink-0"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -178,13 +178,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-3 pt-3">
           <button
             onClick={onOpenCommandPalette}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-[14px] bg-[#111827] border border-[#1E293B] hover:border-emerald-500/40 text-slate-400 hover:text-slate-200 text-xs transition-all shadow-[0_1px_3px_rgba(0,0,0,0.3)] group cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-[12px] bg-[#1D212B] border border-[#2A303D] hover:border-[#B8FF3B]/40 text-slate-400 hover:text-slate-200 text-xs transition-all shadow-[0_1px_3px_rgba(0,0,0,0.3)] group cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <Sparkles className="w-3.5 h-3.5 text-[#B8FF3B] group-hover:scale-110 transition-transform" />
               <span className="font-medium text-slate-300 group-hover:text-white">Quick Find</span>
             </div>
-            <kbd className="text-[10px] font-mono text-slate-400 bg-[#1E293B] px-1.5 py-0.5 rounded-[6px] border border-slate-700">
+            <kbd className="text-[10px] font-mono text-slate-400 bg-[#242936] px-1.5 py-0.5 rounded-[4px] border border-[#2A303D]">
               ⌘K
             </kbd>
           </button>
@@ -205,11 +205,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             <div className="pt-3 pb-1">
               {!isCollapsed ? (
-                <div className="px-3 py-1 ui-caption font-semibold uppercase tracking-wider text-emerald-400/80 border-t border-[#1E293B] pt-3">
+                <div className="px-3 py-1 ui-caption font-semibold uppercase tracking-wider text-[#B8FF3B]/80 border-t border-[#2A303D] pt-3">
                   Extensions
                 </div>
               ) : (
-                <div className="border-t border-[#1E293B] my-2" />
+                <div className="border-t border-[#2A303D] my-2" />
               )}
             </div>
             {labsNavItems.map(renderNavItem)}
@@ -218,26 +218,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* BOTTOM SECTION: User Profile, Activity, Logout */}
-      <div className="p-3 border-t border-[#1E293B] bg-[#0F172A]/70">
-        <div className={`flex items-center gap-2.5 p-1.5 rounded-[16px] hover:bg-slate-800/60 transition-colors ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className="p-3 border-t border-[#2A303D] bg-[#12141A]">
+        <div className={`flex items-center gap-2.5 p-1.5 rounded-[12px] hover:bg-[#242936] transition-colors ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div 
             onClick={() => setActiveTab('settings')}
             className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
           >
             <div className="relative shrink-0">
               <UserAvatar name={currentUser.name} avatar={currentUser.avatar} size="md" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#0F172A]" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#B8FF3B] rounded-full border-2 border-[#12141A]" />
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-100 truncate group-hover:text-emerald-400 transition-colors">
+                <p className="text-xs font-semibold text-slate-100 truncate group-hover:text-[#B8FF3B] transition-colors">
                   {currentUser.name}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <span className="ui-caption text-slate-400 truncate max-w-[100px]">
                     {currentUser.title || currentUser.email}
                   </span>
-                  <span className="ui-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                  <span className="ui-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/25">
                     {currentRole}
                   </span>
                 </div>
@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && (
             <button
               onClick={logout}
-              className="p-1.5 rounded-[10px] text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer shrink-0"
+              className="p-1.5 rounded-[8px] text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer shrink-0"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />

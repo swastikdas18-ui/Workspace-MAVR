@@ -3,42 +3,44 @@
 @layer base {
   :root {
     /* Editorial Fonts */
-    --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
-    /* Semantic Color Tokens (Midnight Obsidian & Emerald) */
-    --color-primary: #10B981;           /* Vibrant Emerald */
-    --color-primary-glow: rgba(16, 185, 129, 0.25);
-    --color-secondary: #059669;         /* Mint Jade */
-    --color-secondary-glow: rgba(5, 150, 105, 0.2);
-    --color-success: #10B981;           /* Bright Emerald */
+    /* Semantic Color Tokens (Graphite + Lime) */
+    --color-primary: #B8FF3B;           /* Signature Lime */
+    --color-primary-hover: #CCFF66;     /* Electric Lime Glow */
+    --color-primary-glow: rgba(184, 255, 59, 0.22);
+    --color-secondary: #2A303D;         /* Graphite Accent */
+    --color-secondary-glow: rgba(42, 48, 61, 0.3);
+    --color-success: #10B981;           /* Vivid Emerald */
     --color-success-glow: rgba(16, 185, 129, 0.2);
     --color-warning: #F59E0B;           /* Luminous Amber */
     --color-warning-glow: rgba(245, 158, 11, 0.2);
-    --color-danger: #EF4444;            /* Neon Rose */
+    --color-danger: #EF4444;            /* Neon Crimson */
     --color-danger-glow: rgba(239, 68, 68, 0.2);
     --color-muted: #94A3B8;             /* Slate 400 */
     --color-muted-subtle: #64748B;      /* Slate 500 */
     --color-ink: #F8FAFC;               /* Crisp Diamond White */
 
-    /* Base Surfaces (Midnight Obsidian Dark Palette) */
-    --color-bg-base: #0B0F17;           /* Deep Midnight Obsidian */
-    --color-bg-surface: #111827;        /* Obsidian Surface Elevation 1 */
-    --color-bg-card: #151D2E;           /* Obsidian Card Elevation 2 */
-    --color-bg-card-subtle: #1E293B;    /* Inset Slate Card / Toolbars */
-    --color-border: #1E293B;            /* Sleek Obsidian Border */
-    --color-border-hover: #334155;      /* Elevated Border Hover */
+    /* Base Surfaces (Graphite Dark OS Palette) */
+    --color-bg-base: #0F1115;           /* Deep Canvas */
+    --color-bg-surface: #171A21;        /* Sidebar & Panel Surface */
+    --color-bg-card: #1D212B;           /* Elevated Modular Card */
+    --color-bg-card-subtle: #242936;    /* Inset Graphite Card / Toolbars */
+    --color-border: #2A303D;           /* Clean Graphite Border */
+    --color-border-hover: #3E4656;      /* Active / Hover Border */
 
     /* Standardized Border Radii */
     --radius-card: 20px;
-    --radius-input: 14px;
-    --radius-btn: 12px;
+    --radius-input: 12px;
+    --radius-btn: 10px;
     --radius-badge: 9999px;
 
-    /* Layered Tactile Shadows (Dark Obsidian Glow) */
-    --shadow-glass-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-glass: 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
-    --shadow-glass-lg: 0 16px 36px -8px rgba(0, 0, 0, 0.7), 0 4px 16px -2px rgba(16, 185, 129, 0.1);
+    /* Layered Tactile Shadows (Graphite + Subtle Lime Glow) */
+    --shadow-glass-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-glass: 0 4px 14px -2px rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-glass-lg: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 4px 16px -2px rgba(184, 255, 59, 0.08);
   }
 
   html {
@@ -56,6 +58,11 @@
     overflow-x: hidden;
     min-height: 100vh;
   }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.025em;
+  }
 }
 
 /* Hardware accelerated layer compositing to eliminate paint lag */
@@ -67,23 +74,23 @@
   backface-visibility: hidden;
 }
 
-/* Custom Scrollbars in Obsidian */
+/* Custom Scrollbars in Graphite */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F17;
+  background: #0F1115;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: #2A303D;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #3E4656;
 }
 
 /* ==========================================================================
@@ -92,38 +99,43 @@
 
 /* Typography Scale */
 .ui-display {
+  font-family: var(--font-heading);
   font-size: 2.25rem; /* 36px */
   line-height: 2.5rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--color-ink);
 }
 
 .ui-h1 {
-  font-size: 1.875rem; /* 30px */
-  line-height: 2.25rem;
+  font-family: var(--font-heading);
+  font-size: 1.75rem; /* 28px */
+  line-height: 2.125rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--color-ink);
 }
 
 .ui-h2 {
-  font-size: 1.5rem; /* 24px */
-  line-height: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-heading);
+  font-size: 1.375rem; /* 22px */
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--color-ink);
 }
 
 .ui-h3 {
+  font-family: var(--font-heading);
   font-size: 1.125rem; /* 18px */
-  line-height: 1.75rem;
+  line-height: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--color-ink);
 }
 
 .ui-body {
+  font-family: var(--font-sans);
   font-size: 0.875rem; /* 14px */
   line-height: 1.5rem;
   font-weight: 400;
@@ -131,6 +143,7 @@
 }
 
 .ui-caption {
+  font-family: var(--font-sans);
   font-size: 0.75rem; /* 12px */
   line-height: 1rem;
   font-weight: 500;
@@ -140,11 +153,11 @@
 .ui-mono {
   font-family: var(--font-mono);
   font-size: 0.75rem; /* 12px */
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: #94A3B8;
 }
 
-/* Standardized Component Containers (Obsidian & Emerald) */
+/* Standardized Component Containers (Graphite + Lime) */
 .ui-card {
   border-radius: var(--radius-card);
   background: var(--color-bg-card);
@@ -170,7 +183,7 @@
 
 .ui-card-interactive:hover {
   transform: translateY(-2px);
-  border-color: #334155;
+  border-color: var(--color-border-hover);
   box-shadow: var(--shadow-glass-lg), 0 4px 20px -4px var(--color-primary-glow);
 }
 
@@ -189,7 +202,7 @@
 
 .ui-input {
   border-radius: var(--radius-input);
-  background: #111827;
+  background: #171A21;
   border: 1px solid var(--color-border);
   padding: 0.625rem 1rem;
   font-size: 0.8125rem;
@@ -200,7 +213,7 @@
 .ui-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary), 0 0 14px 0 var(--color-primary-glow);
+  box-shadow: 0 0 0 1px var(--color-primary), 0 0 12px 0 var(--color-primary-glow);
 }
 
 .ui-input::placeholder {
@@ -233,44 +246,44 @@
 }
 
 .ui-btn-primary {
-  background: #10B981;
-  color: #0B0F17;
+  background: #B8FF3B;
+  color: #0F1115;
   font-weight: 700;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 2px 12px rgba(184, 255, 59, 0.3);
 }
 
 .ui-btn-primary:hover {
-  background: #34D399;
+  background: #CCFF66;
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45);
+  box-shadow: 0 4px 18px rgba(184, 255, 59, 0.45);
 }
 
 .ui-btn-primary:active {
-  background: #059669;
+  background: #A6ED2A;
   transform: translateY(0.5px) scale(0.98);
-  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 1px 4px rgba(184, 255, 59, 0.25);
 }
 
 .ui-btn-secondary {
-  background: #1E293B;
+  background: #242936;
   border: 1px solid var(--color-border);
   color: #E2E8F0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .ui-btn-secondary:hover {
-  background: #334155;
+  background: #2E3545;
   border-color: var(--color-border-hover);
   color: #FFFFFF;
   transform: translateY(-1px) scale(1.01);
 }
 
 .ui-btn-secondary:active {
-  background: #1E293B;
+  background: #1D212B;
   transform: translateY(0.5px) scale(0.98);
 }
 
-/* Shimmer Loading Skeleton Effect in Obsidian Slate */
+/* Shimmer Loading Skeleton Effect in Graphite */
 @keyframes ui-shimmer {
   0% {
     background-position: -200% 0;
@@ -283,18 +296,18 @@
 .ui-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(30, 41, 59, 0.5) 0%,
-    rgba(51, 65, 85, 0.9) 50%,
-    rgba(30, 41, 59, 0.5) 100%
+    rgba(29, 33, 43, 0.5) 0%,
+    rgba(42, 48, 61, 0.9) 50%,
+    rgba(29, 33, 43, 0.5) 100%
   );
   background-size: 200% 100%;
   animation: ui-shimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-/* Glass & Obsidian Panel utilities */
+/* Glass & Graphite Panel utilities */
 .glass-panel {
   border-radius: var(--radius-card);
-  background: rgba(21, 29, 46, 0.85);
+  background: rgba(29, 33, 43, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
@@ -306,7 +319,7 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(26, 36, 56, 0.95);
+  background: rgba(36, 41, 54, 0.95);
   border-color: var(--color-border-hover);
   box-shadow: var(--shadow-glass-lg);
 }
@@ -319,11 +332,7 @@
   box-shadow: var(--shadow-glass-lg);
 }
 
-/* ==========================================================================
-   OBSIDIAN THEME ADAPTORS (Ensures 100% seamless dark theme cohesion)
-   ========================================================================== */
-
-/* Adapt Warm Background classes to Obsidian Palette */
+/* Adapt Warm Background classes to Graphite Palette */
 .bg-\[\#FBF9F5\],
 .bg-\[\#FAF8F5\],
 .bg-\[\#F7F4EE\],
@@ -331,13 +340,13 @@
 .bg-\[\#EFECE4\],
 .bg-\[\#EFECE6\],
 .bg-\[\#EAE5DC\] {
-  background-color: #111827 !important;
+  background-color: #171A21 !important;
   color: #F8FAFC;
 }
 
 /* Adapt Warm Cream Card / Inset Surfaces */
 .bg-\[\#FAF8F5\] {
-  background-color: #151D2E !important;
+  background-color: #1D212B !important;
 }
 
 /* Adapt Warm Borders */
@@ -347,7 +356,7 @@
 .border-\[\#E2DDD3\],
 .border-\[\#D0C9BD\],
 .border-\[\#E0DBD0\] {
-  border-color: #1E293B !important;
+  border-color: #2A303D !important;
 }
 
 /* Modals and dialog overlays */
@@ -355,7 +364,7 @@
 .bg-black\/75,
 .bg-slate-950\/80,
 .bg-stone-950\/40 {
-  background-color: rgba(3, 7, 18, 0.75) !important;
+  background-color: rgba(15, 17, 21, 0.75) !important;
   backdrop-filter: blur(8px);
 }
 

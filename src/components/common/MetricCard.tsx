@@ -19,10 +19,10 @@ interface MetricCardProps {
 
 const colorMap = {
   purple: {
-    border: 'hover:border-emerald-500/40',
-    iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    glow: 'group-hover:shadow-[0_4px_16px_-4px_rgba(16,185,129,0.3)]',
-    sparkline: '#10B981',
+    border: 'hover:border-[#B8FF3B]/50',
+    iconBg: 'bg-[#B8FF3B]/10 text-[#B8FF3B] border-[#B8FF3B]/25',
+    glow: 'group-hover:shadow-[0_4px_20px_-4px_rgba(184,255,59,0.25)]',
+    sparkline: '#B8FF3B',
   },
   blue: {
     border: 'hover:border-sky-500/40',
@@ -31,10 +31,10 @@ const colorMap = {
     sparkline: '#38BDF8',
   },
   emerald: {
-    border: 'hover:border-emerald-500/40',
-    iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    glow: 'group-hover:shadow-[0_4px_16px_-4px_rgba(16,185,129,0.3)]',
-    sparkline: '#10B981',
+    border: 'hover:border-[#B8FF3B]/50',
+    iconBg: 'bg-[#B8FF3B]/10 text-[#B8FF3B] border-[#B8FF3B]/25',
+    glow: 'group-hover:shadow-[0_4px_20px_-4px_rgba(184,255,59,0.25)]',
+    sparkline: '#B8FF3B',
   },
   amber: {
     border: 'hover:border-amber-500/40',
@@ -50,7 +50,7 @@ const colorMap = {
   },
   slate: {
     border: 'hover:border-slate-500/40',
-    iconBg: 'bg-slate-800 text-slate-300 border-slate-700',
+    iconBg: 'bg-[#242936] text-slate-300 border-[#2A303D]',
     glow: 'group-hover:shadow-[0_4px_16px_-4px_rgba(148,163,184,0.2)]',
     sparkline: '#94A3B8',
   },
@@ -92,9 +92,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       className={`group relative ui-card-interactive p-5 ${currentTheme.border} ${currentTheme.glow} cursor-pointer overflow-hidden flex flex-col justify-between`}
     >
       {/* Card Header */}
-      <div className="flex items-center justify-between gap-4 pb-3 border-b border-[#1E293B]">
+      <div className="flex items-center justify-between gap-4 pb-3 border-b border-[#2A303D]">
         <span className="ui-caption font-bold uppercase tracking-wider text-slate-400">{label}</span>
-        <div className={`p-2 rounded-[14px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
+        <div className={`p-2 rounded-[12px] border ${currentTheme.iconBg} transition-transform group-hover:scale-105`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
@@ -121,16 +121,16 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       </div>
 
       {/* Card Footer: Trend & Telemetry */}
-      <div className="pt-3 border-t border-[#1E293B] flex items-center justify-between text-xs">
+      <div className="pt-3 border-t border-[#2A303D] flex items-center justify-between text-xs">
         {trend ? (
           <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[14px] ${
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[12px] ${
                 trend.direction === 'up'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  ? 'bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/30'
                   : trend.direction === 'down'
                   ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  : 'bg-[#242936] text-slate-400 border border-[#2A303D]'
               }`}
             >
               {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}

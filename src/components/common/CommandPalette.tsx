@@ -453,11 +453,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -10 }}
             transition={{ duration: 0.18 }}
-            className="relative w-full max-w-xl bg-[#151D2E] border border-[#1E293B] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] overflow-hidden z-10 flex flex-col max-h-[70vh]"
+            className="relative w-full max-w-xl bg-[#1D212B] border border-[#2A303D] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] overflow-hidden z-10 flex flex-col max-h-[70vh]"
           >
             {/* Search Input Bar */}
-            <div className="p-3.5 border-b border-[#1E293B] flex items-center gap-3 bg-[#0F172A]/80">
-              <Search className="w-5 h-5 text-emerald-400 shrink-0" aria-hidden="true" />
+            <div className="p-3.5 border-b border-[#2A303D] flex items-center gap-3 bg-[#171A21]">
+              <Search className="w-5 h-5 text-[#B8FF3B] shrink-0" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
@@ -480,13 +480,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     setSelectedIndex(0);
                     inputRef.current?.focus();
                   }}
-                  className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors"
+                  className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-[#242936] transition-colors"
                   aria-label="Clear search query"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
-              <span className="text-[10px] font-mono text-slate-400 bg-[#1E293B] px-1.5 py-0.5 rounded border border-slate-700 select-none">
+              <span className="text-[10px] font-mono text-slate-400 bg-[#242936] px-1.5 py-0.5 rounded border border-[#2A303D] select-none">
                 ESC
               </span>
             </div>
@@ -494,25 +494,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             {/* Command List */}
             <div 
               ref={listContainerRef}
-              className="overflow-y-auto p-2 divide-y divide-slate-800/50 max-h-[50vh]"
+              className="overflow-y-auto p-2 divide-y divide-[#2A303D]/50 max-h-[50vh]"
               role="listbox"
               aria-label="Search results"
               data-testid="command-palette-list"
             >
               {allItems.length === 0 ? (
                 <div className="p-8 text-center" data-testid="command-palette-empty">
-                  <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border border-[#E8E3DA] text-stone-400 flex items-center justify-center mx-auto mb-2">
+                  <div className="w-10 h-10 rounded-full bg-[#171A21] border border-[#2A303D] text-slate-400 flex items-center justify-center mx-auto mb-2">
                     <Search className="w-4 h-4 opacity-60" />
                   </div>
-                  <p className="text-xs font-semibold text-stone-700">
+                  <p className="text-xs font-semibold text-slate-300">
                     No matching commands or resources found
                   </p>
                   {query && (
-                    <p className="text-[11px] text-stone-500 mt-1 font-mono truncate max-w-xs mx-auto">
+                    <p className="text-[11px] text-slate-500 mt-1 font-mono truncate max-w-xs mx-auto">
                       &quot;{query}&quot;
                     </p>
                   )}
-                  <p className="text-[11px] text-stone-400 mt-2">
+                  <p className="text-[11px] text-slate-400 mt-2">
                     Try searching for projects, tasks, documents, or navigation destinations.
                   </p>
                 </div>
@@ -546,23 +546,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       data-testid={`command-item-${idx}`}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
                         isSelected
-                          ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/25'
-                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          ? 'bg-[#B8FF3B] text-[#0F1115] font-bold shadow-md shadow-[#B8FF3B]/25'
+                          : 'text-slate-300 hover:bg-[#242936] hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-[#111827] text-emerald-400 border border-[#1E293B]'}`}>
+                        <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-black/20 text-[#0F1115]' : 'bg-[#171A21] text-[#B8FF3B] border border-[#2A303D]'}`}>
                           <Icon className="w-4 h-4" />
                         </div>
                         <span className="truncate">{item.label}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                          isSelected ? 'bg-slate-950/20 text-slate-900 font-bold' : 'bg-[#111827] text-slate-400 border border-[#1E293B]'
+                          isSelected ? 'bg-black/15 text-slate-900 font-bold' : 'bg-[#171A21] text-slate-400 border border-[#2A303D]'
                         }`}>
                           {item.category}
                         </span>
-                        {isSelected && <CornerDownLeft className="w-3.5 h-3.5 text-slate-950 shrink-0" />}
+                        {isSelected && <CornerDownLeft className="w-3.5 h-3.5 text-[#0F1115] shrink-0" />}
                       </div>
                     </button>
                   );
@@ -571,11 +571,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </div>
 
             {/* Footer Navigation Hints */}
-            <div className="p-2.5 bg-[#0F172A]/80 border-t border-[#1E293B] flex items-center justify-between text-[11px] text-slate-400 px-4 select-none">
+            <div className="p-2.5 bg-[#171A21] border-t border-[#2A303D] flex items-center justify-between text-[11px] text-slate-400 px-4 select-none">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="bg-[#1E293B] border border-slate-700 px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono shadow-xs">↑</kbd>
-                  <kbd className="bg-[#1E293B] border border-slate-700 px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono shadow-xs">↓</kbd> to navigate
+                  <kbd className="bg-[#242936] border border-[#2A303D] px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono shadow-xs">↑</kbd>
+                  <kbd className="bg-[#242936] border border-[#2A303D] px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono shadow-xs">↓</kbd> to navigate
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="bg-[#1E293B] border border-slate-700 px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono shadow-xs">↵</kbd> to select

@@ -14,6 +14,7 @@ export interface TaskEntity {
   assignedTo: string;
   projectId: string;
   workspaceId: string;
+  departmentId?: string | null;
   teamId?: string | null;
   createdBy?: string;
   dueDate: Date;
@@ -71,6 +72,7 @@ export interface CreateTaskParams {
   actualHours?: number;
   assignedTo: string;
   projectId: string;
+  departmentId?: string | null;
   teamId?: string;
   dueDate?: Date;
   isLearningTask?: boolean;
@@ -90,6 +92,7 @@ export interface UpdateTaskParams {
   actualHours?: number;
   assignedTo?: string;
   projectId?: string;
+  departmentId?: string | null;
   teamId?: string | null;
   dueDate?: Date;
   startedAt?: Date | null;
@@ -228,6 +231,7 @@ export class TaskRepository {
             assignedTo: t.assignedTo,
             projectId: t.projectId,
             workspaceId: t.workspaceId || workspaceId,
+            departmentId: (t as any).departmentId || null,
             teamId: (t as any).teamId || null,
             dueDate: t.dueDate,
             startedAt: (t as any).startedAt || null,
@@ -412,6 +416,7 @@ export class TaskRepository {
             assignedTo: task.assignedTo,
             projectId: task.projectId,
             workspaceId: task.workspaceId || workspaceId,
+            departmentId: (task as any).departmentId || null,
             teamId: (task as any).teamId || null,
             dueDate: task.dueDate,
             startedAt: (task as any).startedAt || null,
@@ -457,6 +462,7 @@ export class TaskRepository {
       assignedTo: t.assignedTo,
       projectId: t.projectId || '',
       workspaceId: t.workspaceId,
+      departmentId: (t as any).departmentId || null,
       teamId: (t as any).teamId || null,
       createdBy: (t as any).createdBy,
       dueDate: t.dueDate ? new Date(t.dueDate) : new Date(),
@@ -502,6 +508,7 @@ export class TaskRepository {
       actualHours: data.actualHours || 0,
       assignedTo,
       projectId: data.projectId,
+      departmentId: data.departmentId || null,
       workspaceId,
       teamId: data.teamId || null,
       createdBy: userId,
@@ -532,6 +539,7 @@ export class TaskRepository {
           actualHours: data.actualHours || 0,
           assignedTo,
           projectId: data.projectId,
+          departmentId: data.departmentId || null,
           workspaceId,
           teamId: data.teamId || null,
           dueDate,
@@ -567,6 +575,7 @@ export class TaskRepository {
       actualHours: data.actualHours || 0,
       assignedTo,
       projectId: data.projectId,
+      departmentId: data.departmentId || null,
       workspaceId,
       teamId: data.teamId || null,
       createdBy: userId,
@@ -631,6 +640,7 @@ export class TaskRepository {
       actualHours: updates.actualHours !== undefined ? updates.actualHours : (existing?.actualHours || 0),
       assignedTo: updates.assignedTo || existing?.assignedTo || '',
       projectId: updates.projectId || existing?.projectId || '',
+      departmentId: updates.departmentId !== undefined ? updates.departmentId : ((existing as any)?.departmentId || null),
       teamId: updates.teamId !== undefined ? updates.teamId : (existing?.teamId || null),
       workspaceId,
       dueDate: updates.dueDate || existing?.dueDate || new Date(),
@@ -658,6 +668,7 @@ export class TaskRepository {
         if (updates.actualHours !== undefined) setValues.actualHours = updates.actualHours;
         if (updates.assignedTo !== undefined) setValues.assignedTo = updates.assignedTo;
         if (updates.projectId !== undefined) setValues.projectId = updates.projectId;
+        if (updates.departmentId !== undefined) setValues.departmentId = updates.departmentId;
         if (updates.teamId !== undefined) setValues.teamId = updates.teamId;
         if (updates.dueDate !== undefined) setValues.dueDate = updates.dueDate;
         if (updates.startedAt !== undefined) setValues.startedAt = updates.startedAt;
@@ -706,6 +717,7 @@ export class TaskRepository {
       actualHours: updated.actualHours,
       assignedTo: updated.assignedTo,
       projectId: updated.projectId,
+      departmentId: (updated as any).departmentId || null,
       workspaceId: updated.workspaceId,
       teamId: updated.teamId,
       createdBy: (updated as any).createdBy,

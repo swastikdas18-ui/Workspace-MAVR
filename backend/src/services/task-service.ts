@@ -6,7 +6,7 @@ import { NotificationRepository } from '../repositories/notification-repository'
 import { NotificationService } from './notification-service';
 import { EventService } from './event-service';
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
-import { inArray } from 'drizzle-orm';
+import { inArray, eq, and } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
@@ -35,6 +35,8 @@ export interface CreateTaskInput {
   linked_conversation_id?: string | null;
   linkedMessageId?: string | null;
   linked_message_id?: string | null;
+  departmentId?: string | null;
+  department_id?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -70,6 +72,8 @@ export interface UpdateTaskInput {
   linked_conversation_id?: string | null;
   linkedMessageId?: string | null;
   linked_message_id?: string | null;
+  departmentId?: string | null;
+  department_id?: string | null;
 }
 
 export class TaskService {
@@ -130,6 +134,90 @@ export class TaskService {
     } catch {
       return 0;
     }
+  }
+
+  /**
+   * Helper to find which department the user leads in the workspace, if any.
+   */
+  public static async getLeadDepartment(
+    workspaceId: string,
+    userId: string
+  ): Promise<{ id: string; name: string; headId: string | null } | null> {
+    const db = getDb();
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(schema.departments)
+          .where(and(eq(schema.departments.workspaceId, workspaceId), eq(schema.departments.headId, userId)))
+          .limit(1);
+        if (rows.length > 0) {
+          return { id: rows[0].id, name: rows[0].name, headId: rows[0].headId };
+        }
+      } catch {
+        // Fallback to inMemoryDb
+      }
+    }
+
+    const memDept = Array.from(inMemoryDb.departments.values()).find(
+      (d) => d.workspaceId === workspaceId && d.headId === userId
+    );
+    if (memDept) {
+      return { id: memDept.id, name: memDept.name, headId: memDept.headId || null };
+    }
+    return null;
+  }
+
+  /**
+   * Helper to get all member user IDs belonging to a department (including the lead).
+   */
+  public static async getDepartmentMemberIds(
+    workspaceId: string,
+    departmentId: string
+  ): Promise<Set<string>> {
+    const memberIds = new Set<string>();
+
+    const db = getDb();
+    if (db) {
+      try {
+        const [dept] = await db
+          .select({ headId: schema.departments.headId })
+          .from(schema.departments)
+          .where(and(eq(schema.departments.workspaceId, workspaceId), eq(schema.departments.id, departmentId)))
+          .limit(1);
+        if (dept?.headId) {
+          memberIds.add(dept.headId);
+        }
+
+        const profiles = await db
+          .select({ userId: schema.employeeProfiles.userId })
+          .from(schema.employeeProfiles)
+          .where(
+            and(
+              eq(schema.employeeProfiles.workspaceId, workspaceId),
+              eq(schema.employeeProfiles.departmentId, departmentId)
+            )
+          );
+        profiles.forEach((p) => {
+          if (p.userId) memberIds.add(p.userId);
+        });
+      } catch {
+        // Fallback to inMemoryDb
+      }
+    }
+
+    const memDept = inMemoryDb.departments.get(departmentId);
+    if (memDept && memDept.workspaceId === workspaceId && memDept.headId) {
+      memberIds.add(memDept.headId);
+    }
+
+    Array.from(inMemoryDb.employeeProfiles.values()).forEach((p) => {
+      if (p.workspaceId === workspaceId && p.departmentId === departmentId && p.userId) {
+        memberIds.add(p.userId);
+      }
+    });
+
+    return memberIds;
   }
 
   /**
@@ -226,6 +314,8 @@ export class TaskService {
         assignee_avatar: assigneeObj?.avatar || null,
         project_id: t.projectId || '',
         projectId: t.projectId || '',
+        department_id: t.departmentId || null,
+        departmentId: t.departmentId || null,
         team_id: t.teamId || null,
         teamId: t.teamId || null,
         workspace_id: t.workspaceId,
@@ -265,9 +355,19 @@ export class TaskService {
     input: CreateTaskInput
   ): Promise<any> {
     const role = normalizeRole(rawRole);
+    // Check if caller is a department lead in this workspace
+    const leadDept = await this.getLeadDepartment(workspaceId, userId);
+    const isDeptLead = !!leadDept;
 
-    // RBAC check: Interns forbidden from creating tasks
-    if (role === 'intern' || !can(role, 'tasks:create', undefined, { userId, workspaceId })) {
+    // RBAC check: Interns forbidden from creating tasks. Employees can create IF they are department lead or pass normal permission.
+    if (role === 'intern') {
+      const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating tasks.`);
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+
+    if (role === 'employee' && !isDeptLead && !can(role, 'tasks:create', undefined, { userId, workspaceId })) {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from creating tasks.`);
       error.code = 'FORBIDDEN';
       error.status = 403;
@@ -304,6 +404,31 @@ export class TaskService {
     const assignedToRaw = input.assignedTo || input.assigned_to;
     const assignedTo = assignedToRaw && assignedToRaw.trim() ? assignedToRaw.trim() : userId;
 
+    // Department Lead validation:
+    // If user is department lead, they can only assign tasks within their own department
+    let taskDepartmentId = input.departmentId || input.department_id || null;
+    if (isDeptLead && role !== 'admin') {
+      // If task department is not specified, default to lead's department
+      taskDepartmentId = taskDepartmentId || leadDept.id;
+
+      // Cannot create tasks for another department
+      if (taskDepartmentId !== leadDept.id) {
+        const error: any = new Error('Cannot create tasks owned by another department.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+
+      // Check if assignedTo is inside the lead's department
+      const deptMemberIds = await this.getDepartmentMemberIds(workspaceId, leadDept.id);
+      if (!deptMemberIds.has(assignedTo)) {
+        const error: any = new Error('Cannot assign tasks to members outside own department.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
     const rawStatus = input.status || 'todo';
     const status = rawStatus === 'completed' ? 'done' : rawStatus;
 
@@ -317,6 +442,7 @@ export class TaskService {
       assignedTo,
       projectId: projectId.trim(),
       teamId: input.teamId || input.team_id,
+      departmentId: taskDepartmentId,
       dueDate,
       isLearningTask: input.isLearningTask || input.is_learning_task || false,
       sourceMessageId: input.sourceMessageId || input.source_message_id || null,
@@ -377,6 +503,8 @@ export class TaskService {
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: task.projectId,
       projectId: task.projectId,
+      department_id: task.departmentId || null,
+      departmentId: task.departmentId || null,
       team_id: task.teamId || null,
       teamId: task.teamId || null,
       workspace_id: task.workspaceId,
@@ -442,7 +570,11 @@ export class TaskService {
       const isProjectMember = project ? project.memberIds.includes(userId) : false;
       const isProjectOwner = project ? project.createdBy === userId : false;
 
-      if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner) {
+      // Department leads can also view tasks owned by their department
+      const leadDept = await this.getLeadDepartment(workspaceId, userId);
+      const isDeptTask = leadDept && existing.departmentId === leadDept.id;
+
+      if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner && !isDeptTask) {
         const error: any = new Error('Unauthorized to view unassigned task.');
         error.code = 'FORBIDDEN';
         error.status = 403;
@@ -472,6 +604,8 @@ export class TaskService {
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: existing.projectId || '',
       projectId: existing.projectId || '',
+      department_id: existing.departmentId || null,
+      departmentId: existing.departmentId || null,
       team_id: existing.teamId || null,
       teamId: existing.teamId || null,
       workspace_id: existing.workspaceId,
@@ -534,6 +668,10 @@ export class TaskService {
       throw error;
     }
 
+    // Check if caller is a department lead in this workspace
+    const leadDept = await this.getLeadDepartment(workspaceId, userId);
+    const isDeptLead = !!leadDept;
+
     // RBAC: Interns forbidden from generic updating (only status actions permitted via dedicated endpoints)
     if (role === 'intern') {
       const error: any = new Error('Interns are forbidden from updating task properties.');
@@ -542,7 +680,37 @@ export class TaskService {
       throw error;
     }
 
-    if (role === 'employee') {
+    // If caller is a department lead (and not admin):
+    if (isDeptLead && role !== 'admin') {
+      // 1. Restriction: Cannot edit tasks owned by another department
+      if (existing.departmentId && existing.departmentId !== leadDept.id) {
+        const error: any = new Error('Cannot edit tasks owned by another department.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+
+      // If updates include changing the task's department to another department
+      const targetDeptId = updates.departmentId !== undefined ? updates.departmentId : updates.department_id;
+      if (targetDeptId !== undefined && targetDeptId !== null && targetDeptId !== leadDept.id) {
+        const error: any = new Error('Cannot edit tasks owned by another department.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+
+      // 2. Restriction: Cannot assign/reassign tasks to members outside own department
+      const newAssigneeCandidate = updates.assignedTo || updates.assigned_to;
+      if (newAssigneeCandidate && newAssigneeCandidate !== existing.assignedTo) {
+        const deptMemberIds = await this.getDepartmentMemberIds(workspaceId, leadDept.id);
+        if (!deptMemberIds.has(newAssigneeCandidate)) {
+          const error: any = new Error('Cannot assign tasks to members outside own department.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      }
+    } else if (role === 'employee') {
       const project = existing.projectId
         ? await ProjectRepository.getProjectById(workspaceId, existing.projectId)
         : null;
@@ -580,6 +748,7 @@ export class TaskService {
       actualHours: updates.actualHours || updates.actual_hours,
       assignedTo: updates.assignedTo || updates.assigned_to,
       projectId: updates.projectId || updates.project_id,
+      departmentId: (updates.departmentId !== undefined ? updates.departmentId : updates.department_id) || undefined,
       teamId: updates.teamId || updates.team_id,
       dueDate: (updates.dueDate || updates.due_date) ? new Date(updates.dueDate || updates.due_date!) : undefined,
       isBlocked: updates.isBlocked !== undefined ? updates.isBlocked : updates.is_blocked,
@@ -706,6 +875,8 @@ export class TaskService {
       assignee_avatar: assigneeObj?.avatar || null,
       project_id: updatedTask.projectId,
       projectId: updatedTask.projectId,
+      department_id: updatedTask.departmentId || null,
+      departmentId: updatedTask.departmentId || null,
       team_id: updatedTask.teamId || null,
       teamId: updatedTask.teamId || null,
       workspace_id: updatedTask.workspaceId,
@@ -1089,7 +1260,11 @@ export class TaskService {
     taskId: string
   ): Promise<boolean> {
     const role = normalizeRole(rawRole);
-    if (!can(role, 'tasks:delete', undefined, { userId, workspaceId })) {
+    // Check if caller is department lead
+    const leadDept = await this.getLeadDepartment(workspaceId, userId);
+    const isDeptLead = !!leadDept;
+
+    if (!can(role, 'tasks:delete', undefined, { userId, workspaceId }) && !isDeptLead) {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from deleting tasks.`);
       error.code = 'FORBIDDEN';
       error.status = 403;
@@ -1111,12 +1286,32 @@ export class TaskService {
       throw error;
     }
 
-    // If employee, can only delete tasks created by them
-    if (role === 'employee' && existing.createdBy !== userId) {
-      const error: any = new Error('Employees may only delete tasks created by them.');
-      error.code = 'FORBIDDEN';
-      error.status = 403;
-      throw error;
+    // Restriction: Cannot delete workspace-wide tasks (tasks without departmentId) unless admin
+    if (role !== 'admin') {
+      if (!existing.departmentId) {
+        const error: any = new Error('Cannot delete workspace-wide tasks.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+
+      if (isDeptLead) {
+        // Cannot delete task owned by another department
+        if (existing.departmentId !== leadDept.id) {
+          const error: any = new Error('Cannot delete tasks owned by another department.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      } else {
+        // Normal employee check: can only delete tasks created by them
+        if (role === 'employee' && existing.createdBy !== userId) {
+          const error: any = new Error('Employees may only delete tasks created by them.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      }
     }
 
     const deleted = await TaskRepository.deleteTask(workspaceId, taskId);

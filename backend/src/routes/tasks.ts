@@ -3,7 +3,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
 import { TaskService } from '../services/task-service';
 import { UserRole } from '../types';
-import { normalizeRole } from '../lib/permissions';
+import { normalizeRole, can } from '../lib/permissions';
 
 export const taskRouter = new Hono();
 
@@ -52,7 +52,7 @@ taskRouter.get('/', async (c) => {
 /**
  * POST /api/tasks - Create new task
  */
-taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
+taskRouter.post('/', async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -62,6 +62,24 @@ taskRouter.post('/', requirePermission('tasks:create'), async (c) => {
     }
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    
+    // Check permission: either standard role permission OR user is department lead in workspace
+    const isAllowed = can(role, 'tasks:create', undefined, { userId: user.id, workspaceId: workspace.id });
+    if (!isAllowed) {
+      const leadDept = await TaskService.getLeadDepartment(workspace.id, user.id);
+      if (!leadDept) {
+        return c.json(
+          {
+            error: {
+              code: 'FORBIDDEN',
+              message: `Access denied. Workspace role [${role.toUpperCase()}] is not permitted for action [tasks:create].`,
+            },
+          },
+          403
+        );
+      }
+    }
+
     const body = await c.req.json();
 
     if (!body.title || !body.title.trim()) {
@@ -327,7 +345,7 @@ taskRouter.get('/:id/activity', async (c) => {
 /**
  * DELETE /api/tasks/:id - Delete task
  */
-taskRouter.delete('/:id', requirePermission('tasks:delete'), async (c) => {
+taskRouter.delete('/:id', async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -336,12 +354,31 @@ taskRouter.delete('/:id', requirePermission('tasks:delete'), async (c) => {
     }
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    // Allow if has tasks:delete permission OR is a department lead (service will enforce workspace-wide & department restrictions)
+    const isAllowed = can(role, 'tasks:delete', undefined, { userId: user.id, workspaceId: workspace.id });
+    if (!isAllowed) {
+      const leadDept = await TaskService.getLeadDepartment(workspace.id, user.id);
+      if (!leadDept) {
+        return c.json(
+          {
+            error: {
+              code: 'FORBIDDEN',
+              message: `Access denied. Workspace role [${role.toUpperCase()}] is not permitted for action [tasks:delete].`,
+            },
+          },
+          403
+        );
+      }
+    }
+
     const taskId = c.req.param('id');
     await TaskService.deleteTask(workspace.id, user.id, role, taskId);
 
     return c.json({ success: true, message: 'Task deleted successfully.' }, 200);
   } catch (err: any) {
-    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    console.log('[DELETE /api/tasks/:id ERROR]', err?.code, err?.status, err?.message);
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to delete task.' } },
       status
@@ -406,7 +443,6 @@ const postCommentHandler = async (c: any) => {
 taskRouter.post('/:id/comments', postCommentHandler);
 taskRouter.post('/:id/comment', postCommentHandler);
 
-/**
 
 /**
  * GET /api/tasks/:id/discussion - Get task discussion thread

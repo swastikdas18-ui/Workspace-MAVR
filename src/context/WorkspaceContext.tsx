@@ -812,13 +812,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Tasks Actions
   const createTask = async (data: Omit<Task, 'id' | 'created_at'>): Promise<boolean> => {
-    if (!permissions.tasks.create) {
-      addToast({ type: 'error', title: 'Access Denied', message: 'Your role cannot create new tasks.' });
-      logAction('Unauthorized task creation attempt', 'TASKS', 'denied');
-      return false;
-    }
     try {
-      const res = await api.createTask({
+      const payload: any = {
         title: data.title,
         description: data.description,
         status: data.status,
@@ -827,7 +822,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         projectId: data.project_id,
         dueDate: data.due_date,
         isLearningTask: data.is_learning_task,
-      });
+      };
+      if (data.department_id || data.departmentId) {
+        payload.departmentId = data.department_id || data.departmentId;
+      }
+      const res = await api.createTask(payload);
       if (res.task) {
         setTasks((prev) => [res.task, ...prev]);
         addToast({ type: 'success', title: 'Task Created', message: `"${res.task.title}" saved to PostgreSQL.` });
@@ -1354,8 +1353,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setTeams((prev) =>
         prev.map((t) => ({
           ...t,
-          members: (t.members || []).filter((id) => id !== memberId),
-          member_count: Math.max(0, (t.member_count ?? 1) - ((t.members || []).includes(memberId) ? 1 : 0)),
+          member_count: Math.max(0, (t.member_count ?? 1) - 1),
           lead_id: t.lead_id === memberId ? '' : t.lead_id,
         }))
       );

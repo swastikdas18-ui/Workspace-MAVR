@@ -20,6 +20,7 @@ export async function runWorkspaceMemberRemovalTests() {
     slug: 'removal-test-org',
     ownerId: admin1Id,
     plan: 'enterprise',
+    logo: '',
     createdAt: new Date(),
     updatedAt: new Date(),
   });

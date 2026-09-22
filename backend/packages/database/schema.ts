@@ -228,6 +228,7 @@ export const tasks = pgTable(
     assignedTo: text('assigned_to').notNull().references(() => users.id),
     projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
     workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+    departmentId: text('department_id').references(() => departments.id, { onDelete: 'set null' }),
     teamId: text('team_id').references(() => teams.id),
     dueDate: timestamp('due_date').notNull(),
     startedAt: timestamp('started_at'),
@@ -245,6 +246,7 @@ export const tasks = pgTable(
   },
   (table) => ({
     workspaceIdx: index('idx_tasks_workspace_id').on(table.workspaceId),
+    departmentIdx: index('idx_tasks_department_id').on(table.departmentId),
     projectIdx: index('idx_tasks_project_id').on(table.projectId),
     assignedToIdx: index('idx_tasks_assigned_to').on(table.assignedTo),
     teamIdx: index('idx_tasks_team_id').on(table.teamId),

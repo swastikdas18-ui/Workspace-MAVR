@@ -36,6 +36,7 @@ import { runRateLimitProtectionTests } from './rate-limit-protection.test';
 import { runTenantIsolationSecurityTests } from './tenant-isolation-security.test';
 import { runWorkspaceMemberRemovalTests } from './workspace-member-removal.test';
 import { runDepartmentMemberManagementTests } from './department-member-management.test';
+import { runDepartmentLeadRbacTests } from './department-lead-rbac.test';
 
 async function main() {
   try {
@@ -112,6 +113,8 @@ async function main() {
     await runWorkspaceMemberRemovalTests();
     console.log('\n>>> Starting Suite 40: Workspace OS — Department Member Management System');
     await runDepartmentMemberManagementTests();
+    console.log('\n>>> Starting Suite 41: Workspace OS — Department Lead Task Assignment Permissions');
+    await runDepartmentLeadRbacTests();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

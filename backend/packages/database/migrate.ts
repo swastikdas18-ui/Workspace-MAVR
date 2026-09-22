@@ -272,6 +272,8 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_department_id ON tasks(department_id);`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS story_points INTEGER DEFAULT 1;`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS estimated_hours INTEGER;`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS actual_hours INTEGER DEFAULT 0;`;

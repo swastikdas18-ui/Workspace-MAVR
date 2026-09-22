@@ -156,6 +156,8 @@ export interface Task {
   assignee_avatar?: string | null;
   project_id: string;
   projectId?: string;
+  department_id?: string | null;
+  departmentId?: string | null;
   team_id?: string | null;
   teamId?: string | null;
   due_date: string;

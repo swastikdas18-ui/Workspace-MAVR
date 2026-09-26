@@ -832,20 +832,20 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/teams/TeamsModalsContainer.tsx | 195 | onCopyLink | {onCopyLink} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/teams/TeamsModalsContainer.tsx | 202 | onClose | {() => setIsCreateTeamModalOpen(false)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/teams/TeamsModalsContainer.tsx | 203 | onSubmit | {onCreateTeamSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 185 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions.teams.inviteMembers |
-| src/components/teams/TeamsView.tsx | 192 | onClick | {() => {                   setGeneratedInvite(null);                   setIsInviteModalOpen(true);                 }} | permissions.teams.inviteMembers |
-| src/components/teams/TeamsView.tsx | 221 | onSelectTeam | {setSelectedTeam} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 222 | onOpenCreateTeam | {() => setIsCreateTeamModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 223 | onOpenInviteModal | {() => setIsInviteModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 228 | onCopyLink | {handleCopyLink} | currentRole === 'admin' |
-| src/components/teams/TeamsView.tsx | 237 | onCloseSelectedTeam | {() => setSelectedTeam(null)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 249 | onRemoveMember | {handleRemoveMember} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 254 | onAddMembersSubmit | {handleAddMembersSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 259 | onMoveMemberSubmit | {handleMoveMemberSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 262 | onChangeLeadSubmit | {handleChangeLeadSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 266 | onInviteSubmit | {handleInviteSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 275 | onCopyLink | {handleCopyLink} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/teams/TeamsView.tsx | 279 | onCreateTeamSubmit | {handleCreateTeamSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 192 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions.teams.inviteMembers |
+| src/components/teams/TeamsView.tsx | 199 | onClick | {() => {                   setGeneratedInvite(null);                   setIsInviteModalOpen(true);                 }} | permissions.teams.inviteMembers |
+| src/components/teams/TeamsView.tsx | 228 | onSelectTeam | {setSelectedTeam} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 229 | onOpenCreateTeam | {() => setIsCreateTeamModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 230 | onOpenInviteModal | {() => setIsInviteModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 235 | onCopyLink | {handleCopyLink} | currentRole === 'admin' |
+| src/components/teams/TeamsView.tsx | 244 | onCloseSelectedTeam | {() => setSelectedTeam(null)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 256 | onRemoveMember | {handleRemoveMember} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 261 | onAddMembersSubmit | {handleAddMembersSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 266 | onMoveMemberSubmit | {handleMoveMemberSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 269 | onChangeLeadSubmit | {handleChangeLeadSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 273 | onInviteSubmit | {handleInviteSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 282 | onCopyLink | {handleCopyLink} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/teams/TeamsView.tsx | 286 | onCreateTeamSubmit | {handleCreateTeamSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/time/TimeTrackingView.tsx | 203 | onChange | {(e) => setActiveTaskTitle(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/time/TimeTrackingView.tsx | 212 | onChange | {(e) => setIsBillable(e.target.checked)} | isAdmin |
 | src/components/time/TimeTrackingView.tsx | 227 | onClick | {() => setIsTimerRunning(false)} | isTimerRunning |

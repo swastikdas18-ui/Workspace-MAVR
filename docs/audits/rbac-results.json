@@ -16939,98 +16939,98 @@
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 185,
+      "line": 192,
       "event": "onClick",
       "handler": "{() => setIsCreateTeamModalOpen(true)}",
       "context": "permissions.teams.inviteMembers"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 192,
+      "line": 199,
       "event": "onClick",
       "handler": "{() => {\n                  setGeneratedInvite(null);\n                  setIsInviteModalOpen(true);\n                }}",
       "context": "permissions.teams.inviteMembers"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 221,
+      "line": 228,
       "event": "onSelectTeam",
       "handler": "{setSelectedTeam}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 222,
+      "line": 229,
       "event": "onOpenCreateTeam",
       "handler": "{() => setIsCreateTeamModalOpen(true)}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 223,
+      "line": 230,
       "event": "onOpenInviteModal",
       "handler": "{() => setIsInviteModalOpen(true)}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 228,
+      "line": 235,
       "event": "onCopyLink",
       "handler": "{handleCopyLink}",
       "context": "currentRole === 'admin'"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 237,
+      "line": 244,
       "event": "onCloseSelectedTeam",
       "handler": "{() => setSelectedTeam(null)}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 249,
+      "line": 256,
       "event": "onRemoveMember",
       "handler": "{handleRemoveMember}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 254,
+      "line": 261,
       "event": "onAddMembersSubmit",
       "handler": "{handleAddMembersSubmit}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 259,
+      "line": 266,
       "event": "onMoveMemberSubmit",
       "handler": "{handleMoveMemberSubmit}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 262,
+      "line": 269,
       "event": "onChangeLeadSubmit",
       "handler": "{handleChangeLeadSubmit}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 266,
+      "line": 273,
       "event": "onInviteSubmit",
       "handler": "{handleInviteSubmit}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 275,
+      "line": 282,
       "event": "onCopyLink",
       "handler": "{handleCopyLink}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"
     },
     {
       "file": "src/components/teams/TeamsView.tsx",
-      "line": 279,
+      "line": 286,
       "event": "onCreateTeamSubmit",
       "handler": "{handleCreateTeamSubmit}",
       "context": "No enclosing JSX permission condition; inspect handler and parent view"

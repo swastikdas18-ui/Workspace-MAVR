@@ -149,7 +149,7 @@ phase14Router.post('/billing/webhook', async (c) => {
   return c.json({ status: 'ok', processed: result }, 200);
 });
 
-phase14Router.get('/billing/status', authMiddleware, async (c) => {
+phase14Router.get('/billing/status', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   const status = await PaymentRepository.getBillingStatus(workspace?.id || '');
   return c.json({ status }, 200);
@@ -158,10 +158,15 @@ phase14Router.get('/billing/status', authMiddleware, async (c) => {
 // ============================================================================
 // PART 5, 6, 7: TASKS RECURRENCE, MULTI-ASSIGNEES & DEPENDENCIES
 // SECURITY (Phase 17 — Fix #8): write routes require authenticated members;
-// interns are read-only and cannot mutate task assignment structures.
+// assignees mutation is admin-only. Tasks must belong to the active workspace.
 // ============================================================================
-phase14Router.post('/tasks/:id/assignees', authMiddleware, requireWorkspaceRole(['admin', 'employee']), async (c) => {
+phase14Router.post('/tasks/:id/assignees', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+  const workspace = c.get('workspace');
   const taskId = c.req.param('id');
+  const task = inMemoryDb.tasks.get(taskId);
+  if (!task || (workspace?.id && task.workspaceId !== workspace.id)) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Task not found in active workspace.' } }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
   const assignees = await TaskExtensionRepository.assignUsersToTask(taskId, body.userIds || []);
   return c.json({ assignees }, 200);
@@ -170,6 +175,10 @@ phase14Router.post('/tasks/:id/assignees', authMiddleware, requireWorkspaceRole(
 phase14Router.post('/tasks/:id/recurrence', authMiddleware, requireWorkspaceRole(['admin', 'employee']), async (c) => {
   const workspace = c.get('workspace');
   const taskId = c.req.param('id');
+  const task = inMemoryDb.tasks.get(taskId);
+  if (!task || (workspace?.id && task.workspaceId !== workspace.id)) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Task not found in active workspace.' } }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
 
   const rule = await TaskExtensionRepository.createRecurrenceRule({
@@ -183,7 +192,12 @@ phase14Router.post('/tasks/:id/recurrence', authMiddleware, requireWorkspaceRole
 });
 
 phase14Router.post('/tasks/:id/dependency', authMiddleware, requireWorkspaceRole(['admin', 'employee']), async (c) => {
+  const workspace = c.get('workspace');
   const taskId = c.req.param('id');
+  const task = inMemoryDb.tasks.get(taskId);
+  if (!task || (workspace?.id && task.workspaceId !== workspace.id)) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Task not found in active workspace.' } }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
 
   const dep = await TaskExtensionRepository.addDependency({
@@ -211,7 +225,7 @@ phase14Router.post('/crm/pipelines', authMiddleware, requireWorkspaceRole(['admi
   return c.json({ pipeline }, 201);
 });
 
-phase14Router.get('/crm/pipelines', authMiddleware, async (c) => {
+phase14Router.get('/crm/pipelines', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const workspace = c.get('workspace');
   const pipelines = await PipelineRepository.getWorkspacePipelines(workspace?.id || '');
   return c.json({ pipelines }, 200);

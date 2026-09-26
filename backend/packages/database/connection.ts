@@ -228,8 +228,12 @@ export function getDb(): NeonHttpDatabase<typeof schema> | null {
       dbInstance = drizzle(sql, { schema });
       return dbInstance;
     } catch (err: any) {
-      console.warn('[Workspace OS] Failed to connect to PostgreSQL in dev mode:', err.message);
+      throw new Error(`[Workspace OS Fatal] PostgreSQL connection failed in development mode: ${err.message}`);
     }
+  }
+
+  if (!databaseUrl && !isTest) {
+    throw new Error('[Workspace OS Fatal] DATABASE_URL is required. Set DATABASE_URL environment variable or run in test mode.');
   }
 
   return null;

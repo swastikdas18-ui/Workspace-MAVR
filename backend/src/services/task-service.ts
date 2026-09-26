@@ -427,6 +427,13 @@ export class TaskService {
         error.status = 403;
         throw error;
       }
+    } else if (role === 'employee' && !isDeptLead) {
+      if (taskDepartmentId) {
+        const error: any = new Error('Regular employees without department lead permissions are forbidden from assigning department tasks.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
     }
 
     const rawStatus = input.status || 'todo';
@@ -553,8 +560,8 @@ export class TaskService {
       throw error;
     }
 
-    if (role === 'intern' && existing.assignedTo !== userId) {
-      const error: any = new Error('Interns are not authorized to view unassigned tasks.');
+    if (role === 'intern' && (existing.assignedTo !== userId || existing.isLearningTask === false)) {
+      const error: any = new Error('Interns are not authorized to view non-learning or unassigned tasks.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
@@ -711,19 +718,25 @@ export class TaskService {
         }
       }
     } else if (role === 'employee') {
-      const project = existing.projectId
-        ? await ProjectRepository.getProjectById(workspaceId, existing.projectId)
-        : null;
-
       const isAssigned = existing.assignedTo === userId;
       const isCreator = existing.createdBy === userId;
-      const isProjectMember = project ? project.memberIds.includes(userId) : false;
-      const isProjectOwner = project ? project.createdBy === userId : false;
 
-      if (!isAssigned && !isCreator && !isProjectMember && !isProjectOwner) {
+      if (!isAssigned && !isCreator) {
         const error: any = new Error('Unauthorized to mutate unassigned task.');
         error.code = 'FORBIDDEN';
         error.status = 403;
+        throw error;
+      }
+    }
+
+    // Verify foreign project boundary if updating projectId
+    const newProjectId = updates.projectId !== undefined ? updates.projectId : updates.project_id;
+    if (newProjectId) {
+      const targetProj = await ProjectRepository.getProjectById(workspaceId, newProjectId);
+      if (!targetProj || targetProj.workspaceId !== workspaceId) {
+        const error: any = new Error('Referenced project does not exist in active workspace.');
+        error.code = 'NOT_FOUND';
+        error.status = 404;
         throw error;
       }
     }
@@ -914,11 +927,19 @@ export class TaskService {
     rawRole: UserRole | string,
     taskId: string
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     const existing = await TaskRepository.getTaskById(workspaceId, taskId);
     if (!existing) {
       const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (role !== 'admin' && existing.assignedTo !== userId && existing.createdBy !== userId) {
+      const error: any = new Error('Unauthorized: You are not assigned to this task.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
       throw error;
     }
 
@@ -952,11 +973,19 @@ export class TaskService {
     taskId: string,
     notes?: string
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     const existing = await TaskRepository.getTaskById(workspaceId, taskId);
     if (!existing) {
       const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (role !== 'admin' && existing.assignedTo !== userId && existing.createdBy !== userId) {
+      const error: any = new Error('Unauthorized: You are not assigned to this task.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
       throw error;
     }
 
@@ -1002,8 +1031,8 @@ export class TaskService {
     feedback?: string
   ): Promise<any> {
     const role = normalizeRole(rawRole);
-    if (role === 'intern') {
-      const error: any = new Error('Interns are not authorized to approve tasks.');
+    if (role !== 'admin') {
+      const error: any = new Error('Only administrators can approve tasks.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
@@ -1117,8 +1146,8 @@ export class TaskService {
     feedback: string
   ): Promise<any> {
     const role = normalizeRole(rawRole);
-    if (role === 'intern') {
-      const error: any = new Error('Interns are not authorized to review tasks.');
+    if (role !== 'admin') {
+      const error: any = new Error('Only administrators can request changes on tasks.');
       error.code = 'FORBIDDEN';
       error.status = 403;
       throw error;
@@ -1179,6 +1208,7 @@ export class TaskService {
     taskId: string,
     reason: string
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     if (!reason || !reason.trim()) {
       const error: any = new Error('Blocked reason is required.');
       error.code = 'VALIDATION_ERROR';
@@ -1191,6 +1221,13 @@ export class TaskService {
       const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (role !== 'admin' && existing.assignedTo !== userId && existing.createdBy !== userId) {
+      const error: any = new Error('Unauthorized: You are not assigned to this task.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
       throw error;
     }
 
@@ -1229,11 +1266,19 @@ export class TaskService {
     rawRole: UserRole | string,
     taskId: string
   ): Promise<any> {
+    const role = normalizeRole(rawRole);
     const existing = await TaskRepository.getTaskById(workspaceId, taskId);
     if (!existing) {
       const error: any = new Error('Task not found.');
       error.code = 'TASK_NOT_FOUND';
       error.status = 404;
+      throw error;
+    }
+
+    if (role !== 'admin' && existing.assignedTo !== userId && existing.createdBy !== userId) {
+      const error: any = new Error('Unauthorized: You are not assigned to this task.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
       throw error;
     }
 
@@ -1467,13 +1512,8 @@ export class TaskService {
       throw error;
     }
 
-    // Role-based visibility check
-    if (role === 'intern' && task.assignedTo !== userId) {
-      const error: any = new Error('Interns are not authorized to view unassigned task discussions.');
-      error.code = 'FORBIDDEN';
-      error.status = 403;
-      throw error;
-    }
+    // Role-based visibility check: reuse full task authorization
+    await this.getTaskById(workspaceId, userId, rawRole, taskId);
 
     const comments = await TaskRepository.getComments(workspaceId, taskId).catch(() => []);
 

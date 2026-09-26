@@ -4,18 +4,18 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 
 | File | Line | Event | Handler | Enclosing condition |
 |---|---|---|---|---|
-| src/App.tsx | 297 | onSuccess | {() => {           setInviteToken(null);           window.history.pushState(null, '', '/dashboard');         }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 349 | onReturn | {() => setActiveTab('tasks')} | <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}> |
-| src/App.tsx | 352 | onRouteChange | {(newPId) => {                 setProjectIdParam(newPId \|\| null);                 const targetUrl = newPId ? `/projects/${newPId}` : '/projects';                 if (window.location.pathname !== targetUrl) {                   window.his | <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}> |
-| src/App.tsx | 367 | onRouteChange | {(newTId) => {               setTaskIdParam(newTId \|\| null);               const targetUrl = newTId ? `/tasks/${newTId}` : '/tasks';               if (window.location.pathname !== targetUrl) {                 window.history.pushState(nu | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 386 | onHandledAction | {() => {               setOpenCreateWiki(false);               setOpenUploadDoc(false);             }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 390 | onRouteChange | {(id) => {               setWikiPageIdParam(id \|\| null);             }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 418 | onHandledAction | {() => {               setOpenCreateWiki(false);               setOpenUploadDoc(false);             }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 422 | onRouteChange | {(id) => {               setDocumentIdParam(id \|\| null);             }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 433 | onRouteChange | {(newLeadId) => {                 setCrmLeadIdParam(newLeadId \|\| null);                 const targetUrl = newLeadId ? `/crm/${newLeadId}` : '/crm';                 if (window.location.pathname !== targetUrl) {                   window.h | <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="CRM customer pipelines, deal values, and forecasting are restricted to Administrators." />}> |
-| src/App.tsx | 494 | onOpenCreateWiki | {() => {         setActiveTab('wiki');         setOpenCreateWiki(true);       }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 498 | onOpenUploadDoc | {() => {         setActiveTab('documents');         setOpenUploadDoc(true);       }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/App.tsx | 519 | onReset | {() => window.location.reload()} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 284 | onSuccess | {() => {           setInviteToken(null);           window.history.pushState(null, '', '/dashboard');         }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 337 | onReturn | {() => setActiveTab('tasks')} | <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}> |
+| src/App.tsx | 340 | onRouteChange | {(newPId) => {                   setProjectIdParam(newPId \|\| null);                   const targetUrl = newPId ? `/projects/${newPId}` : '/projects';                   if (window.location.pathname !== targetUrl) {                     wi | <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Intern sandbox accounts do not have access to full project roadmaps. Please focus on your assigned tasks in the Task Stream." onReturn={() => setActiveTab('tasks')} />}> |
+| src/App.tsx | 357 | onRouteChange | {(newTId) => {                 setTaskIdParam(newTId \|\| null);                 const targetUrl = newTId ? `/tasks/${newTId}` : '/tasks';                 if (window.location.pathname !== targetUrl) {                   window.history.push | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 378 | onHandledAction | {() => {                 setOpenCreateWiki(false);                 setOpenUploadDoc(false);               }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 382 | onRouteChange | {(id) => {                 setWikiPageIdParam(id \|\| null);               }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 411 | onHandledAction | {() => {               setOpenCreateWiki(false);               setOpenUploadDoc(false);             }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 415 | onRouteChange | {(id) => {               setDocumentIdParam(id \|\| null);             }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 427 | onRouteChange | {(newLeadId) => {                   setCrmLeadIdParam(newLeadId \|\| null);                   const targetUrl = newLeadId ? `/crm/${newLeadId}` : '/crm';                   if (window.location.pathname !== targetUrl) {                      | <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="CRM customer pipelines, deal values, and forecasting are restricted to Staff." />}> |
+| src/App.tsx | 493 | onOpenCreateWiki | {() => {         setActiveTab('wiki');         setOpenCreateWiki(true);       }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 497 | onOpenUploadDoc | {() => {         setActiveTab('documents');         setOpenUploadDoc(true);       }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/App.tsx | 518 | onReset | {() => window.location.reload()} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/admin/AdminToolsView.tsx | 46 | onClick | {() => setActiveSubTab('rbac')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/admin/AdminToolsView.tsx | 58 | onClick | {() => setActiveSubTab('schema')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/admin/AdminToolsView.tsx | 70 | onClick | {() => setActiveSubTab('logs')} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -62,16 +62,17 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/automations/AutomationsView.tsx | 331 | onClick | {() => setFilterStatus('all')} | activeTab === 'rules' |
 | src/components/automations/AutomationsView.tsx | 339 | onClick | {() => setFilterStatus('active')} | activeTab === 'rules' |
 | src/components/automations/AutomationsView.tsx | 347 | onClick | {() => setFilterStatus('inactive')} | activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 369 | onClick | {() => setIsCreateOpen(true)} | currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 445 | onClick | {() => handleToggle(rule.id)} | disabled={togglingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 459 | onClick | {() => handleDuplicate(rule.id, rule.name)} | disabled={duplicatingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 469 | onClick | {() => setEditingRule(rule)} | currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 478 | onClick | {() => handleDelete(rule.id, rule.name)} | disabled={deletingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
-| src/components/automations/AutomationsView.tsx | 597 | onClick | {() => handleInstallTemplate(tpl.id, tpl.name)} | disabled={installingTemplateId === tpl.id} && currentRole === 'admin' && activeTab === 'templates' |
-| src/components/automations/AutomationsView.tsx | 615 | onClose | {() => setIsCreateOpen(false)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/automations/AutomationsView.tsx | 616 | onSuccess | {handleCreateSuccess} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/automations/AutomationsView.tsx | 623 | onClose | {() => setEditingRule(null)} | editingRule |
-| src/components/automations/AutomationsView.tsx | 624 | onSuccess | {handleEditSuccess} | editingRule |
+| src/components/automations/AutomationsView.tsx | 370 | onClick | {() => setIsCreateOpen(true)} | currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 377 | onClick | {() => setIsCreateOpen(true)} | currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 454 | onClick | {() => handleToggle(rule.id)} | disabled={togglingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 468 | onClick | {() => handleDuplicate(rule.id, rule.name)} | disabled={duplicatingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 478 | onClick | {() => setEditingRule(rule)} | currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 487 | onClick | {() => handleDelete(rule.id, rule.name)} | disabled={deletingId === rule.id} && currentRole === 'admin' && filteredRules.length === 0 && activeTab === 'rules' |
+| src/components/automations/AutomationsView.tsx | 610 | onClick | {() => handleInstallTemplate(tpl.id, tpl.name)} | disabled={installingTemplateId === tpl.id} && currentRole === 'admin' && activeTab === 'templates' |
+| src/components/automations/AutomationsView.tsx | 628 | onClose | {() => setIsCreateOpen(false)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/automations/AutomationsView.tsx | 629 | onSuccess | {handleCreateSuccess} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/automations/AutomationsView.tsx | 636 | onClose | {() => setEditingRule(null)} | editingRule |
+| src/components/automations/AutomationsView.tsx | 637 | onSuccess | {handleEditSuccess} | editingRule |
 | src/components/automations/CreateAutomationModal.tsx | 230 | onClick | {onClose} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/automations/CreateAutomationModal.tsx | 238 | onSubmit | {handleSubmit} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/automations/CreateAutomationModal.tsx | 254 | onChange | {(e) => setName(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -143,7 +144,8 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/common/CommandPalette.tsx | 478 | onClick | {() => {                     setQuery('');                     setSelectedIndex(0);                     inputRef.current?.focus();                   }} | query && isOpen |
 | src/components/common/CommandPalette.tsx | 529 | onClick | {() => {                         if (typeof item.action === 'function') {                           try {                             item.action();                           } catch (err) {                             SentryClient.captureE | allItems.length === 0 && isOpen |
 | src/components/common/CommandPalette.tsx | 538 | onMouseMove | {() => {                         if (isKeyboardNavRef.current) {                           isKeyboardNavRef.current = false;                         }                         if (selectedIndex !== idx) {                           setSelecte | allItems.length === 0 && isOpen |
-| src/components/common/EmptyState.tsx | 42 | onClick | {onAction} | actionLabel && onAction |
+| src/components/common/EmptyState.tsx | 88 | onClick | {onAction} | actionLabel && onAction && (actionLabel \|\| secondaryLabel) |
+| src/components/common/EmptyState.tsx | 94 | onClick | {onSecondaryAction} | secondaryLabel && onSecondaryAction && (actionLabel \|\| secondaryLabel) |
 | src/components/common/ErrorBoundary.tsx | 56 | onClick | {this.handleReset} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/common/ErrorBoundary.tsx | 75 | onClick | {this.handleReset} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/common/ErrorBoundary.tsx | 101 | onClick | {this.handleReset} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -176,25 +178,26 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/crm/CrmView.tsx | 152 | onClick | {() => setActiveTab('table')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/crm/CrmView.tsx | 166 | onClick | {() => setIsAddModalOpen(true)} | permissions.crm.createRecord |
 | src/components/crm/CrmView.tsx | 220 | onAction | {() => setIsAddModalOpen(true)} | visibleRecords.length === 0 |
-| src/components/crm/CrmView.tsx | 234 | onSelectLead | {handleSelectLead} | activeTab === 'pipeline' && visibleRecords.length === 0 |
-| src/components/crm/CrmView.tsx | 235 | onStageShift | {handleStageShift} | activeTab === 'pipeline' && visibleRecords.length === 0 |
-| src/components/crm/CrmView.tsx | 282 | onClick | {() => deleteCrmRecord(rec.id)} | permissions.crm.deleteRecord && activeTab === 'pipeline' && visibleRecords.length === 0 |
-| src/components/crm/CrmView.tsx | 309 | onClick | {() => setIsAddModalOpen(false)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 314 | onSubmit | {handleCreateSubmit} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 323 | onChange | {(e) => setCompany(e.target.value)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 334 | onChange | {(e) => setCustomerName(e.target.value)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 348 | onChange | {(e) => setEmail(e.target.value)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 358 | onChange | {(e) => setPhone(e.target.value)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 373 | onChange | {(e) => setDealValue(Number(e.target.value))} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 381 | onChange | {(e) => setStatus(e.target.value as CrmStatus)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 397 | onChange | {(e) => setNotes(e.target.value)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 405 | onClick | {() => setIsAddModalOpen(false)} | isAddModalOpen |
-| src/components/crm/CrmView.tsx | 431 | onClose | {() => handleSelectLead(null)} | selectedLeadModal |
-| src/components/crm/CrmView.tsx | 432 | onDelete | {(id) => {               deleteCrmRecord(id);               handleSelectLead(null);             }} | selectedLeadModal |
-| src/components/crm/CrmView.tsx | 436 | onStartEditNotes | {(id, currentNotes) => {               setEditingNotesId(id);               setNotesText(currentNotes);             }} | selectedLeadModal |
-| src/components/crm/CrmView.tsx | 440 | onCancelEditNotes | {() => setEditingNotesId(null)} | selectedLeadModal |
-| src/components/crm/CrmView.tsx | 441 | onSaveNotes | {handleSaveNotes} | selectedLeadModal |
-| src/components/crm/CrmView.tsx | 442 | onNotesTextChange | {setNotesText} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 222 | onSecondaryAction | {() => setIsAddModalOpen(true)} | visibleRecords.length === 0 |
+| src/components/crm/CrmView.tsx | 237 | onSelectLead | {handleSelectLead} | activeTab === 'pipeline' && visibleRecords.length === 0 |
+| src/components/crm/CrmView.tsx | 238 | onStageShift | {handleStageShift} | activeTab === 'pipeline' && visibleRecords.length === 0 |
+| src/components/crm/CrmView.tsx | 285 | onClick | {() => deleteCrmRecord(rec.id)} | permissions.crm.deleteRecord && activeTab === 'pipeline' && visibleRecords.length === 0 |
+| src/components/crm/CrmView.tsx | 312 | onClick | {() => setIsAddModalOpen(false)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 317 | onSubmit | {handleCreateSubmit} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 326 | onChange | {(e) => setCompany(e.target.value)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 337 | onChange | {(e) => setCustomerName(e.target.value)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 351 | onChange | {(e) => setEmail(e.target.value)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 361 | onChange | {(e) => setPhone(e.target.value)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 376 | onChange | {(e) => setDealValue(Number(e.target.value))} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 384 | onChange | {(e) => setStatus(e.target.value as CrmStatus)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 400 | onChange | {(e) => setNotes(e.target.value)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 408 | onClick | {() => setIsAddModalOpen(false)} | isAddModalOpen |
+| src/components/crm/CrmView.tsx | 434 | onClose | {() => handleSelectLead(null)} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 435 | onDelete | {(id) => {               deleteCrmRecord(id);               handleSelectLead(null);             }} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 439 | onStartEditNotes | {(id, currentNotes) => {               setEditingNotesId(id);               setNotesText(currentNotes);             }} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 443 | onCancelEditNotes | {() => setEditingNotesId(null)} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 444 | onSaveNotes | {handleSaveNotes} | selectedLeadModal |
+| src/components/crm/CrmView.tsx | 445 | onNotesTextChange | {setNotesText} | selectedLeadModal |
 | src/components/dashboard/AdminDashboard.tsx | 129 | onClick | {() => setActiveTab('projects')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/AdminDashboard.tsx | 137 | onClick | {() => setActiveTab('tasks')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/AdminDashboard.tsx | 145 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -209,10 +212,10 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/dashboard/AdminDashboard.tsx | 327 | onClick | {() => setActiveTab('projects')} | projectsAtRisk.length > 0 |
 | src/components/dashboard/AdminDashboard.tsx | 349 | onClick | {() => setActiveTab('tasks')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/AdminDashboard.tsx | 397 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/AdminDashboard.tsx | 496 | onClick | {() => setActiveTab('documents')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/AdminDashboard.tsx | 523 | onClick | {() => setActiveTab('documents')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/AdminDashboard.tsx | 557 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/AdminDashboard.tsx | 646 | onClick | {() => setActiveTab('automations')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/AdminDashboard.tsx | 500 | onClick | {() => setActiveTab('documents')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/AdminDashboard.tsx | 527 | onClick | {() => setActiveTab('documents')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/AdminDashboard.tsx | 561 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/AdminDashboard.tsx | 650 | onClick | {() => setActiveTab('automations')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/EmployeeDashboard.tsx | 227 | onClick | {() => setActiveTab('tasks')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/EmployeeDashboard.tsx | 261 | onClick | {() => setActiveTab('time')} | activeTimer |
 | src/components/dashboard/EmployeeDashboard.tsx | 267 | onClick | {handleStopTimer} | activeTimer |
@@ -221,11 +224,11 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/dashboard/EmployeeDashboard.tsx | 306 | onClick | {() => { setTaskFilter('review'); }} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/EmployeeDashboard.tsx | 316 | onClick | {() => { setTaskFilter('done'); }} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/EmployeeDashboard.tsx | 338 | onClick | {() => setTaskFilter(tab)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/EmployeeDashboard.tsx | 420 | onClick | {() => handleStartTask(task.id)} | disabled={actionLoading === task.id} && task.status === 'todo' && filteredTasks.length === 0 |
-| src/components/dashboard/EmployeeDashboard.tsx | 431 | onClick | {() => handleSubmitReview(task.id)} | disabled={actionLoading === task.id} && task.status === 'in_progress' && filteredTasks.length === 0 |
-| src/components/dashboard/EmployeeDashboard.tsx | 483 | onClick | {() => setActiveTab('projects')} | assignedProjects.length === 0 |
-| src/components/dashboard/EmployeeDashboard.tsx | 556 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/dashboard/EmployeeDashboard.tsx | 593 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/EmployeeDashboard.tsx | 422 | onClick | {() => handleStartTask(task.id)} | disabled={actionLoading === task.id} && task.status === 'todo' && filteredTasks.length === 0 |
+| src/components/dashboard/EmployeeDashboard.tsx | 433 | onClick | {() => handleSubmitReview(task.id)} | disabled={actionLoading === task.id} && task.status === 'in_progress' && filteredTasks.length === 0 |
+| src/components/dashboard/EmployeeDashboard.tsx | 487 | onClick | {() => setActiveTab('projects')} | assignedProjects.length === 0 |
+| src/components/dashboard/EmployeeDashboard.tsx | 560 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/dashboard/EmployeeDashboard.tsx | 597 | onClick | {() => setActiveTab('teams')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/InternDashboard.tsx | 49 | onClick | {() => setActiveTab('documents')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/InternDashboard.tsx | 68 | onClick | {() => setActiveTab('tasks')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/dashboard/InternDashboard.tsx | 78 | onClick | {() => setActiveTab('tasks')} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -240,32 +243,33 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/documents/DocumentsView.tsx | 281 | onClick | {() => setSelectedCategory(cat)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/documents/DocumentsView.tsx | 295 | onClick | {() => setIsUploadModalOpen(true)} | embedded && currentRole !== 'intern' |
 | src/components/documents/DocumentsView.tsx | 311 | onAction | {() => setIsUploadModalOpen(true)} | visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 325 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 352 | onClick | {(e) => e.stopPropagation()} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 354 | onClick | {() => incrementDocDownload(doc.id)} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 363 | onClick | {() => deleteDocument(doc.id)} | canDelete && viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 399 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 426 | onClick | {(e) => e.stopPropagation()} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 429 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 436 | onClick | {() => incrementDocDownload(doc.id)} | viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 444 | onClick | {() => deleteDocument(doc.id)} | canDelete && viewMode === 'grid' && visibleDocs.length === 0 |
-| src/components/documents/DocumentsView.tsx | 470 | onClick | {() => handleSelectDoc(null)} | previewDoc |
-| src/components/documents/DocumentsView.tsx | 492 | onClick | {() => handleSelectDoc(null)} | previewDoc |
-| src/components/documents/DocumentsView.tsx | 544 | onClick | {() => {                     incrementDocDownload(previewDoc.id);                     setPreviewDoc(null);                   }} | previewDoc |
-| src/components/documents/DocumentsView.tsx | 567 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 581 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 586 | onSubmit | {handleUploadSubmit} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 589 | onDragOver | {(e) => {                     e.preventDefault();                     setIsDragging(true);                   }} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 593 | onDragLeave | {() => setIsDragging(false)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 594 | onDrop | {(e) => {                     e.preventDefault();                     setIsDragging(false);                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {                       handleFileChange(e.dataTransfer.files[0]);     | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 601 | onClick | {() => fileInputRef.current?.click()} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 614 | onChange | {(e) => {                       if (e.target.files && e.target.files[0]) {                         handleFileChange(e.target.files[0]);                       }                     }} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 642 | onChange | {(e) => setTitle(e.target.value)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 652 | onChange | {(e) => setCategory(e.target.value as any)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 667 | onChange | {(e) => setFileType(e.target.value as any)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 683 | onChange | {(e) => setVisibility(e.target.value as DocumentVisibility)} | isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 698 | onChange | {(e) => setSelectedDepartmentId(e.target.value)} | visibility === 'department' && isUploadModalOpen |
-| src/components/documents/DocumentsView.tsx | 715 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 314 | onSecondaryAction | {() => {/* toggle shared filter */}} | visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 329 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 356 | onClick | {(e) => e.stopPropagation()} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 358 | onClick | {() => incrementDocDownload(doc.id)} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 367 | onClick | {() => deleteDocument(doc.id)} | canDelete && viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 403 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 430 | onClick | {(e) => e.stopPropagation()} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 433 | onClick | {() => handleSelectDoc(doc)} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 440 | onClick | {() => incrementDocDownload(doc.id)} | viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 448 | onClick | {() => deleteDocument(doc.id)} | canDelete && viewMode === 'grid' && visibleDocs.length === 0 |
+| src/components/documents/DocumentsView.tsx | 474 | onClick | {() => handleSelectDoc(null)} | previewDoc |
+| src/components/documents/DocumentsView.tsx | 496 | onClick | {() => handleSelectDoc(null)} | previewDoc |
+| src/components/documents/DocumentsView.tsx | 548 | onClick | {() => {                     incrementDocDownload(previewDoc.id);                     setPreviewDoc(null);                   }} | previewDoc |
+| src/components/documents/DocumentsView.tsx | 571 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 585 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 590 | onSubmit | {handleUploadSubmit} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 593 | onDragOver | {(e) => {                     e.preventDefault();                     setIsDragging(true);                   }} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 597 | onDragLeave | {() => setIsDragging(false)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 598 | onDrop | {(e) => {                     e.preventDefault();                     setIsDragging(false);                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {                       handleFileChange(e.dataTransfer.files[0]);     | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 605 | onClick | {() => fileInputRef.current?.click()} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 618 | onChange | {(e) => {                       if (e.target.files && e.target.files[0]) {                         handleFileChange(e.target.files[0]);                       }                     }} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 646 | onChange | {(e) => setTitle(e.target.value)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 656 | onChange | {(e) => setCategory(e.target.value as any)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 671 | onChange | {(e) => setFileType(e.target.value as any)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 687 | onChange | {(e) => setVisibility(e.target.value as DocumentVisibility)} | isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 702 | onChange | {(e) => setSelectedDepartmentId(e.target.value)} | visibility === 'department' && isUploadModalOpen |
+| src/components/documents/DocumentsView.tsx | 719 | onClick | {() => setIsUploadModalOpen(false)} | isUploadModalOpen |
 | src/components/founder/FounderOperationsView.tsx | 90 | onClick | {loadData} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/founder/FounderOperationsView.tsx | 103 | onClick | {() => setSelectedMetric(mrrItem)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/founder/FounderOperationsView.tsx | 124 | onClick | {() => setSelectedMetric(dauItem)} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -413,175 +417,183 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/onboarding/OnboardingPage.tsx | 275 | onChange | {(e) => setInviteToken(e.target.value)} | mode === 'invite' |
 | src/components/onboarding/OnboardingWizard.tsx | 149 | onClick | {() => setDismissed(true)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/onboarding/OnboardingWizard.tsx | 182 | onClick | {() => setActiveTab(step.targetTab)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/DepartmentDetailsModal.tsx | 244 | onClick | {onClose} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/DepartmentDetailsModal.tsx | 260 | onChange | {(e) => setSearchQuery(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/DepartmentDetailsModal.tsx | 267 | onChange | {(e) => setPositionFilter(e.target.value as any)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/DepartmentDetailsModal.tsx | 279 | onClick | {() => setIsAddMemberOpen(true)} | isAdmin |
-| src/components/people/DepartmentDetailsModal.tsx | 306 | onClick | {() => setIsAddMemberOpen(true)} | isAdmin && members.length === 0 && filteredMembers.length === 0 && loading |
-| src/components/people/DepartmentDetailsModal.tsx | 370 | onClick | {() => handlePromoteLead(member)} | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
-| src/components/people/DepartmentDetailsModal.tsx | 386 | onClick | {() => {                             setMovingMember(member);                             setTargetDepartmentId(                               allDepartments.find((d) => d.id !== department.id)?.id \|\| ''                             );       | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
-| src/components/people/DepartmentDetailsModal.tsx | 403 | onClick | {() => handleRemoveMember(member)} | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
-| src/components/people/DepartmentDetailsModal.tsx | 427 | onClick | {onClose} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/DepartmentDetailsModal.tsx | 451 | onClick | {() => setIsAddMemberOpen(false)} | isAddMemberOpen |
-| src/components/people/DepartmentDetailsModal.tsx | 458 | onSubmit | {handleAddMember} | isAddMemberOpen |
-| src/components/people/DepartmentDetailsModal.tsx | 469 | onChange | {(e) => setSelectedAddUserId(e.target.value)} | candidateProfiles.length === 0 && isAddMemberOpen |
-| src/components/people/DepartmentDetailsModal.tsx | 490 | onClick | {() => setIsAddMemberOpen(false)} | isAddMemberOpen |
-| src/components/people/DepartmentDetailsModal.tsx | 529 | onClick | {() => setMovingMember(null)} | movingMember |
-| src/components/people/DepartmentDetailsModal.tsx | 536 | onSubmit | {handleMoveMemberSubmit} | movingMember |
-| src/components/people/DepartmentDetailsModal.tsx | 542 | onChange | {(e) => setTargetDepartmentId(e.target.value)} | movingMember |
-| src/components/people/DepartmentDetailsModal.tsx | 559 | onClick | {() => setMovingMember(null)} | movingMember |
-| src/components/people/PeopleView.tsx | 519 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions?.teams?.manageTeams |
-| src/components/people/PeopleView.tsx | 528 | onClick | {() => {                 setGeneratedInvite(null);                 setIsInviteModalOpen(true);               }} | permissions?.teams?.inviteMembers |
-| src/components/people/PeopleView.tsx | 541 | onClick | {handleCheckOut} | isCheckedIn |
-| src/components/people/PeopleView.tsx | 549 | onClick | {handleCheckIn} | isCheckedIn |
-| src/components/people/PeopleView.tsx | 558 | onClick | {() => setIsRequestLeaveModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/PeopleView.tsx | 588 | onClick | {() => {                 setActiveSubTab(tab.id as any);                 if (tab.id === 'invitations') {                   loadInvites();                 }               }} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/people/PeopleView.tsx | 621 | onClick | {() => setInviteStatusFilter(st)} | activeSubTab === 'invitations' |
-| src/components/people/PeopleView.tsx | 640 | onClick | {() => {                   setGeneratedInvite(null);                   setIsInviteModalOpen(true);                 }} | permissions?.teams?.inviteMembers && activeSubTab === 'invitations' |
-| src/components/people/PeopleView.tsx | 716 | onClick | {() => handleCopyLink(inv.token)} | activeSubTab === 'invitations' |
-| src/components/people/PeopleView.tsx | 726 | onClick | {() => handleRevokeInvite(inv.id)} | disabled={revokingInviteId === inv.id} && computedStatus !== 'accepted' && permissions?.teams?.manageTeams && activeSubTab === 'invitations' |
-| src/components/people/PeopleView.tsx | 757 | onChange | {(e) => setDeptSearchQuery(e.target.value)} | activeSubTab === 'departments' |
-| src/components/people/PeopleView.tsx | 764 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
-| src/components/people/PeopleView.tsx | 865 | onClick | {() => {                                 setEditingDepartment(dept);                                 setEditDeptName(dept.name \|\| '');                                 setEditDeptDescription(dept.description \|\| '');                       | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
-| src/components/people/PeopleView.tsx | 879 | onClick | {() => {                                 setTargetReassignUser(profiles.find(p => p.departmentId !== dept.id) \|\| profiles[0]);                                 setSelectedNewDeptId(dept.id);                                 setIsTransferMo | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
-| src/components/people/PeopleView.tsx | 894 | onClick | {() => {                             setSelectedDepartmentDetails(dept);                           }} | activeSubTab === 'departments' |
-| src/components/people/PeopleView.tsx | 927 | onChange | {(e) => setSearchQuery(e.target.value)} | activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 935 | onChange | {(e) => setSelectedDepartmentFilter(e.target.value)} | activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 948 | onChange | {(e) => setSelectedEmploymentTypeFilter(e.target.value)} | activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 973 | onClick | {() => setSelectedDepartmentFilter('')} | selectedDepartmentFilter && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1016 | onClick | {(e) => {                               e.stopPropagation();                               const targetId = prof.userId \|\| prof.user?.id \|\| prof.id;                               setActiveActionMenuUserId(activeActionMenuUserId === targe | currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1031 | onClick | {(e) => e.stopPropagation()} | activeActionMenuUserId === (prof.userId \|\| prof.user?.id \|\| prof.id) && currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1035 | onClick | {() => {                                   setMemberToRemove(prof);                                   setRemoveConfirmName('');                                   setActiveActionMenuUserId(null);                                 }} | activeActionMenuUserId === (prof.userId \|\| prof.user?.id \|\| prof.id) && currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1086 | onClick | {() => setSelectedProfile(prof)} | activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1102 | onClick | {() => setSelectedDepartmentFilter('')} | selectedDepartmentFilter && filteredProfiles.length === 0 && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1110 | onClick | {() => {                       setTargetReassignUser(profiles[0]);                       setSelectedNewDeptId(selectedDepartmentFilter \|\| departments[0]?.id \|\| '');                       setIsTransferModalOpen(true);                     | permissions?.teams?.manageTeams && profiles.length > 0 && filteredProfiles.length === 0 && activeSubTab === 'directory' |
-| src/components/people/PeopleView.tsx | 1134 | onClick | {() => setIsRequestLeaveModalOpen(true)} | activeSubTab === 'leaves' |
-| src/components/people/PeopleView.tsx | 1183 | onClick | {() => handleReviewLeave(l.id, 'approved')} | l.status === 'pending' && (currentRole === 'admin' \|\| (currentUser as any)?.role === 'lead') && activeSubTab === 'leaves' |
-| src/components/people/PeopleView.tsx | 1190 | onClick | {() => handleReviewLeave(l.id, 'rejected')} | l.status === 'pending' && (currentRole === 'admin' \|\| (currentUser as any)?.role === 'lead') && activeSubTab === 'leaves' |
-| src/components/people/PeopleView.tsx | 1234 | onClick | {isCheckedIn ? handleCheckOut : handleCheckIn} | activeSubTab === 'attendance' |
-| src/components/people/PeopleView.tsx | 1310 | onClick | {() => setIsRequestLeaveModalOpen(false)} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1315 | onSubmit | {handleRequestLeave} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1320 | onChange | {(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1336 | onChange | {(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1346 | onChange | {(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1359 | onChange | {(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1368 | onClick | {() => setIsRequestLeaveModalOpen(false)} | isRequestLeaveModalOpen |
-| src/components/people/PeopleView.tsx | 1398 | onClick | {() => {                 setIsInviteModalOpen(false);                 setGeneratedInvite(null);               }} | isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1413 | onClick | {() => {                     setIsInviteModalOpen(false);                     setGeneratedInvite(null);                   }} | isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1443 | onClick | {() => handleCopyLink(generatedInvite.token)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1454 | onClick | {() => {                         setIsInviteModalOpen(false);                         setGeneratedInvite(null);                         setInviteEmail('');                       }} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1466 | onSubmit | {handleInviteSubmit} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1473 | onChange | {(e) => setInviteName(e.target.value)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1485 | onChange | {(e) => setInviteEmail(e.target.value)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1494 | onChange | {(e) => setInviteRole(e.target.value as UserRole)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1507 | onChange | {(e) => setInviteTeamId(e.target.value)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1519 | onClick | {() => setIsInviteModalOpen(false)} | generatedInvite && isInviteModalOpen |
-| src/components/people/PeopleView.tsx | 1549 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1560 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1565 | onSubmit | {handleCreateTeamSubmit} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1573 | onChange | {(e) => setTeamName(e.target.value)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1585 | onChange | {(e) => setTeamDescription(e.target.value)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1596 | onChange | {(e) => setTeamColor(e.target.value)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1604 | onChange | {(e) => setTeamLeadId(e.target.value)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1617 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/people/PeopleView.tsx | 1645 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1662 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1667 | onSubmit | {handleUpdateProfile} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1675 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, designation: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
-| src/components/people/PeopleView.tsx | 1684 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, departmentId: e.target.value \|\| null })} | disabled={currentRole !== 'admin'} && selectedProfile |
-| src/components/people/PeopleView.tsx | 1701 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, managerId: e.target.value \|\| null })} | disabled={currentRole !== 'admin'} && selectedProfile |
-| src/components/people/PeopleView.tsx | 1717 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, employmentType: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
-| src/components/people/PeopleView.tsx | 1734 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, location: e.target.value })} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1744 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, status: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
-| src/components/people/PeopleView.tsx | 1759 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, bio: e.target.value })} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1768 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
-| src/components/people/PeopleView.tsx | 1798 | onClick | {() => {                 setIsReassignModalOpen(false);                 setTargetReassignUser(null);               }} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1813 | onClick | {() => {                     setIsReassignModalOpen(false);                     setTargetReassignUser(null);                   }} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1823 | onSubmit | {handleReassignManagerSubmit} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1829 | onChange | {(e) => {                       const found = profiles.find((p) => (p.userId \|\| p.id) === e.target.value);                       setTargetReassignUser(found \|\| null);                     }} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1848 | onChange | {(e) => setSelectedNewManagerId(e.target.value)} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1865 | onClick | {() => {                       setIsReassignModalOpen(false);                       setTargetReassignUser(null);                     }} | isReassignModalOpen |
-| src/components/people/PeopleView.tsx | 1897 | onClick | {() => {                 setIsTransferModalOpen(false);                 setTargetReassignUser(null);               }} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1912 | onClick | {() => {                     setIsTransferModalOpen(false);                     setTargetReassignUser(null);                   }} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1922 | onSubmit | {handleTransferDepartmentSubmit} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1928 | onChange | {(e) => {                       const found = profiles.find((p) => (p.userId \|\| p.id) === e.target.value \|\| p.user?.id === e.target.value);                       setTargetReassignUser(found \|\| null);                     }} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1952 | onChange | {(e) => setSelectedNewDeptId(e.target.value)} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1965 | onClick | {() => {                       setIsTransferModalOpen(false);                       setTargetReassignUser(null);                     }} | isTransferModalOpen |
-| src/components/people/PeopleView.tsx | 1997 | onClick | {() => {                 setIsEditDepartmentModalOpen(false);                 setEditingDepartment(null);               }} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2015 | onClick | {() => {                     setIsEditDepartmentModalOpen(false);                     setEditingDepartment(null);                   }} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2025 | onSubmit | {handleUpdateDepartmentSubmit} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2032 | onChange | {(e) => setEditDeptName(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2043 | onChange | {(e) => setEditDeptDescription(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2053 | onChange | {(e) => setEditDeptHeadId(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2072 | onClick | {() => setEditDeptColor(c)} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2085 | onClick | {() => handleDeleteDepartment(editingDepartment.id, editingDepartment.name)} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2095 | onClick | {() => {                         setIsEditDepartmentModalOpen(false);                         setEditingDepartment(null);                       }} | isEditDepartmentModalOpen && editingDepartment |
-| src/components/people/PeopleView.tsx | 2133 | onClick | {() => {                     setMemberToRemove(null);                     setRemoveConfirmName('');                   }} | memberToRemove |
-| src/components/people/PeopleView.tsx | 2143 | onSubmit | {handleRemoveMemberSubmit} | memberToRemove |
-| src/components/people/PeopleView.tsx | 2169 | onChange | {(e) => setRemoveConfirmName(e.target.value)} | memberToRemove |
-| src/components/people/PeopleView.tsx | 2179 | onClick | {() => {                             setMemberToRemove(null);                             setRemoveConfirmName('');                           }} | memberToRemove |
-| src/components/people/PeopleView.tsx | 2219 | onClose | {() => setSelectedDepartmentDetails(null)} | selectedDepartmentDetails |
-| src/components/people/PeopleView.tsx | 2220 | onDepartmentUpdated | {async () => {               await loadData();               const updated = departments.find((d) => d.id === selectedDepartmentDetails.id);               if (updated) {                 setSelectedDepartmentDetails(updated);            | selectedDepartmentDetails |
-| src/components/portal/ClientPortalView.tsx | 160 | onChange | {(e) => setFeedbackInput(e.target.value)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
-| src/components/portal/ClientPortalView.tsx | 164 | onClick | {() => handleApprove(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
-| src/components/portal/ClientPortalView.tsx | 170 | onClick | {() => handleRequestChanges(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
-| src/components/portal/ClientPortalView.tsx | 178 | onClick | {() => setSelectedApprovalId(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
-| src/components/projects/ProjectsView.tsx | 250 | onClick | {() => setViewMode('board')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/projects/ProjectsView.tsx | 260 | onClick | {() => setViewMode('list')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/projects/ProjectsView.tsx | 270 | onClick | {() => setViewMode('timeline')} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/projects/ProjectsView.tsx | 284 | onChange | {(e) => setSelectedStatus(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/projects/ProjectsView.tsx | 297 | onClick | {() => setIsCreateModalOpen(true)} | permissions.projects.create |
-| src/components/projects/ProjectsView.tsx | 315 | onAction | {() => setIsCreateModalOpen(true)} | visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 360 | onClick | {() => deleteProject(project.id)} | permissions.projects.delete && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 372 | onClick | {() => handleSelectProject(project)} | viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 419 | onClick | {(e) => handleStartWork(project.id, e)} | project.status === 'planning' && (isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 430 | onClick | {(e) => handleOpenProgressModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 437 | onClick | {(e) => handleOpenSubmitReviewModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 451 | onClick | {(e) => handleApprove(project.id, e)} | isLead \|\| currentRole === 'admin' && project.status === 'review' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 458 | onClick | {(e) => handleOpenChangesModal(project, e)} | isLead \|\| currentRole === 'admin' && project.status === 'review' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 529 | onClick | {() => handleSelectProject(project)} | viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 573 | onClick | {(e) => e.stopPropagation()} | viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 577 | onClick | {(e) => handleStartWork(project.id, e)} | project.status === 'planning' && (isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 585 | onClick | {(e) => handleOpenProgressModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 593 | onClick | {(e) => handleApprove(project.id, e)} | project.status === 'review' && (isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 601 | onClick | {() => deleteProject(project.id)} | permissions.projects.delete && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
-| src/components/projects/ProjectsView.tsx | 676 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 689 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 696 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 704 | onChange | {(e) => setTitle(e.target.value)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 716 | onChange | {(e) => setDescription(e.target.value)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 728 | onChange | {(e) => setDueDate(e.target.value)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 738 | onChange | {(e) => setBudget(e.target.value)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 758 | onClick | {() => setSelectedDepartmentId(isSelected ? '' : dept.id)} | departments.length > 0 && isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 784 | onClick | {() => toggleMemberSelection(user.id)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 805 | onChange | {(e) => setTagsInput(e.target.value)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 813 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
-| src/components/projects/ProjectsView.tsx | 837 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 852 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 876 | onChange | {(e) => setProgressValue(Number(e.target.value))} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 894 | onChange | {(e) => setProgressNote(e.target.value)} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 902 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 908 | onClick | {handleSaveProgress} | progressModalProject |
-| src/components/projects/ProjectsView.tsx | 925 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
-| src/components/projects/ProjectsView.tsx | 940 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
-| src/components/projects/ProjectsView.tsx | 954 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
-| src/components/projects/ProjectsView.tsx | 960 | onClick | {handleConfirmSubmitReview} | submitReviewModalProject |
-| src/components/projects/ProjectsView.tsx | 977 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
-| src/components/projects/ProjectsView.tsx | 992 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
-| src/components/projects/ProjectsView.tsx | 1012 | onChange | {(e) => setReviewFeedback(e.target.value)} | changesModalProject |
-| src/components/projects/ProjectsView.tsx | 1020 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
-| src/components/projects/ProjectsView.tsx | 1026 | onClick | {handleSaveRequestChanges} | changesModalProject |
-| src/components/projects/ProjectsView.tsx | 1085 | onClick | {() => handleSelectProject(null)} | selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1095 | onClick | {() => setProjectModalTab('overview')} | selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1106 | onClick | {() => setProjectModalTab('tasks')} | selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1117 | onClick | {() => setProjectModalTab('timeline')} | selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1128 | onClick | {() => setProjectModalTab('team')} | selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1302 | onClick | {() => {                           handleStartWork(selectedProjectModal.id);                           handleSelectProject(null);                         }} | selectedProjectModal.status === 'planning' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1315 | onClick | {() => handleOpenProgressModal(selectedProjectModal)} | selectedProjectModal.status === 'in_progress' && (isAssignedToProject(selectedProjectModal) \|\| isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'ad && selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1322 | onClick | {() => handleOpenSubmitReviewModal(selectedProjectModal)} | selectedProjectModal.status === 'in_progress' && (isAssignedToProject(selectedProjectModal) \|\| isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'ad && selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1333 | onClick | {() => {                             handleApprove(selectedProjectModal.id);                             handleSelectProject(null);                           }} | selectedProjectModal.status === 'review' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1343 | onClick | {() => handleOpenChangesModal(selectedProjectModal)} | selectedProjectModal.status === 'review' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
-| src/components/projects/ProjectsView.tsx | 1354 | onClick | {() => handleSelectProject(null)} | selectedProjectModal |
+| src/components/people/DepartmentDetailsModal.tsx | 245 | onClick | {onClose} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/DepartmentDetailsModal.tsx | 261 | onChange | {(e) => setSearchQuery(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/DepartmentDetailsModal.tsx | 268 | onChange | {(e) => setPositionFilter(e.target.value as any)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/DepartmentDetailsModal.tsx | 280 | onClick | {() => setIsAddMemberOpen(true)} | isAdmin |
+| src/components/people/DepartmentDetailsModal.tsx | 306 | onAction | {() => setIsAddMemberOpen(true)} | filteredMembers.length === 0 && loading |
+| src/components/people/DepartmentDetailsModal.tsx | 366 | onClick | {() => handlePromoteLead(member)} | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
+| src/components/people/DepartmentDetailsModal.tsx | 382 | onClick | {() => {                             setMovingMember(member);                             setTargetDepartmentId(                               allDepartments.find((d) => d.id !== department.id)?.id \|\| ''                             );       | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
+| src/components/people/DepartmentDetailsModal.tsx | 399 | onClick | {() => handleRemoveMember(member)} | disabled={isBusy} && isAdmin && filteredMembers.length === 0 && loading |
+| src/components/people/DepartmentDetailsModal.tsx | 423 | onClick | {onClose} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/DepartmentDetailsModal.tsx | 447 | onClick | {() => setIsAddMemberOpen(false)} | isAddMemberOpen |
+| src/components/people/DepartmentDetailsModal.tsx | 454 | onSubmit | {handleAddMember} | isAddMemberOpen |
+| src/components/people/DepartmentDetailsModal.tsx | 465 | onChange | {(e) => setSelectedAddUserId(e.target.value)} | candidateProfiles.length === 0 && isAddMemberOpen |
+| src/components/people/DepartmentDetailsModal.tsx | 486 | onClick | {() => setIsAddMemberOpen(false)} | isAddMemberOpen |
+| src/components/people/DepartmentDetailsModal.tsx | 525 | onClick | {() => setMovingMember(null)} | movingMember |
+| src/components/people/DepartmentDetailsModal.tsx | 532 | onSubmit | {handleMoveMemberSubmit} | movingMember |
+| src/components/people/DepartmentDetailsModal.tsx | 538 | onChange | {(e) => setTargetDepartmentId(e.target.value)} | movingMember |
+| src/components/people/DepartmentDetailsModal.tsx | 555 | onClick | {() => setMovingMember(null)} | movingMember |
+| src/components/people/PeopleView.tsx | 520 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions?.teams?.manageTeams |
+| src/components/people/PeopleView.tsx | 529 | onClick | {() => {                 setGeneratedInvite(null);                 setIsInviteModalOpen(true);               }} | permissions?.teams?.inviteMembers |
+| src/components/people/PeopleView.tsx | 542 | onClick | {handleCheckOut} | isCheckedIn |
+| src/components/people/PeopleView.tsx | 550 | onClick | {handleCheckIn} | isCheckedIn |
+| src/components/people/PeopleView.tsx | 559 | onClick | {() => setIsRequestLeaveModalOpen(true)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/PeopleView.tsx | 589 | onClick | {() => {                 setActiveSubTab(tab.id as any);                 if (tab.id === 'invitations') {                   loadInvites();                 }               }} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/people/PeopleView.tsx | 622 | onClick | {() => setInviteStatusFilter(st)} | activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 641 | onClick | {() => {                   setGeneratedInvite(null);                   setIsInviteModalOpen(true);                 }} | permissions?.teams?.inviteMembers && activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 717 | onClick | {() => handleCopyLink(inv.token)} | activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 727 | onClick | {() => handleRevokeInvite(inv.id)} | disabled={revokingInviteId === inv.id} && computedStatus !== 'accepted' && permissions?.teams?.manageTeams && activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 746 | onAction | {() => setIsInviteModalOpen(true)} | invites.length === 0 && activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 749 | onSecondaryAction | {() => setIsInviteModalOpen(true)} | invites.length === 0 && activeSubTab === 'invitations' |
+| src/components/people/PeopleView.tsx | 767 | onChange | {(e) => setDeptSearchQuery(e.target.value)} | activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 774 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 875 | onClick | {() => {                                 setEditingDepartment(dept);                                 setEditDeptName(dept.name \|\| '');                                 setEditDeptDescription(dept.description \|\| '');                       | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 889 | onClick | {() => {                                 setTargetReassignUser(profiles.find(p => p.departmentId !== dept.id) \|\| profiles[0]);                                 setSelectedNewDeptId(dept.id);                                 setIsTransferMo | permissions?.teams?.manageTeams && activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 904 | onClick | {() => {                             setSelectedDepartmentDetails(dept);                           }} | activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 925 | onAction | {() => setIsCreateTeamModalOpen(true)} | departments.length === 0 && activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 927 | onSecondaryAction | {() => setActiveSubTab('directory')} | departments.length === 0 && activeSubTab === 'departments' |
+| src/components/people/PeopleView.tsx | 945 | onChange | {(e) => setSearchQuery(e.target.value)} | activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 953 | onChange | {(e) => setSelectedDepartmentFilter(e.target.value)} | activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 966 | onChange | {(e) => setSelectedEmploymentTypeFilter(e.target.value)} | activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 991 | onClick | {() => setSelectedDepartmentFilter('')} | selectedDepartmentFilter && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1034 | onClick | {(e) => {                               e.stopPropagation();                               const targetId = prof.userId \|\| prof.user?.id \|\| prof.id;                               setActiveActionMenuUserId(activeActionMenuUserId === targe | currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1049 | onClick | {(e) => e.stopPropagation()} | activeActionMenuUserId === (prof.userId \|\| prof.user?.id \|\| prof.id) && currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1053 | onClick | {() => {                                   setMemberToRemove(prof);                                   setRemoveConfirmName('');                                   setActiveActionMenuUserId(null);                                 }} | activeActionMenuUserId === (prof.userId \|\| prof.user?.id \|\| prof.id) && currentRole === 'admin' && (prof.userId !== currentUser?.id && prof.user?.id !== currentUser?.id) && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1104 | onClick | {() => setSelectedProfile(prof)} | activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1123 | onAction | {() => setSelectedDepartmentFilter('')} | filteredProfiles.length === 0 && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1126 | onSecondaryAction | {() => setIsInviteModalOpen(true)} | filteredProfiles.length === 0 && activeSubTab === 'directory' |
+| src/components/people/PeopleView.tsx | 1142 | onClick | {() => setIsRequestLeaveModalOpen(true)} | activeSubTab === 'leaves' |
+| src/components/people/PeopleView.tsx | 1191 | onClick | {() => handleReviewLeave(l.id, 'approved')} | l.status === 'pending' && (currentRole === 'admin' \|\| (currentUser as any)?.role === 'lead') && activeSubTab === 'leaves' |
+| src/components/people/PeopleView.tsx | 1198 | onClick | {() => handleReviewLeave(l.id, 'rejected')} | l.status === 'pending' && (currentRole === 'admin' \|\| (currentUser as any)?.role === 'lead') && activeSubTab === 'leaves' |
+| src/components/people/PeopleView.tsx | 1220 | onClick | {() => setIsRequestLeaveModalOpen(true)} | leaves.length === 0 && activeSubTab === 'leaves' |
+| src/components/people/PeopleView.tsx | 1252 | onClick | {isCheckedIn ? handleCheckOut : handleCheckIn} | activeSubTab === 'attendance' |
+| src/components/people/PeopleView.tsx | 1328 | onClick | {() => setIsRequestLeaveModalOpen(false)} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1333 | onSubmit | {handleRequestLeave} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1338 | onChange | {(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1354 | onChange | {(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1364 | onChange | {(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1377 | onChange | {(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1386 | onClick | {() => setIsRequestLeaveModalOpen(false)} | isRequestLeaveModalOpen |
+| src/components/people/PeopleView.tsx | 1416 | onClick | {() => {                 setIsInviteModalOpen(false);                 setGeneratedInvite(null);               }} | isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1431 | onClick | {() => {                     setIsInviteModalOpen(false);                     setGeneratedInvite(null);                   }} | isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1461 | onClick | {() => handleCopyLink(generatedInvite.token)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1472 | onClick | {() => {                         setIsInviteModalOpen(false);                         setGeneratedInvite(null);                         setInviteEmail('');                       }} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1484 | onSubmit | {handleInviteSubmit} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1491 | onChange | {(e) => setInviteName(e.target.value)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1503 | onChange | {(e) => setInviteEmail(e.target.value)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1512 | onChange | {(e) => setInviteRole(e.target.value as UserRole)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1525 | onChange | {(e) => setInviteTeamId(e.target.value)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1537 | onClick | {() => setIsInviteModalOpen(false)} | generatedInvite && isInviteModalOpen |
+| src/components/people/PeopleView.tsx | 1567 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1578 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1583 | onSubmit | {handleCreateTeamSubmit} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1591 | onChange | {(e) => setTeamName(e.target.value)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1603 | onChange | {(e) => setTeamDescription(e.target.value)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1614 | onChange | {(e) => setTeamColor(e.target.value)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1622 | onChange | {(e) => setTeamLeadId(e.target.value)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1635 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/people/PeopleView.tsx | 1663 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1680 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1685 | onSubmit | {handleUpdateProfile} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1693 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, designation: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
+| src/components/people/PeopleView.tsx | 1702 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, departmentId: e.target.value \|\| null })} | disabled={currentRole !== 'admin'} && selectedProfile |
+| src/components/people/PeopleView.tsx | 1719 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, managerId: e.target.value \|\| null })} | disabled={currentRole !== 'admin'} && selectedProfile |
+| src/components/people/PeopleView.tsx | 1735 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, employmentType: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
+| src/components/people/PeopleView.tsx | 1752 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, location: e.target.value })} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1762 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, status: e.target.value })} | disabled={currentRole !== 'admin'} && selectedProfile |
+| src/components/people/PeopleView.tsx | 1777 | onChange | {(e) => setSelectedProfile({ ...selectedProfile, bio: e.target.value })} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1786 | onClick | {() => setSelectedProfile(null)} | selectedProfile |
+| src/components/people/PeopleView.tsx | 1816 | onClick | {() => {                 setIsReassignModalOpen(false);                 setTargetReassignUser(null);               }} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1831 | onClick | {() => {                     setIsReassignModalOpen(false);                     setTargetReassignUser(null);                   }} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1841 | onSubmit | {handleReassignManagerSubmit} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1847 | onChange | {(e) => {                       const found = profiles.find((p) => (p.userId \|\| p.id) === e.target.value);                       setTargetReassignUser(found \|\| null);                     }} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1866 | onChange | {(e) => setSelectedNewManagerId(e.target.value)} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1883 | onClick | {() => {                       setIsReassignModalOpen(false);                       setTargetReassignUser(null);                     }} | isReassignModalOpen |
+| src/components/people/PeopleView.tsx | 1915 | onClick | {() => {                 setIsTransferModalOpen(false);                 setTargetReassignUser(null);               }} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 1930 | onClick | {() => {                     setIsTransferModalOpen(false);                     setTargetReassignUser(null);                   }} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 1940 | onSubmit | {handleTransferDepartmentSubmit} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 1946 | onChange | {(e) => {                       const found = profiles.find((p) => (p.userId \|\| p.id) === e.target.value \|\| p.user?.id === e.target.value);                       setTargetReassignUser(found \|\| null);                     }} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 1970 | onChange | {(e) => setSelectedNewDeptId(e.target.value)} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 1983 | onClick | {() => {                       setIsTransferModalOpen(false);                       setTargetReassignUser(null);                     }} | isTransferModalOpen |
+| src/components/people/PeopleView.tsx | 2015 | onClick | {() => {                 setIsEditDepartmentModalOpen(false);                 setEditingDepartment(null);               }} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2033 | onClick | {() => {                     setIsEditDepartmentModalOpen(false);                     setEditingDepartment(null);                   }} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2043 | onSubmit | {handleUpdateDepartmentSubmit} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2050 | onChange | {(e) => setEditDeptName(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2061 | onChange | {(e) => setEditDeptDescription(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2071 | onChange | {(e) => setEditDeptHeadId(e.target.value)} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2090 | onClick | {() => setEditDeptColor(c)} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2103 | onClick | {() => handleDeleteDepartment(editingDepartment.id, editingDepartment.name)} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2113 | onClick | {() => {                         setIsEditDepartmentModalOpen(false);                         setEditingDepartment(null);                       }} | isEditDepartmentModalOpen && editingDepartment |
+| src/components/people/PeopleView.tsx | 2151 | onClick | {() => {                     setMemberToRemove(null);                     setRemoveConfirmName('');                   }} | memberToRemove |
+| src/components/people/PeopleView.tsx | 2161 | onSubmit | {handleRemoveMemberSubmit} | memberToRemove |
+| src/components/people/PeopleView.tsx | 2187 | onChange | {(e) => setRemoveConfirmName(e.target.value)} | memberToRemove |
+| src/components/people/PeopleView.tsx | 2197 | onClick | {() => {                             setMemberToRemove(null);                             setRemoveConfirmName('');                           }} | memberToRemove |
+| src/components/people/PeopleView.tsx | 2237 | onClose | {() => setSelectedDepartmentDetails(null)} | selectedDepartmentDetails |
+| src/components/people/PeopleView.tsx | 2238 | onDepartmentUpdated | {async () => {               await loadData();               const updated = departments.find((d) => d.id === selectedDepartmentDetails.id);               if (updated) {                 setSelectedDepartmentDetails(updated);            | selectedDepartmentDetails |
+| src/components/portal/ClientPortalView.tsx | 93 | onAction | {() => {}} | approvals.length === 0 |
+| src/components/portal/ClientPortalView.tsx | 96 | onSecondaryAction | {() => window.open('https://docs.workspace-os.com/client-portal', '_blank')} | approvals.length === 0 |
+| src/components/portal/ClientPortalView.tsx | 168 | onChange | {(e) => setFeedbackInput(e.target.value)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
+| src/components/portal/ClientPortalView.tsx | 172 | onClick | {() => handleApprove(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
+| src/components/portal/ClientPortalView.tsx | 178 | onClick | {() => handleRequestChanges(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
+| src/components/portal/ClientPortalView.tsx | 186 | onClick | {() => setSelectedApprovalId(approval.id)} | selectedApprovalId === approval.id && approval.status === 'pending' && approvals.length === 0 |
+| src/components/projects/ProjectsView.tsx | 254 | onClick | {() => setViewMode('board')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/projects/ProjectsView.tsx | 264 | onClick | {() => setViewMode('list')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/projects/ProjectsView.tsx | 274 | onClick | {() => setViewMode('timeline')} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/projects/ProjectsView.tsx | 288 | onChange | {(e) => setSelectedStatus(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/projects/ProjectsView.tsx | 301 | onClick | {() => setIsCreateModalOpen(true)} | permissions.projects.create |
+| src/components/projects/ProjectsView.tsx | 319 | onAction | {() => setIsCreateModalOpen(true)} | visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 321 | onSecondaryAction | {() => window.open('https://docs.workspace-os.com/projects', '_blank')} | visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 366 | onClick | {() => deleteProject(project.id)} | permissions.projects.delete && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 378 | onClick | {() => handleSelectProject(project)} | viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 425 | onClick | {(e) => handleStartWork(project.id, e)} | project.status === 'planning' && (isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 436 | onClick | {(e) => handleOpenProgressModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 443 | onClick | {(e) => handleOpenSubmitReviewModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 457 | onClick | {(e) => handleApprove(project.id, e)} | isLead \|\| currentRole === 'admin' && project.status === 'review' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 464 | onClick | {(e) => handleOpenChangesModal(project, e)} | isLead \|\| currentRole === 'admin' && project.status === 'review' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 535 | onClick | {() => handleSelectProject(project)} | viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 579 | onClick | {(e) => e.stopPropagation()} | viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 583 | onClick | {(e) => handleStartWork(project.id, e)} | project.status === 'planning' && (isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 591 | onClick | {(e) => handleOpenProgressModal(project, e)} | project.status === 'in_progress' && (isAssigned \|\| isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 599 | onClick | {(e) => handleApprove(project.id, e)} | project.status === 'review' && (isLead \|\| currentRole === 'admin') && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 607 | onClick | {() => deleteProject(project.id)} | permissions.projects.delete && viewMode === 'list' && viewMode === 'board' && visibleProjects.length === 0 |
+| src/components/projects/ProjectsView.tsx | 682 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 695 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 702 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 710 | onChange | {(e) => setTitle(e.target.value)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 722 | onChange | {(e) => setDescription(e.target.value)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 734 | onChange | {(e) => setDueDate(e.target.value)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 744 | onChange | {(e) => setBudget(e.target.value)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 764 | onClick | {() => setSelectedDepartmentId(isSelected ? '' : dept.id)} | departments.length > 0 && isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 791 | onClick | {() => toggleMemberSelection(targetUserId)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 812 | onChange | {(e) => setTagsInput(e.target.value)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 820 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/projects/ProjectsView.tsx | 844 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 859 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 883 | onChange | {(e) => setProgressValue(Number(e.target.value))} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 901 | onChange | {(e) => setProgressNote(e.target.value)} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 909 | onClick | {() => setProgressModalProject(null)} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 915 | onClick | {handleSaveProgress} | progressModalProject |
+| src/components/projects/ProjectsView.tsx | 932 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
+| src/components/projects/ProjectsView.tsx | 947 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
+| src/components/projects/ProjectsView.tsx | 961 | onClick | {() => setSubmitReviewModalProject(null)} | submitReviewModalProject |
+| src/components/projects/ProjectsView.tsx | 967 | onClick | {handleConfirmSubmitReview} | submitReviewModalProject |
+| src/components/projects/ProjectsView.tsx | 984 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
+| src/components/projects/ProjectsView.tsx | 999 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
+| src/components/projects/ProjectsView.tsx | 1019 | onChange | {(e) => setReviewFeedback(e.target.value)} | changesModalProject |
+| src/components/projects/ProjectsView.tsx | 1027 | onClick | {() => setChangesModalProject(null)} | changesModalProject |
+| src/components/projects/ProjectsView.tsx | 1033 | onClick | {handleSaveRequestChanges} | changesModalProject |
+| src/components/projects/ProjectsView.tsx | 1092 | onClick | {() => handleSelectProject(null)} | selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1102 | onClick | {() => setProjectModalTab('overview')} | selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1113 | onClick | {() => setProjectModalTab('tasks')} | selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1124 | onClick | {() => setProjectModalTab('timeline')} | selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1135 | onClick | {() => setProjectModalTab('team')} | selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1309 | onClick | {() => {                           handleStartWork(selectedProjectModal.id);                           handleSelectProject(null);                         }} | selectedProjectModal.status === 'planning' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1322 | onClick | {() => handleOpenProgressModal(selectedProjectModal)} | selectedProjectModal.status === 'in_progress' && (isAssignedToProject(selectedProjectModal) \|\| isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'ad && selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1329 | onClick | {() => handleOpenSubmitReviewModal(selectedProjectModal)} | selectedProjectModal.status === 'in_progress' && (isAssignedToProject(selectedProjectModal) \|\| isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'ad && selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1340 | onClick | {() => {                             handleApprove(selectedProjectModal.id);                             handleSelectProject(null);                           }} | selectedProjectModal.status === 'review' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1350 | onClick | {() => handleOpenChangesModal(selectedProjectModal)} | selectedProjectModal.status === 'review' && (isTeamLeadForProject(selectedProjectModal) \|\| currentRole === 'admin') && selectedProjectModal |
+| src/components/projects/ProjectsView.tsx | 1361 | onClick | {() => handleSelectProject(null)} | selectedProjectModal |
 | src/components/settings/SettingsView.tsx | 257 | onClick | {() => setActiveTab('profile')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/settings/SettingsView.tsx | 269 | onClick | {() => setActiveTab('security')} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/settings/SettingsView.tsx | 281 | onClick | {() => setActiveTab('rbac')} | No enclosing JSX permission condition; inspect handler and parent view |
@@ -626,127 +638,135 @@ Static AST inventory of every JSX event binding, including form, click, keyboard
 | src/components/tasks/TasksView.tsx | 391 | onChange | {(e) => setFilterPriority(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/tasks/TasksView.tsx | 405 | onClick | {handleOpenCreateModal} | permissions.tasks.create |
 | src/components/tasks/TasksView.tsx | 423 | onAction | {handleOpenCreateModal} | visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 462 | onClick | {() => handleSelectTask(task)} | viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 481 | onClick | {(e) => {                                 e.stopPropagation();                                 deleteTask(task.id);                               }} | permissions.tasks.delete && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 530 | onClick | {(e) => e.stopPropagation()} | viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 535 | onClick | {() => handleStartTask(task.id)} | column.id === 'todo' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 545 | onClick | {() => handleSubmitReview(task.id)} | column.id === 'in_progress' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 556 | onClick | {() => {                                   setSelectedTask(task);                                   setReviewFeedbackModalOpen(true);                                 }} | column.id === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 566 | onClick | {() => handleApproveTask(task.id)} | column.id === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 614 | onClick | {() => setSelectedTask(task)} | viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 660 | onClick | {(e) => e.stopPropagation()} | viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 663 | onClick | {() => handleStartTask(task.id)} | status === 'todo' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 671 | onClick | {() => handleSubmitReview(task.id)} | status === 'in_progress' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 679 | onClick | {() => handleApproveTask(task.id)} | status === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 687 | onClick | {() => deleteTask(task.id)} | permissions.tasks.delete && viewMode === 'kanban' && visibleTasks.length === 0 |
-| src/components/tasks/TasksView.tsx | 711 | onClick | {() => setSelectedTask(null)} | selectedTask |
-| src/components/tasks/TasksView.tsx | 735 | onClick | {() => handleSelectTask(null)} | selectedTask |
-| src/components/tasks/TasksView.tsx | 745 | onClick | {() => setDrawerTab('details')} | selectedTask |
-| src/components/tasks/TasksView.tsx | 755 | onClick | {() => setDrawerTab('activity')} | selectedTask |
-| src/components/tasks/TasksView.tsx | 766 | onClick | {() => setDrawerTab('comments')} | selectedTask |
-| src/components/tasks/TasksView.tsx | 827 | onClick | {() => handleUnblockTask(selectedTask.id)} | selectedTask.is_blocked \|\| (selectedTask as any).isBlocked && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 836 | onClick | {() => setBlockModalOpen(true)} | selectedTask.is_blocked \|\| (selectedTask as any).isBlocked && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 851 | onClick | {() => handleStartTask(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'todo' && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 862 | onClick | {() => handleSubmitReview(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'in_progress' && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 874 | onClick | {() => handleApproveTask(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'review' && currentRole !== 'intern' && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 882 | onClick | {() => setReviewFeedbackModalOpen(true)} | disabled={actionLoading} && selectedTask.status === 'review' && currentRole !== 'intern' && drawerTab === 'details' && selectedTask |
-| src/components/tasks/TasksView.tsx | 957 | onSubmit | {handleSendComment} | drawerTab === 'comments' && selectedTask |
-| src/components/tasks/TasksView.tsx | 962 | onChange | {(e) => setCommentInput(e.target.value)} | drawerTab === 'comments' && selectedTask |
-| src/components/tasks/TasksView.tsx | 992 | onClick | {() => setBlockModalOpen(false)} | blockModalOpen |
-| src/components/tasks/TasksView.tsx | 1012 | onChange | {(e) => setBlockReason(e.target.value)} | blockModalOpen |
-| src/components/tasks/TasksView.tsx | 1019 | onClick | {() => setBlockModalOpen(false)} | blockModalOpen |
-| src/components/tasks/TasksView.tsx | 1026 | onClick | {handleBlockTask} | disabled={!blockReason.trim() \|\| actionLoading} && blockModalOpen |
-| src/components/tasks/TasksView.tsx | 1046 | onClick | {() => setReviewFeedbackModalOpen(false)} | reviewFeedbackModalOpen |
-| src/components/tasks/TasksView.tsx | 1066 | onChange | {(e) => setReviewFeedback(e.target.value)} | reviewFeedbackModalOpen |
-| src/components/tasks/TasksView.tsx | 1073 | onClick | {() => setReviewFeedbackModalOpen(false)} | reviewFeedbackModalOpen |
-| src/components/tasks/TasksView.tsx | 1080 | onClick | {handleRequestChanges} | disabled={!reviewFeedback.trim() \|\| actionLoading} && reviewFeedbackModalOpen |
-| src/components/tasks/TasksView.tsx | 1100 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1112 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1117 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1125 | onChange | {(e) => setTitle(e.target.value)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1137 | onChange | {(e) => setDescription(e.target.value)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1147 | onChange | {(e) => setPriority(e.target.value as TaskPriority)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1163 | onChange | {(e) => setProjectId(e.target.value)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1183 | onChange | {(e) => {                           const newAssignee = e.target.value;                           setAssignedTo(newAssignee);                           const targetUser = users.find((u) => u.id === newAssignee);                          | permissions.tasks.assign && isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1206 | onChange | {(e) => setDueDate(e.target.value)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1220 | onChange | {(e) => setStoryPoints(parseInt(e.target.value) \|\| 1)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1231 | onChange | {(e) => setEstimatedHours(parseInt(e.target.value) \|\| 1)} | isCreateModalOpen |
-| src/components/tasks/TasksView.tsx | 1240 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 425 | onSecondaryAction | {() => {/* navigate to projects */}} | visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 464 | onClick | {() => handleSelectTask(task)} | viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 483 | onClick | {(e) => {                                 e.stopPropagation();                                 deleteTask(task.id);                               }} | permissions.tasks.delete && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 532 | onClick | {(e) => e.stopPropagation()} | viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 537 | onClick | {() => handleStartTask(task.id)} | column.id === 'todo' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 547 | onClick | {() => handleSubmitReview(task.id)} | column.id === 'in_progress' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 558 | onClick | {() => {                                   setSelectedTask(task);                                   setReviewFeedbackModalOpen(true);                                 }} | column.id === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 568 | onClick | {() => handleApproveTask(task.id)} | column.id === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 616 | onClick | {() => setSelectedTask(task)} | viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 662 | onClick | {(e) => e.stopPropagation()} | viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 665 | onClick | {() => handleStartTask(task.id)} | status === 'todo' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 673 | onClick | {() => handleSubmitReview(task.id)} | status === 'in_progress' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 681 | onClick | {() => handleApproveTask(task.id)} | status === 'review' && currentRole !== 'intern' && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 689 | onClick | {() => deleteTask(task.id)} | permissions.tasks.delete && viewMode === 'kanban' && visibleTasks.length === 0 |
+| src/components/tasks/TasksView.tsx | 713 | onClick | {() => setSelectedTask(null)} | selectedTask |
+| src/components/tasks/TasksView.tsx | 737 | onClick | {() => handleSelectTask(null)} | selectedTask |
+| src/components/tasks/TasksView.tsx | 747 | onClick | {() => setDrawerTab('details')} | selectedTask |
+| src/components/tasks/TasksView.tsx | 757 | onClick | {() => setDrawerTab('activity')} | selectedTask |
+| src/components/tasks/TasksView.tsx | 768 | onClick | {() => setDrawerTab('comments')} | selectedTask |
+| src/components/tasks/TasksView.tsx | 829 | onClick | {() => handleUnblockTask(selectedTask.id)} | selectedTask.is_blocked \|\| (selectedTask as any).isBlocked && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 838 | onClick | {() => setBlockModalOpen(true)} | selectedTask.is_blocked \|\| (selectedTask as any).isBlocked && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 853 | onClick | {() => handleStartTask(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'todo' && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 864 | onClick | {() => handleSubmitReview(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'in_progress' && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 876 | onClick | {() => handleApproveTask(selectedTask.id)} | disabled={actionLoading} && selectedTask.status === 'review' && currentRole !== 'intern' && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 884 | onClick | {() => setReviewFeedbackModalOpen(true)} | disabled={actionLoading} && selectedTask.status === 'review' && currentRole !== 'intern' && drawerTab === 'details' && selectedTask |
+| src/components/tasks/TasksView.tsx | 963 | onSubmit | {handleSendComment} | drawerTab === 'comments' && selectedTask |
+| src/components/tasks/TasksView.tsx | 968 | onChange | {(e) => setCommentInput(e.target.value)} | drawerTab === 'comments' && selectedTask |
+| src/components/tasks/TasksView.tsx | 998 | onClick | {() => setBlockModalOpen(false)} | blockModalOpen |
+| src/components/tasks/TasksView.tsx | 1018 | onChange | {(e) => setBlockReason(e.target.value)} | blockModalOpen |
+| src/components/tasks/TasksView.tsx | 1025 | onClick | {() => setBlockModalOpen(false)} | blockModalOpen |
+| src/components/tasks/TasksView.tsx | 1032 | onClick | {handleBlockTask} | disabled={!blockReason.trim() \|\| actionLoading} && blockModalOpen |
+| src/components/tasks/TasksView.tsx | 1052 | onClick | {() => setReviewFeedbackModalOpen(false)} | reviewFeedbackModalOpen |
+| src/components/tasks/TasksView.tsx | 1072 | onChange | {(e) => setReviewFeedback(e.target.value)} | reviewFeedbackModalOpen |
+| src/components/tasks/TasksView.tsx | 1079 | onClick | {() => setReviewFeedbackModalOpen(false)} | reviewFeedbackModalOpen |
+| src/components/tasks/TasksView.tsx | 1086 | onClick | {handleRequestChanges} | disabled={!reviewFeedback.trim() \|\| actionLoading} && reviewFeedbackModalOpen |
+| src/components/tasks/TasksView.tsx | 1106 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1118 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1123 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1131 | onChange | {(e) => setTitle(e.target.value)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1143 | onChange | {(e) => setDescription(e.target.value)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1153 | onChange | {(e) => setPriority(e.target.value as TaskPriority)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1169 | onChange | {(e) => setProjectId(e.target.value)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1189 | onChange | {(e) => {                           const newAssignee = e.target.value;                           setAssignedTo(newAssignee);                           const targetUser = users.find((u) => u.id === newAssignee);                          | permissions.tasks.assign && isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1212 | onChange | {(e) => setDueDate(e.target.value)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1226 | onChange | {(e) => setStoryPoints(parseInt(e.target.value) \|\| 1)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1237 | onChange | {(e) => setEstimatedHours(parseInt(e.target.value) \|\| 1)} | isCreateModalOpen |
+| src/components/tasks/TasksView.tsx | 1246 | onClick | {handleCloseCreateModal} | isCreateModalOpen |
 | src/components/teams/TeamsView.tsx | 204 | onClick | {() => setIsCreateTeamModalOpen(true)} | permissions.teams.inviteMembers |
 | src/components/teams/TeamsView.tsx | 211 | onClick | {() => {                   setGeneratedInvite(null);                   setIsInviteModalOpen(true);                 }} | permissions.teams.inviteMembers |
-| src/components/teams/TeamsView.tsx | 288 | onClick | {() => setSelectedTeam(team)} | visibleTeams.length === 0 |
-| src/components/teams/TeamsView.tsx | 379 | onClick | {() => handleCopyLink(inv.token)} | currentRole === 'admin' && pendingInvites.length > 0 |
-| src/components/teams/TeamsView.tsx | 457 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 486 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 518 | onClick | {() => {                       setSelectedNewLeadId(activeSelectedTeam.lead_id \|\| '');                       setIsChangeLeadModalOpen(true);                     }} | permissions.teams.manageTeams && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 542 | onClick | {() => {                       setSelectedUserIdsToAdd([]);                       setIsAddMembersModalOpen(true);                     }} | permissions.teams.manageTeams && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 591 | onClick | {() => {                                   setMemberToMove(member);                                   const otherTeams = teams.filter((t) => t.id !== activeSelectedTeam.id);                                   setTargetMoveTeamId(otherTeam | teams.length > 1 && permissions.teams.manageTeams && getTeamMembers(activeSelectedTeam).length === 0 && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 607 | onClick | {() => handleRemoveMember(member.id, member.name)} | permissions.teams.manageTeams && getTeamMembers(activeSelectedTeam).length === 0 && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 625 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 646 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 661 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 675 | onChange | {(e) => setMemberSearchQuery(e.target.value)} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 681 | onSubmit | {handleAddMembersSubmit} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 707 | onClick | {() => {                             setSelectedUserIdsToAdd((prev) =>                               isSelected ? prev.filter((id) => id !== u.id) : [...prev, u.id]                             );                           }} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 752 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 782 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
-| src/components/teams/TeamsView.tsx | 793 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
-| src/components/teams/TeamsView.tsx | 809 | onSubmit | {handleMoveMemberSubmit} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
-| src/components/teams/TeamsView.tsx | 814 | onChange | {(e) => setTargetMoveTeamId(e.target.value)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
-| src/components/teams/TeamsView.tsx | 834 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
-| src/components/teams/TeamsView.tsx | 863 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 877 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 882 | onSubmit | {handleChangeLeadSubmit} | isChangeLeadModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 887 | onChange | {(e) => setSelectedNewLeadId(e.target.value)} | isChangeLeadModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 905 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
-| src/components/teams/TeamsView.tsx | 934 | onClick | {() => {                 setIsInviteModalOpen(false);                 setGeneratedInvite(null);               }} | isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 949 | onClick | {() => {                     setIsInviteModalOpen(false);                     setGeneratedInvite(null);                   }} | isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 979 | onClick | {() => handleCopyLink(generatedInvite.token)} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 990 | onClick | {() => {                         setIsInviteModalOpen(false);                         setGeneratedInvite(null);                         setInviteEmail('');                       }} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1002 | onSubmit | {handleInviteSubmit} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1010 | onChange | {(e) => setInviteEmail(e.target.value)} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1019 | onChange | {(e) => setInviteRole(e.target.value as UserRole)} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1032 | onChange | {(e) => setInviteTeamId(e.target.value)} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1044 | onClick | {() => setIsInviteModalOpen(false)} | generatedInvite && isInviteModalOpen |
-| src/components/teams/TeamsView.tsx | 1074 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1085 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1090 | onSubmit | {handleCreateTeamSubmit} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1098 | onChange | {(e) => setTeamName(e.target.value)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1110 | onChange | {(e) => setTeamDescription(e.target.value)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1121 | onChange | {(e) => setTeamColor(e.target.value)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1129 | onChange | {(e) => setTeamLeadId(e.target.value)} | isCreateTeamModalOpen |
-| src/components/teams/TeamsView.tsx | 1142 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
-| src/components/time/TimeTrackingView.tsx | 202 | onChange | {(e) => setActiveTaskTitle(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/time/TimeTrackingView.tsx | 211 | onChange | {(e) => setIsBillable(e.target.checked)} | isAdmin |
-| src/components/time/TimeTrackingView.tsx | 226 | onClick | {() => setIsTimerRunning(false)} | isTimerRunning |
-| src/components/time/TimeTrackingView.tsx | 234 | onClick | {handleStartTimer} | isTimerRunning |
-| src/components/time/TimeTrackingView.tsx | 243 | onClick | {handleStopTimer} | disabled={elapsedSeconds === 0 && !isTimerRunning} |
-| src/components/time/TimeTrackingView.tsx | 486 | onClick | {() => handleDeleteEntry(entry.id)} | (currentRole === 'admin' \|\| entry.userId === currentUser.id) && entries.length === 0 |
-| src/components/ui/EmptyState.tsx | 42 | onClick | {onAction} | actionLabel && onAction |
+| src/components/teams/TeamsView.tsx | 279 | onAction | {() => setIsCreateTeamModalOpen(true)} | visibleTeams.length === 0 |
+| src/components/teams/TeamsView.tsx | 281 | onSecondaryAction | {() => setIsInviteModalOpen(true)} | visibleTeams.length === 0 |
+| src/components/teams/TeamsView.tsx | 295 | onClick | {() => setSelectedTeam(team)} | visibleTeams.length === 0 |
+| src/components/teams/TeamsView.tsx | 386 | onClick | {() => handleCopyLink(inv.token)} | currentRole === 'admin' && pendingInvites.length > 0 |
+| src/components/teams/TeamsView.tsx | 464 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 493 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 525 | onClick | {() => {                       setSelectedNewLeadId(activeSelectedTeam.lead_id \|\| '');                       setIsChangeLeadModalOpen(true);                     }} | permissions.teams.manageTeams && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 549 | onClick | {() => {                       setSelectedUserIdsToAdd([]);                       setIsAddMembersModalOpen(true);                     }} | permissions.teams.manageTeams && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 569 | onAction | {() => {                       setSelectedUserIdsToAdd([]);                       setIsAddMembersModalOpen(true);                     }} | getTeamMembers(activeSelectedTeam).length === 0 && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 604 | onClick | {() => {                                   setMemberToMove(member);                                   const otherTeams = teams.filter((t) => t.id !== activeSelectedTeam.id);                                   setTargetMoveTeamId(otherTeam | teams.length > 1 && permissions.teams.manageTeams && getTeamMembers(activeSelectedTeam).length === 0 && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 620 | onClick | {() => handleRemoveMember(member.id, member.name)} | permissions.teams.manageTeams && getTeamMembers(activeSelectedTeam).length === 0 && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 638 | onClick | {() => setSelectedTeam(null)} | activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 659 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 674 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 688 | onChange | {(e) => setMemberSearchQuery(e.target.value)} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 694 | onSubmit | {handleAddMembersSubmit} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 720 | onClick | {() => {                             setSelectedUserIdsToAdd((prev) =>                               isSelected ? prev.filter((id) => id !== u.id) : [...prev, u.id]                             );                           }} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 765 | onClick | {() => setIsAddMembersModalOpen(false)} | isAddMembersModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 795 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
+| src/components/teams/TeamsView.tsx | 806 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
+| src/components/teams/TeamsView.tsx | 822 | onSubmit | {handleMoveMemberSubmit} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
+| src/components/teams/TeamsView.tsx | 827 | onChange | {(e) => setTargetMoveTeamId(e.target.value)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
+| src/components/teams/TeamsView.tsx | 847 | onClick | {() => setIsMoveMemberModalOpen(false)} | isMoveMemberModalOpen && activeSelectedTeam && memberToMove |
+| src/components/teams/TeamsView.tsx | 876 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 890 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 895 | onSubmit | {handleChangeLeadSubmit} | isChangeLeadModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 900 | onChange | {(e) => setSelectedNewLeadId(e.target.value)} | isChangeLeadModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 918 | onClick | {() => setIsChangeLeadModalOpen(false)} | isChangeLeadModalOpen && activeSelectedTeam |
+| src/components/teams/TeamsView.tsx | 947 | onClick | {() => {                 setIsInviteModalOpen(false);                 setGeneratedInvite(null);               }} | isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 962 | onClick | {() => {                     setIsInviteModalOpen(false);                     setGeneratedInvite(null);                   }} | isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 992 | onClick | {() => handleCopyLink(generatedInvite.token)} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1003 | onClick | {() => {                         setIsInviteModalOpen(false);                         setGeneratedInvite(null);                         setInviteEmail('');                       }} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1015 | onSubmit | {handleInviteSubmit} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1023 | onChange | {(e) => setInviteEmail(e.target.value)} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1032 | onChange | {(e) => setInviteRole(e.target.value as UserRole)} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1045 | onChange | {(e) => setInviteTeamId(e.target.value)} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1057 | onClick | {() => setIsInviteModalOpen(false)} | generatedInvite && isInviteModalOpen |
+| src/components/teams/TeamsView.tsx | 1087 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1098 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1103 | onSubmit | {handleCreateTeamSubmit} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1111 | onChange | {(e) => setTeamName(e.target.value)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1123 | onChange | {(e) => setTeamDescription(e.target.value)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1134 | onChange | {(e) => setTeamColor(e.target.value)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1142 | onChange | {(e) => setTeamLeadId(e.target.value)} | isCreateTeamModalOpen |
+| src/components/teams/TeamsView.tsx | 1155 | onClick | {() => setIsCreateTeamModalOpen(false)} | isCreateTeamModalOpen |
+| src/components/time/TimeTrackingView.tsx | 203 | onChange | {(e) => setActiveTaskTitle(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
+| src/components/time/TimeTrackingView.tsx | 212 | onChange | {(e) => setIsBillable(e.target.checked)} | isAdmin |
+| src/components/time/TimeTrackingView.tsx | 227 | onClick | {() => setIsTimerRunning(false)} | isTimerRunning |
+| src/components/time/TimeTrackingView.tsx | 235 | onClick | {handleStartTimer} | isTimerRunning |
+| src/components/time/TimeTrackingView.tsx | 244 | onClick | {handleStopTimer} | disabled={elapsedSeconds === 0 && !isTimerRunning} |
+| src/components/time/TimeTrackingView.tsx | 443 | onAction | {() => setIsTimerRunning(true)} | entries.length === 0 |
+| src/components/time/TimeTrackingView.tsx | 446 | onSecondaryAction | {() => window.open('https://docs.workspace-os.com/time-tracking', '_blank')} | entries.length === 0 |
+| src/components/time/TimeTrackingView.tsx | 494 | onClick | {() => handleDeleteEntry(entry.id)} | (currentRole === 'admin' \|\| entry.userId === currentUser.id) && entries.length === 0 |
+| src/components/ui/EmptyState.tsx | 88 | onClick | {onAction} | actionLabel && onAction && (actionLabel \|\| secondaryLabel) |
+| src/components/ui/EmptyState.tsx | 94 | onClick | {onSecondaryAction} | secondaryLabel && onSecondaryAction && (actionLabel \|\| secondaryLabel) |
 | src/components/ui/KPIWidget.tsx | 86 | onClick | {onClick} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/ui/PageHeader.tsx | 35 | onClick | {item.onClick} | item.onClick && breadcrumbs && breadcrumbs.length > 0 |
 | src/components/ui/SectionCard.tsx | 35 | onClick | {onClick} | No enclosing JSX permission condition; inspect handler and parent view |
 | src/components/wiki/WikiView.tsx | 339 | onClick | {() => openCreateModal(null)} | currentRole !== 'intern' && !embedded |
 | src/components/wiki/WikiView.tsx | 357 | onClick | {() => openCreateModal(null)} | currentRole !== 'intern' |
 | src/components/wiki/WikiView.tsx | 371 | onChange | {(e) => setSearchQuery(e.target.value)} | No enclosing JSX permission condition; inspect handler and parent view |
-| src/components/wiki/WikiView.tsx | 389 | onClick | {() => selectPage(page.id)} | visiblePages.length === 0 |
-| src/components/wiki/WikiView.tsx | 410 | onClick | {() => openCreateModal(selectedPage.id)} | currentRole !== 'intern' && selectedPage |
-| src/components/wiki/WikiView.tsx | 439 | onChange | {(e) => setEditTitle(e.target.value)} | isEditing && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 457 | onClick | {handleSaveEdit} | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 466 | onClick | {() => {                             setEditTitle(selectedPage.title);                             setEditContentText(                               selectedPage.contentJson.blocks?.find((b: any) => b.type === 'paragraph')?.text \|\| ''   | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 479 | onClick | {() => handleDeletePage(selectedPage.id)} | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 497 | onChange | {(e) => setEditContentText(e.target.value)} | isEditing && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 552 | onSubmit | {handleAddComment} | comments.filter((c) => c.pageId === selectedPage.id).length > 0 && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 557 | onChange | {(e) => setNewComment(e.target.value)} | comments.filter((c) => c.pageId === selectedPage.id).length > 0 && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 589 | onClick | {() => selectPage(pages[0].id)} | pages.length > 0 && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 597 | onClick | {() => openCreateModal(null)} | currentRole !== 'intern' && selectedPage && isLoading |
-| src/components/wiki/WikiView.tsx | 618 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 632 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 637 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 645 | onChange | {(e) => setCreateTitle(e.target.value)} | isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 654 | onChange | {(e) => setCreateVisibility(e.target.value)} | isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 669 | onChange | {(e) => setCreateDepartmentId(e.target.value)} | createVisibility === 'department' && isCreateModalOpen |
-| src/components/wiki/WikiView.tsx | 686 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 383 | onClick | {() => openCreateModal(null)} | currentRole !== 'intern' && visiblePages.length === 0 |
+| src/components/wiki/WikiView.tsx | 398 | onClick | {() => selectPage(page.id)} | visiblePages.length === 0 |
+| src/components/wiki/WikiView.tsx | 419 | onClick | {() => openCreateModal(selectedPage.id)} | currentRole !== 'intern' && selectedPage |
+| src/components/wiki/WikiView.tsx | 448 | onChange | {(e) => setEditTitle(e.target.value)} | isEditing && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 466 | onClick | {handleSaveEdit} | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 475 | onClick | {() => {                             setEditTitle(selectedPage.title);                             setEditContentText(                               selectedPage.contentJson.blocks?.find((b: any) => b.type === 'paragraph')?.text \|\| ''   | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 488 | onClick | {() => handleDeletePage(selectedPage.id)} | isEditing && currentRole !== 'intern' && (currentRole === 'admin' \|\| selectedPage.createdBy === currentUser?.id \|\| (selectedPage as any).created_by === currentUser?.id) && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 506 | onChange | {(e) => setEditContentText(e.target.value)} | isEditing && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 561 | onSubmit | {handleAddComment} | comments.filter((c) => c.pageId === selectedPage.id).length > 0 && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 566 | onChange | {(e) => setNewComment(e.target.value)} | comments.filter((c) => c.pageId === selectedPage.id).length > 0 && selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 593 | onAction | {() => openCreateModal(null)} | selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 595 | onSecondaryAction | {() => pages.length > 0 && selectPage(pages[0].id)} | selectedPage && isLoading |
+| src/components/wiki/WikiView.tsx | 610 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 624 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 629 | onSubmit | {handleCreateSubmit} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 637 | onChange | {(e) => setCreateTitle(e.target.value)} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 646 | onChange | {(e) => setCreateVisibility(e.target.value)} | isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 661 | onChange | {(e) => setCreateDepartmentId(e.target.value)} | createVisibility === 'department' && isCreateModalOpen |
+| src/components/wiki/WikiView.tsx | 678 | onClick | {() => setIsCreateModalOpen(false)} | isCreateModalOpen |
 | src/components/workspace/WorkspaceSelector.tsx | 73 | onClick | {() => setIsOpen(!isOpen)} | disabled={isWorkspaceLoading} |
 | src/components/workspace/WorkspaceSelector.tsx | 130 | onClick | {() => handleSwitch(ws.id)} | isOpen |
 | src/components/workspace/WorkspaceSelector.tsx | 172 | onClick | {() => {                   setActiveTab('workspaces');                   setIsOpen(false);                   window.history.pushState(null, '', '/workspaces');                 }} | isOpen |

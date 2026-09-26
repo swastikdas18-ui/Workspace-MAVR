@@ -201,7 +201,42 @@ export async function runPhase19bTests() {
   assert(readyRes.data.checks.websocket_ok === true, 'websocket_ok flag is true');
   assert(readyRes.data.checks.storage_ok === true, 'storage_ok flag is true');
 
-  const metricsRes = await testApi('GET', '/health/metrics');
+  // Create an ephemeral admin session for infrastructure metrics
+  const p19bAdminToken = 'p19b-admin-session-token';
+  const now = new Date();
+  inMemoryDb.users.set('p19b-admin', {
+    id: 'p19b-admin',
+    email: 'p19b-admin@example.com',
+    name: 'P19B Admin',
+    role: 'admin',
+    platformRole: 'none',
+    createdAt: now,
+    updatedAt: now,
+  } as any);
+  inMemoryDb.workspaces.set('p19b-ws', {
+    id: 'p19b-ws',
+    name: 'P19B Workspace',
+    ownerId: 'p19b-admin',
+    createdAt: now,
+  } as any);
+  inMemoryDb.workspaceMembers.set('p19b-admin-mem', {
+    id: 'p19b-admin-mem',
+    workspaceId: 'p19b-ws',
+    userId: 'p19b-admin',
+    role: 'admin',
+    joinedAt: now,
+  } as any);
+  inMemoryDb.sessions.set(p19bAdminToken, {
+    id: 'p19b-session',
+    token: p19bAdminToken,
+    userId: 'p19b-admin',
+    workspaceId: 'p19b-ws',
+    expiresAt: new Date(Date.now() + 3600000),
+    createdAt: now,
+    lastActiveAt: now,
+  } as any);
+
+  const metricsRes = await testApi('GET', '/health/metrics', undefined, { Authorization: `Bearer ${p19bAdminToken}` });
   assert(metricsRes.status === 200, 'GET /health/metrics returns 200 OK');
   assert(typeof metricsRes.data.memory === 'object', 'metrics contains memory stats');
   assert(typeof metricsRes.data.memory.rssMb === 'number', 'metrics includes rssMb');

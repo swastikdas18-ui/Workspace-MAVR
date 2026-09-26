@@ -315,13 +315,13 @@ export async function runAutomationEngineV2Tests(): Promise<void> {
   // ---------------------------------------------------------------------------
   console.log('\n--- 6. Role-Based Access Control Boundaries ---');
 
-  // Employee can list rules
+  // Employee is forbidden from listing rules (403 Forbidden - Admin only requirement)
   const empListRes = await app.request('/api/automations/rules', {
     method: 'GET',
     headers: authHeader(empToken),
   });
-  assert.strictEqual(empListRes.status, 200, 'Employee can list rules (200 OK)');
-  console.log('✅ PASS: Employee can view workspace automation rules');
+  assert.strictEqual(empListRes.status, 403, 'Employee is forbidden from listing rules (403 Forbidden)');
+  console.log('✅ PASS: Employee forbidden from viewing workspace automation rules (403)');
 
   // Intern is forbidden from creating rules (403)
   const internCreateRes = await app.request('/api/automations/rules', {

@@ -25,6 +25,8 @@ import { AuthorizationContext } from '../src/types';
 // Helpers — minimal mock Hono context for unit-level isolation tests
 // ---------------------------------------------------------------------------
 
+import { inMemoryDb } from '../packages/database';
+
 interface MockContextOptions {
   user?: { id: string; email?: string; role?: string; platformRole?: string };
   workspace?: { id: string; name?: string; slug?: string; ownerId?: string; plan?: string; roleInWorkspace?: string };
@@ -34,21 +36,32 @@ interface MockContextOptions {
 /**
  * Build a mock Hono context that simulates authenticated requests.
  * The mock bypasses real DB calls in resolveMembershipRole by setting
- * workspace.roleInWorkspace directly (the same path the auth middleware populates).
+ * workspace.roleInWorkspace directly and seeding inMemoryDb for verified membership lookup.
  */
 function createMockContext(opts: MockContextOptions) {
   const store = new Map<string, any>();
   if (opts.user) store.set('user', opts.user);
   if (opts.workspace) {
+    const role = opts.memberRole || opts.workspace.roleInWorkspace || 'employee';
     const ws: any = {
       id: opts.workspace.id,
       name: opts.workspace.name || 'Test WS',
       slug: opts.workspace.slug || 'test-ws',
       ownerId: opts.workspace.ownerId || 'owner-1',
       plan: opts.workspace.plan || 'pro',
-      roleInWorkspace: opts.memberRole || opts.workspace.roleInWorkspace || 'employee',
+      roleInWorkspace: role,
     };
     store.set('workspace', ws);
+
+    if (opts.user?.id) {
+      inMemoryDb.workspaceMembers.set(`${opts.workspace.id}-${opts.user.id}`, {
+        id: `mem-${opts.workspace.id}-${opts.user.id}`,
+        workspaceId: opts.workspace.id,
+        userId: opts.user.id,
+        role: role as any,
+        joinedAt: new Date(),
+      } as any);
+    }
   }
 
   return {

@@ -164,6 +164,17 @@ export class TeamService {
       throw error;
     }
 
+    if (role === 'employee') {
+      const isLead = existing.leadId === userId;
+      const isMember = (existing.memberIds || []).includes(userId);
+      if (!isLead && !isMember) {
+        const error: any = new Error('Unauthorized to view unassigned team details.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
     return {
       id: existing.id,
       name: existing.name,

@@ -30,7 +30,7 @@ export const phase16Router = new Hono();
 // PART 4 — DATA EXPORT SAFETY
 // ============================================================================
 
-const exportRouter = new Hono();
+export const exportRouter = new Hono();
 exportRouter.use('*', authMiddleware);
 exportRouter.use('*', requireWorkspaceRole(['admin']));
 

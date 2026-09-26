@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requireWorkspaceRole } from '../middleware/rbac';
+import { requireWorkspaceRole, requirePlatformAdmin } from '../middleware/rbac';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { AuditRepository } from '../repositories/audit-repository';
 import { ProductAnalyticsService } from '../services/product-analytics-service';
@@ -66,7 +66,7 @@ analyticsRouter.get('/lineage', async (c) => {
 /**
  * GET /api/analytics/founder - Founder Usage & Cohort Intelligence
  */
-analyticsRouter.get('/founder', async (c) => {
+analyticsRouter.get('/founder', requirePlatformAdmin(), async (c) => {
   const analytics = await ProductAnalyticsService.getFounderAnalytics();
   return c.json(analytics, 200);
 });

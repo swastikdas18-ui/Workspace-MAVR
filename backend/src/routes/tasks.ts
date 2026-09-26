@@ -1,6 +1,16 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import {
+  createTaskSchema,
+  updateTaskSchema,
+  submitTaskReviewSchema,
+  approveTaskSchema,
+  requestTaskChangesSchema,
+  blockTaskSchema,
+  taskCommentSchema,
+} from '../schemas';
 import { TaskService } from '../services/task-service';
 import { UserRole } from '../types';
 import { normalizeRole, can } from '../lib/permissions';
@@ -52,7 +62,7 @@ taskRouter.get('/', async (c) => {
 /**
  * POST /api/tasks - Create new task
  */
-taskRouter.post('/', async (c) => {
+taskRouter.post('/', validateBody(createTaskSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -81,10 +91,6 @@ taskRouter.post('/', async (c) => {
     }
 
     const body = await c.req.json();
-
-    if (!body.title || !body.title.trim()) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Task title is required.' } }, 400);
-    }
 
     const task = await TaskService.createTask(workspace.id, user.id, role, body);
     return c.json({ task }, 201);
@@ -150,8 +156,8 @@ const updateTaskHandler = async (c: any) => {
   }
 };
 
-taskRouter.patch('/:id', updateTaskHandler);
-taskRouter.put('/:id', updateTaskHandler);
+taskRouter.patch('/:id', validateBody(updateTaskSchema), updateTaskHandler);
+taskRouter.put('/:id', validateBody(updateTaskSchema), updateTaskHandler);
 
 /**
  * POST /api/tasks/:id/start - Transition Todo -> In Progress
@@ -180,7 +186,7 @@ taskRouter.post('/:id/start', async (c) => {
 /**
  * POST /api/tasks/:id/submit-review - Transition In Progress -> Review
  */
-taskRouter.post('/:id/submit-review', async (c) => {
+taskRouter.post('/:id/submit-review', validateBody(submitTaskReviewSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -211,7 +217,7 @@ taskRouter.post('/:id/submit-review', async (c) => {
 /**
  * POST /api/tasks/:id/approve - Transition Review -> Done
  */
-taskRouter.post('/:id/approve', async (c) => {
+taskRouter.post('/:id/approve', validateBody(approveTaskSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -242,7 +248,7 @@ taskRouter.post('/:id/approve', async (c) => {
 /**
  * POST /api/tasks/:id/request-changes - Transition Review -> In Progress
  */
-taskRouter.post('/:id/request-changes', async (c) => {
+taskRouter.post('/:id/request-changes', validateBody(requestTaskChangesSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -252,10 +258,6 @@ taskRouter.post('/:id/request-changes', async (c) => {
     const taskId = c.req.param('id');
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
-
-    if (!body.feedback || !body.feedback.trim()) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Feedback is required when requesting changes.' } }, 400);
-    }
 
     const task = await TaskService.requestChanges(workspace.id, user.id, role, taskId, body.feedback);
     return c.json({ task, message: 'Changes requested on task.' }, 200);
@@ -271,7 +273,7 @@ taskRouter.post('/:id/request-changes', async (c) => {
 /**
  * POST /api/tasks/:id/block - Block task with reason
  */
-taskRouter.post('/:id/block', async (c) => {
+taskRouter.post('/:id/block', validateBody(blockTaskSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -281,10 +283,6 @@ taskRouter.post('/:id/block', async (c) => {
     const taskId = c.req.param('id');
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
-
-    if (!body.reason || !body.reason.trim()) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Blocked reason is required.' } }, 400);
-    }
 
     const task = await TaskService.blockTask(workspace.id, user.id, role, taskId, body.reason);
     return c.json({ task, message: 'Task marked as blocked.' }, 200);
@@ -326,15 +324,21 @@ taskRouter.post('/:id/unblock', async (c) => {
  */
 taskRouter.get('/:id/activity', async (c) => {
   try {
+    const user = c.get('user');
     const workspace = c.get('workspace');
     if (!workspace) {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
     const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    // Verify task view authorization
+    await TaskService.getTaskById(workspace.id, user.id, role, taskId);
+
     const activity = await TaskService.getTaskActivity(workspace.id, taskId);
     return c.json({ activity }, 200);
   } catch (err: any) {
-    const status = err.status || (err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch task activity.' } },
       status
@@ -391,17 +395,23 @@ taskRouter.delete('/:id', async (c) => {
  */
 taskRouter.get('/:id/comments', async (c) => {
   try {
+    const user = c.get('user');
     const workspace = c.get('workspace');
     if (!workspace) {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
 
     const taskId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    // Verify task view authorization
+    await TaskService.getTaskById(workspace.id, user.id, role, taskId);
+
     const comments = await TaskService.getComments(workspace.id, taskId);
 
     return c.json({ comments }, 200);
   } catch (err: any) {
-    const status = err.status || 400;
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch comments.' } },
       status
@@ -425,10 +435,6 @@ const postCommentHandler = async (c: any) => {
     const body = await c.req.json();
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
 
-    if (!body.content || !body.content.trim()) {
-      return c.json({ error: { code: 'BAD_REQUEST', message: 'Comment content cannot be empty.' } }, 400);
-    }
-
     const comment = await TaskService.addComment(workspace.id, taskId, user.id, body.content, role);
     return c.json({ comment }, 201);
   } catch (err: any) {
@@ -440,8 +446,8 @@ const postCommentHandler = async (c: any) => {
   }
 };
 
-taskRouter.post('/:id/comments', postCommentHandler);
-taskRouter.post('/:id/comment', postCommentHandler);
+taskRouter.post('/:id/comments', validateBody(taskCommentSchema), postCommentHandler);
+taskRouter.post('/:id/comment', validateBody(taskCommentSchema), postCommentHandler);
 
 
 /**

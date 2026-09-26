@@ -1,40 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { 
-  Building2, Shield, UserCheck, Key, Save, Lock, Bell,
-  RefreshCw, AlertTriangle, CheckCircle2, ShieldCheck, 
-  Terminal, Webhook, EyeOff, Ban, DollarSign, Users, Target, Loader2
-} from 'lucide-react';
+import { Save } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { api } from '../../lib/api';
-import { motion } from 'motion/react';
-
-interface SecretItem {
-  id: string;
-  name: string;
-  type: 'api_key' | 'webhook_secret' | 'service_token';
-  prefix: string;
-  suffix: string;
-  maskedValue: string;
-  scope: string;
-  lastRotated: string;
-  status: 'active' | 'rotated';
-}
-
-interface TeamBillingItem {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role: string;
-  costRate: number;
-  billableRate: number;
-  utilizationTarget: number;
-}
+import { ProfileTab, SecurityTab, RbacTab } from './ProfileAndSecurityTabs';
+import { TeamBillingTab, TeamBillingItem } from './TeamBillingTab';
+import { ApiKeysTab, SecretItem, DEFAULT_SECRETS } from './ApiKeysTab';
+import { NotificationsTab, NotificationPrefsState } from './NotificationsTab';
+import { LabsTab } from './LabsTab';
+import { SettingsTabBar, SettingsTabType } from './SettingsTabBar';
 
 export const SettingsView: React.FC = () => {
   const { currentWorkspace, updateWorkspace, addToast, users, setActiveTab: setGlobalActiveTab } = useWorkspace();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'rbac' | 'team_billing' | 'api' | 'notifications' | 'labs'>('profile');
+  const [activeTab, setActiveTab] = useState<SettingsTabType>('profile');
   const [name, setName] = useState(currentWorkspace?.name || 'Workspace OS HQ');
   const [slug, setSlug] = useState(currentWorkspace?.slug || 'workspaceos');
   const [allowPublicInvites, setAllowPublicInvites] = useState(false);
@@ -42,7 +21,7 @@ export const SettingsView: React.FC = () => {
   const [sessionTimeout, setSessionTimeout] = useState('24h');
 
   // Notification Preferences state
-  const [notificationPrefs, setNotificationPrefs] = useState({
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefsState>({
     peopleEmployeeInvites: true,
     peopleEmployeeJoined: true,
     peopleLeaveRequests: true,
@@ -163,42 +142,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  // Masked Secrets State (Zero-Trust: raw secrets never stored or exposed on client)
-  const [secrets, setSecrets] = useState<SecretItem[]>([
-    {
-      id: 'sec-api-1',
-      name: 'Production REST API Key',
-      type: 'api_key',
-      prefix: 'rk_live_',
-      suffix: '1234',
-      maskedValue: 'rk_live_xxxxxxxxxxx1234',
-      scope: 'Full Workspace Read/Write Access',
-      lastRotated: '3 days ago',
-      status: 'active',
-    },
-    {
-      id: 'sec-wh-1',
-      name: 'Webhook Signing Secret',
-      type: 'webhook_secret',
-      prefix: 'whsec_',
-      suffix: '8921',
-      maskedValue: 'whsec_xxxxxxxxxxx8921',
-      scope: 'HMAC-SHA256 Payload Verification',
-      lastRotated: '12 days ago',
-      status: 'active',
-    },
-    {
-      id: 'sec-cli-1',
-      name: 'CLI Service Account Token',
-      type: 'service_token',
-      prefix: 'tok_srv_',
-      suffix: '4321',
-      maskedValue: 'tok_srv_xxxxxxxxxxx4321',
-      scope: 'CI/CD Pipeline & Automated Deployments',
-      lastRotated: '30 days ago',
-      status: 'active',
-    },
-  ]);
+  const [secrets, setSecrets] = useState<SecretItem[]>(DEFAULT_SECRETS);
 
   const [rotatingSecretId, setRotatingSecretId] = useState<string | null>(null);
   const [isRotating, setIsRotating] = useState(false);
@@ -240,7 +184,6 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Page Header */}
       <PageHeader
         title="Workspace Configuration & Security"
         description="Manage organization metadata, zero-trust RBAC policies, team billing rates, and developer credentials."
@@ -252,874 +195,68 @@ export const SettingsView: React.FC = () => {
       />
 
       {/* Settings Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3 text-xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'profile'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5" />
-          <span>General Profile</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'security'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>Security & 2FA</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('rbac')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'rbac'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <UserCheck className="w-3.5 h-3.5" />
-          <span>RBAC Matrix</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('team_billing')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'team_billing'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <DollarSign className="w-3.5 h-3.5" />
-          <span>Team Billing & Rates</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('api')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'api'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <Key className="w-3.5 h-3.5" />
-          <span>Developer API & Secrets</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'notifications'
-              ? 'bg-[#7C3AED] text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
-          }`}
-        >
-          <Bell className="w-3.5 h-3.5" />
-          <span>Notifications</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('labs')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-            activeTab === 'labs'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'bg-[#111827] text-purple-400 hover:text-purple-200 border border-purple-500/20'
-          }`}
-        >
-          <Target className="w-3.5 h-3.5" />
-          <span>Labs & Enterprise Tools</span>
-        </button>
-      </div>
+      <SettingsTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === 'labs' && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
-          <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-2">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-400" />
-              <span>Labs & Enterprise Extensions Launcher</span>
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Access secondary enterprise tools including workflow automation rules, time utilization telemetry, velocity analytics, guest portal, and Google synchronization.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div
-              onClick={() => setGlobalActiveTab('automations')}
-              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-purple-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
-                  Automations Engine
-                </h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  Event-driven trigger & action rules for project creation, document generation, and webhooks.
-                </p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setGlobalActiveTab('time')}
-              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-blue-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                <Users className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors">
-                  Time & Utilization
-                </h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  Employee timesheets, billable hour tracking, utilization targets, and labor cost analysis.
-                </p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setGlobalActiveTab('analytics')}
-              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-emerald-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                <Building2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
-                  Analytics & Velocity
-                </h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  Sprint velocity forecasting, retention tracking, metric lineage graphs, and product analytics.
-                </p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setGlobalActiveTab('portal')}
-              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-amber-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
-                  Client Portal
-                </h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  External guest access sandbox for client project progress, shared deliverables, and invoice view.
-                </p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setGlobalActiveTab('integrations')}
-              className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 hover:border-rose-500/40 transition-all cursor-pointer space-y-3 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
-                <Webhook className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-rose-300 transition-colors">
-                  Google Sync & OAuth
-                </h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  Third-party OAuth synchronization, Google Calendar event sync, and Google Drive integrations.
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+        <LabsTab onNavigate={setGlobalActiveTab} />
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Tab 1: Organization Profile */}
         {activeTab === 'profile' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#111827] border border-white/[0.08] rounded-[24px] p-6 glass-shadow space-y-5"
-          >
-            <div>
-              <h3 className="ui-h3 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-purple-400" />
-                <span>Organization Identity</span>
-              </h3>
-              <p className="ui-body text-slate-400 mt-1">
-                Public profile and canonical URL domain for this Workspace OS cluster.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1.5">Workspace Legal Name</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#0F172A] border border-white/[0.08] rounded-[16px] p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1.5">Domain Slug (URL Routing)</label>
-                <div className="flex items-center bg-[#0F172A] border border-white/[0.08] rounded-[16px] overflow-hidden focus-within:border-purple-500 transition-colors">
-                  <span className="px-3 text-slate-500 font-mono text-xs">app.workspaceos.dev/</span>
-                  <input
-                    type="text"
-                    required
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    className="w-full bg-transparent p-3 text-white focus:outline-none text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-[#0F172A] rounded-[16px] border border-white/[0.04] flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-white">Cluster ID</p>
-                <p className="text-[11px] text-slate-400 font-mono">wos-cluster-us-east4-prod-01</p>
-              </div>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono text-[10px]">
-                Healthy & Active
-              </span>
-            </div>
-          </motion.div>
+          <ProfileTab
+            name={name}
+            setName={setName}
+            slug={slug}
+            setSlug={setSlug}
+          />
         )}
 
-        {/* Tab 2: Security & Authentication */}
         {activeTab === 'security' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-5"
-          >
-            <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <Shield className="w-4 h-4 text-purple-400" />
-                <span>Zero-Trust Security Controls</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Session lifetime policies, multi-factor requirements, and strict perimeter controls.
-              </p>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <label className="flex items-start gap-3 p-4 rounded-xl bg-[#0F172A] border border-white/[0.06] cursor-pointer hover:border-purple-500/30 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={enforceTwoFactor}
-                  onChange={(e) => setEnforceTwoFactor(e.target.checked)}
-                  className="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0"
-                />
-                <div>
-                  <p className="font-semibold text-white">Mandatory Multi-Factor Authentication (MFA / WebAuthn)</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Requires hardware security keys (FIDO2) or TOTP authenticators across Admin and Employee accounts.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 p-4 rounded-xl bg-[#0F172A] border border-white/[0.06] cursor-pointer hover:border-purple-500/30 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={allowPublicInvites}
-                  onChange={(e) => setAllowPublicInvites(e.target.checked)}
-                  className="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0"
-                />
-                <div>
-                  <p className="font-semibold text-white">Auto-Provision Corporate Domain SSO</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Automatically onboard verified users signing in with official organization email addresses.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Session Inactivity Timeout</label>
-                <select
-                  value={sessionTimeout}
-                  onChange={(e) => setSessionTimeout(e.target.value)}
-                  className="w-full bg-[#0F172A] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                >
-                  <option value="4h">4 Hours (High Security Sliding Window)</option>
-                  <option value="12h">12 Hours (Standard Business)</option>
-                  <option value="24h">24 Hours (Default)</option>
-                  <option value="7d">7 Days (Maximum Absolute Expiration)</option>
-                </select>
-              </div>
-            </div>
-          </motion.div>
+          <SecurityTab
+            enforceTwoFactor={enforceTwoFactor}
+            setEnforceTwoFactor={setEnforceTwoFactor}
+            allowPublicInvites={allowPublicInvites}
+            setAllowPublicInvites={setAllowPublicInvites}
+            sessionTimeout={sessionTimeout}
+            setSessionTimeout={setSessionTimeout}
+          />
         )}
 
-        {/* Tab 3: RBAC Capabilities Matrix */}
         {activeTab === 'rbac' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#111827] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl"
-          >
-            <div className="p-6 border-b border-white/[0.08] bg-[#0F172A]">
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-purple-400" />
-                <span>Three-Tier RBAC Capability Matrix</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Definitive permissions enforced server-side for each authenticated identity role.
-              </p>
-            </div>
-
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-white/[0.08] bg-[#0F172A]/50 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <th className="p-3.5">Capability Scope</th>
-                  <th className="p-3.5 text-center text-purple-400">ADMIN</th>
-                  <th className="p-3.5 text-center text-blue-400">EMPLOYEE</th>
-                  <th className="p-3.5 text-center text-emerald-400">INTERN</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04] text-slate-300">
-                <tr>
-                  <td className="p-3.5 font-medium text-white">Workspace & Billing Management</td>
-                  <td className="p-3.5 text-center text-emerald-400">Full Access</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-medium text-white">Project Roadmaps (Create & Delete)</td>
-                  <td className="p-3.5 text-center text-emerald-400">Full Access</td>
-                  <td className="p-3.5 text-center text-slate-400">Assigned Only</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-medium text-white">Tasks & Engineering Backlog</td>
-                  <td className="p-3.5 text-center text-emerald-400">All Tasks</td>
-                  <td className="p-3.5 text-center text-slate-300">Team / Assigned</td>
-                  <td className="p-3.5 text-center text-slate-300">Learning Tasks</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-medium text-white">CRM & Customer Deal Pipeline</td>
-                  <td className="p-3.5 text-center text-emerald-400">Full Access</td>
-                  <td className="p-3.5 text-center text-slate-300">Assigned Leads</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-medium text-white">Document Vault & Handbooks</td>
-                  <td className="p-3.5 text-center text-emerald-400">Full Access</td>
-                  <td className="p-3.5 text-center text-slate-300">Shared + Personal</td>
-                  <td className="p-3.5 text-center text-slate-300">Learning / Public</td>
-                </tr>
-                <tr>
-                  <td className="p-3.5 font-medium text-white">Invite Provisioning & Token Generation</td>
-                  <td className="p-3.5 text-center text-emerald-400">Full Access</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                  <td className="p-3.5 text-center text-rose-400 font-mono">No Access</td>
-                </tr>
-              </tbody>
-            </table>
-          </motion.div>
+          <RbacTab />
         )}
 
-        {/* Tab 4: Team Billing & Hourly Rates (Admin Only) */}
         {activeTab === 'team_billing' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-6"
-          >
-            <div>
-              <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-400" />
-                <span>Team Billing & Utilization Configuration</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Set employee internal cost rates, client billable rates, and weekly utilization targets. Employees never see these values.
-              </p>
-            </div>
-
-            {isProfilesLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-3">
-                <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
-                <p className="text-xs text-slate-400 font-mono">Loading team rate profiles...</p>
-              </div>
-            ) : billingProfiles.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
-                No team members found in this workspace. Invite employees from the Workspace Hub.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-white/[0.08] bg-[#0F172A]/50 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                      <th className="p-3">Team Member</th>
-                      <th className="p-3">Role</th>
-                      <th className="p-3">Cost Rate (₹/hr)</th>
-                      <th className="p-3">Client Billable Rate (₹/hr)</th>
-                      <th className="p-3">Target Utilization (%)</th>
-                      <th className="p-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04] text-slate-300">
-                    {billingProfiles.map((item, idx) => (
-                      <tr key={item.userId} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="p-3">
-                          <div className="font-semibold text-white">{item.userName}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{item.userEmail}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className="capitalize px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-purple-300">
-                            {item.role}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 bg-[#0F172A] border border-white/[0.08] rounded-lg px-2 py-1 w-28">
-                            <span className="text-slate-500 text-[10px]">₹</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="100"
-                              value={item.costRate}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setBillingProfiles((prev) =>
-                                  prev.map((p) => (p.userId === item.userId ? { ...p, costRate: val } : p))
-                                );
-                              }}
-                              className="w-full bg-transparent text-white font-mono text-xs focus:outline-none"
-                            />
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 bg-[#0F172A] border border-white/[0.08] rounded-lg px-2 py-1 w-28">
-                            <span className="text-emerald-500 text-[10px]">₹</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="100"
-                              value={item.billableRate}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setBillingProfiles((prev) =>
-                                  prev.map((p) => (p.userId === item.userId ? { ...p, billableRate: val } : p))
-                                );
-                              }}
-                              className="w-full bg-transparent text-emerald-400 font-mono font-bold text-xs focus:outline-none"
-                            />
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 bg-[#0F172A] border border-white/[0.08] rounded-lg px-2 py-1 w-24">
-                            <input
-                              type="number"
-                              min="10"
-                              max="100"
-                              value={item.utilizationTarget}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setBillingProfiles((prev) =>
-                                  prev.map((p) => (p.userId === item.userId ? { ...p, utilizationTarget: val } : p))
-                                );
-                              }}
-                              className="w-full bg-transparent text-white font-mono text-xs focus:outline-none"
-                            />
-                            <span className="text-slate-500 text-[10px]">%</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateProfile(item)}
-                            disabled={savingUserId === item.userId}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {savingUserId === item.userId ? 'Saving...' : 'Save Rate'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </motion.div>
+          <TeamBillingTab
+            isProfilesLoading={isProfilesLoading}
+            billingProfiles={billingProfiles}
+            setBillingProfiles={setBillingProfiles}
+            savingUserId={savingUserId}
+            onUpdateProfile={handleUpdateProfile}
+          />
         )}
 
-        {/* Tab 5: Masked Developer API Keys & Secrets */}
         {activeTab === 'api' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                    <Key className="w-4 h-4 text-purple-400" />
-                    <span>Developer API & Integration Credentials</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Zero-trust secret management: Raw credentials are never stored or exposed on client browsers.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
-                    AES-256-GCM Encrypted
-                  </span>
-                </div>
-              </div>
-
-              {/* Zero Trust Notice Banner */}
-              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-start gap-3 text-xs text-slate-300">
-                <EyeOff className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-purple-300">Zero-Trust Credential Masking Active</p>
-                  <p className="text-slate-400 text-[11px] leading-relaxed">
-                    In compliance with OWASP Zero-Trust and SOC2 standards, secrets are masked at all times. Raw values are only displayed upon initial generation. To renew an existing credential, use the <strong>Rotate Secret</strong> action below.
-                  </p>
-                </div>
-              </div>
-
-              {/* Secrets List */}
-              <div className="space-y-4">
-                {secrets.map((secret) => {
-                  const isPendingRotation = rotatingSecretId === secret.id;
-
-                  return (
-                    <div 
-                      key={secret.id} 
-                      className="p-4 bg-[#0F172A] rounded-xl border border-white/[0.06] space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {secret.type === 'api_key' && <Key className="w-4 h-4 text-purple-400" />}
-                          {secret.type === 'webhook_secret' && <Webhook className="w-4 h-4 text-blue-400" />}
-                          {secret.type === 'service_token' && <Terminal className="w-4 h-4 text-emerald-400" />}
-                          <span className="font-semibold text-white text-xs">{secret.name}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-semibold uppercase">
-                            {secret.status}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          Last Rotated: <span className="text-slate-300 font-semibold">{secret.lastRotated}</span>
-                        </span>
-                      </div>
-
-                      {/* Masked Secret Input & Action Buttons */}
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            readOnly
-                            disabled
-                            value={secret.maskedValue}
-                            className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-2.5 text-slate-300 font-mono text-xs select-none cursor-not-allowed tracking-wider"
-                          />
-                        </div>
-
-                        {/* Copy Disabled by Policy Button */}
-                        <div className="relative group shrink-0">
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-800/60 text-slate-500 text-xs font-medium flex items-center justify-center gap-1.5 border border-white/[0.04] cursor-not-allowed"
-                            title="Copying raw secrets is disabled by policy"
-                          >
-                            <Ban className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Copy Disabled</span>
-                          </button>
-                          <div className="hidden group-hover:block absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-black text-[10px] text-slate-300 rounded shadow-lg whitespace-nowrap z-20 border border-white/[0.1]">
-                            Raw secrets are never exposed on client
-                          </div>
-                        </div>
-
-                        {/* Rotate Secret Action */}
-                        {!isPendingRotation ? (
-                          <button
-                            type="button"
-                            onClick={() => setRotatingSecretId(secret.id)}
-                            className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-200 border border-purple-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span>Rotate Secret</span>
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleRotateSecret(secret.id)}
-                              disabled={isRotating}
-                              className="px-3.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <RefreshCw className={`w-3.5 h-3.5 ${isRotating ? 'animate-spin' : ''}`} />
-                              <span>Confirm Rotation</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRotatingSecretId(null)}
-                              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
-                        <span>Scope: <span className="text-slate-400">{secret.scope}</span></span>
-                        <span className="text-purple-400/80 font-semibold">TLS 1.3 / HMAC Enforced</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
+          <ApiKeysTab
+            secrets={secrets}
+            rotatingSecretId={rotatingSecretId}
+            setRotatingSecretId={setRotatingSecretId}
+            isRotating={isRotating}
+            onRotateSecret={handleRotateSecret}
+          />
         )}
 
-        {/* Tab: Notification Preferences */}
         {activeTab === 'notifications' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-purple-400" />
-                    <span>Notification Preferences</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Control which in-app events generate notifications for your account.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={isPrefsSaving}
-                  onClick={handleSaveNotificationPrefs}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 transition cursor-pointer disabled:opacity-50"
-                >
-                  {isPrefsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  <span>Save Preferences</span>
-                </button>
-              </div>
-            </div>
-
-            {isPrefsLoading ? (
-              <div className="p-12 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                <span>Loading preferences...</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* People OS */}
-                <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">People Notifications</h4>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Employee Invites</p>
-                        <p className="text-[11px] text-slate-500">Alerts when team invitations are sent</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.peopleEmployeeInvites}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, peopleEmployeeInvites: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Employee Joined</p>
-                        <p className="text-[11px] text-slate-500">Alerts when a new colleague joins the workspace</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.peopleEmployeeJoined}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, peopleEmployeeJoined: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Leave Requests</p>
-                        <p className="text-[11px] text-slate-500">Leave submissions, approvals, and rejections</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.peopleLeaveRequests}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, peopleLeaveRequests: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Projects OS */}
-                <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <Target className="w-4 h-4 text-purple-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Projects Notifications</h4>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Initiative Updates</p>
-                        <p className="text-[11px] text-slate-500">Initiative creations, launches, and lifecycle state changes</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.projectsInitiativeUpdates}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, projectsInitiativeUpdates: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Review Requests</p>
-                        <p className="text-[11px] text-slate-500">Initiative review submissions, approvals, and rejections</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.projectsReviewRequests}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, projectsReviewRequests: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Assignments</p>
-                        <p className="text-[11px] text-slate-500">Alerts when assigned as an initiative lead or contributor</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.projectsAssignments}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, projectsAssignments: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Tasks OS */}
-                <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <Building2 className="w-4 h-4 text-blue-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Task Notifications</h4>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Assignments</p>
-                        <p className="text-[11px] text-slate-500">When tasks are delegated to you</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.tasksAssignments}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, tasksAssignments: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Completions</p>
-                        <p className="text-[11px] text-slate-500">Alerts when assigned tasks are completed</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.tasksCompletions}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, tasksCompletions: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Overdue Alerts</p>
-                        <p className="text-[11px] text-slate-500">Automated worker alerts for overdue task milestones</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.tasksOverdueAlerts}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, tasksOverdueAlerts: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* CRM & Mentions */}
-                <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">CRM & Mentions</h4>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Lead Assignment</p>
-                        <p className="text-[11px] text-slate-500">Alerts when assigned to a new CRM deal or lead</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.crmLeadAssignment}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, crmLeadAssignment: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">Deal Updates</p>
-                        <p className="text-[11px] text-slate-500">Pipeline progression and stage transition alerts</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.crmDealUpdates}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, crmDealUpdates: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-xs font-medium text-slate-200">@Mentions</p>
-                        <p className="text-[11px] text-slate-500">High priority alerts when someone mentions you</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={notificationPrefs.mentions}
-                        onChange={(e) => setNotificationPrefs(p => ({ ...p, mentions: e.target.checked }))}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-white/20"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
+          <NotificationsTab
+            notificationPrefs={notificationPrefs}
+            setNotificationPrefs={setNotificationPrefs}
+            isPrefsLoading={isPrefsLoading}
+            isPrefsSaving={isPrefsSaving}
+            onSaveNotificationPrefs={handleSaveNotificationPrefs}
+          />
         )}
 
-        {/* Action Button */}
-        {activeTab !== 'api' && activeTab !== 'team_billing' && activeTab !== 'notifications' && (
+        {activeTab !== 'api' && activeTab !== 'team_billing' && activeTab !== 'notifications' && activeTab !== 'labs' && (
           <div className="flex justify-end pt-2">
             <button
               type="submit"

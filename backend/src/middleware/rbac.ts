@@ -51,12 +51,14 @@ export async function resolveMembershipRole(c: Context): Promise<{ role: UserRol
       if (workspace.ownerId === user.id) {
         return { role: 'admin', workspaceId: workspace.id };
       }
+      // If member record was explicitly null/not found for this user in the workspace: fail-closed
+      return { role: 'employee', workspaceId: workspace.id };
     } catch {
-      // Fallback
-    }
-
-    if (workspace.roleInWorkspace) {
-      return { role: normalizeRole(workspace.roleInWorkspace), workspaceId: workspace.id };
+      // Lookup error: fail-closed, never accept unverified cached admin
+      if (workspace.ownerId === user.id) {
+        return { role: 'admin', workspaceId: workspace.id };
+      }
+      return { role: 'employee', workspaceId: workspace.id };
     }
   }
 

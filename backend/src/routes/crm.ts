@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import { createCrmLeadSchema, updateCrmLeadSchema } from '../schemas';
 import { CrmService } from '../services/crm-service';
 import { normalizeRole } from '../lib/permissions';
 
@@ -83,13 +85,10 @@ const createLeadHandler = async (c: any) => {
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
 
-    const customerName = body.customer_name || body.customerName || body.name;
-    if (!customerName || !customerName.trim()) {
-      return c.json({ error: { code: 'BAD_REQUEST', message: 'Customer name is required.' } }, 400);
-    }
+    const customerName = (body.customer_name || body.customerName || body.name || '').trim();
 
     const lead = await CrmService.createCrmRecord(workspace.id, user.id, role, {
-      customerName: customerName.trim(),
+      customerName,
       company: body.company || '',
       email: body.email || '',
       phone: body.phone || '',
@@ -109,8 +108,8 @@ const createLeadHandler = async (c: any) => {
   }
 };
 
-crmRouter.post('/', requirePermission('crm:create'), createLeadHandler);
-crmRouter.post('/leads', requirePermission('crm:create'), createLeadHandler);
+crmRouter.post('/', requirePermission('crm:create'), validateBody(createCrmLeadSchema), createLeadHandler);
+crmRouter.post('/leads', requirePermission('crm:create'), validateBody(createCrmLeadSchema), createLeadHandler);
 
 /**
  * PATCH /api/crm/:id and /api/crm/leads/:id - Update CRM lead
@@ -151,10 +150,10 @@ const updateLeadHandler = async (c: any) => {
   }
 };
 
-crmRouter.patch('/:id', updateLeadHandler);
-crmRouter.patch('/leads/:id', updateLeadHandler);
-crmRouter.put('/:id', updateLeadHandler);
-crmRouter.put('/leads/:id', updateLeadHandler);
+crmRouter.patch('/:id', validateBody(updateCrmLeadSchema), updateLeadHandler);
+crmRouter.patch('/leads/:id', validateBody(updateCrmLeadSchema), updateLeadHandler);
+crmRouter.put('/:id', validateBody(updateCrmLeadSchema), updateLeadHandler);
+crmRouter.put('/leads/:id', validateBody(updateCrmLeadSchema), updateLeadHandler);
 
 /**
  * DELETE /api/crm/:id and /api/crm/leads/:id - Delete CRM lead (Admin only)

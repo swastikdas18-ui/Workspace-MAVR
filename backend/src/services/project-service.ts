@@ -62,6 +62,7 @@ export class ProjectService {
       approved_by: p.approvedBy || undefined,
       review_feedback: p.reviewFeedback || undefined,
       member_ids: p.memberIds && p.memberIds.length > 0 ? p.memberIds : [p.createdBy],
+      memberIds: p.memberIds && p.memberIds.length > 0 ? p.memberIds : [p.createdBy],
       tags: p.tags || ['Enterprise', 'Core'],
       created_at: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
     };
@@ -160,9 +161,28 @@ export class ProjectService {
       parsedDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
-    const memberIds = input.memberIds || input.member_ids;
+    // Sanitize memberIds: extract user ID if passed as object, deduplicate, filter null/undefined/empty strings
+    const rawMemberIds = input.memberIds || input.member_ids;
+    let memberIds: string[] | undefined = undefined;
+    if (rawMemberIds && Array.isArray(rawMemberIds)) {
+      const extracted = rawMemberIds.map((m: any) =>
+        typeof m === 'object' && m !== null ? (m.userId || m.user_id || m.id) : m
+      );
+      memberIds = [...new Set(extracted)].filter(
+        (id): id is string => typeof id === 'string' && id.trim().length > 0
+      );
+    }
     const departmentId = input.departmentId || input.department_id;
-    console.log('[ProjectService.createProject]', { departmentId, memberIds });
+    const title = input.title.trim();
+
+    console.log(
+      "PROJECT CREATE REQUEST",
+      {
+        memberIds,
+        departmentId,
+        title
+      }
+    );
 
     if (departmentId) {
       const { departmentRepository } = await import('../repositories/people-repository.js');
@@ -174,9 +194,9 @@ export class ProjectService {
       }
     }
 
-    // Validate cross-workspace boundaries for memberIds
+    // Validate cross-workspace boundaries for memberIds (async to support PostgreSQL and in-memory)
     if (memberIds && memberIds.length > 0) {
-      WorkspaceBoundaryValidator.validateWorkspaceMembers(workspaceId, memberIds);
+      await WorkspaceBoundaryValidator.validateWorkspaceMembersAsync(workspaceId, memberIds);
     }
 
     const created = await ProjectRepository.createProject({
@@ -301,6 +321,29 @@ export class ProjectService {
       error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
       error.status = 403;
       throw error;
+    }
+
+    if (role === 'employee') {
+      const isOwner = existing.createdBy === userId;
+      const isMember = (existing.memberIds || []).includes(userId);
+      const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
+      let isTeamMember = false;
+      if (existing.teamIds && existing.teamIds.length > 0) {
+        const userTeams = await this.getUserDepartmentsAndTeams(workspaceId, userId);
+        isTeamMember = existing.teamIds.some((tId) => userTeams.includes(tId));
+      }
+      let isDeptMember = false;
+      const projDeptId = existing.departmentId || (existing as any).department_id;
+      if (projDeptId) {
+        const userDepts = await this.getUserDepartmentsAndTeams(workspaceId, userId);
+        isDeptMember = userDepts.includes(projDeptId);
+      }
+      if (!isOwner && !isMember && !isTeamMember && !isDeptMember && !isLead) {
+        const error: any = new Error('Unauthorized to view unassigned project.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
     }
 
     const projectPayload = this.formatProject(existing);
@@ -711,13 +754,7 @@ export class ProjectService {
       throw error;
     }
 
-    const existing = await ProjectRepository.getProjectById(workspaceId, projectId);
-    if (!existing) {
-      const error: any = new Error('Project not found.');
-      error.code = 'PROJECT_NOT_FOUND';
-      error.status = 404;
-      throw error;
-    }
+    await this.getProjectById(workspaceId, userId, rawRole, projectId);
 
     return ProjectRepository.getProjectUpdates(projectId);
   }
@@ -774,6 +811,27 @@ export class ProjectService {
     }
 
     const isLead = await this.isProjectTeamLead(userId, existing.teamIds);
+
+    if (role !== 'admin') {
+      // Employees/leads may only update execution status/progress, never project administrative metadata or membership
+      const adminOnlyKeys: (keyof typeof updates)[] = [
+        'title',
+        'description',
+        'budget',
+        'startDate',
+        'dueDate',
+        'memberIds',
+        'teamIds',
+        'departmentId',
+      ];
+      const attemptedAdminKeys = adminOnlyKeys.filter((k) => updates[k] !== undefined);
+      if (attemptedAdminKeys.length > 0) {
+        const error: any = new Error(`Only Admins can modify project administrative metadata and membership (${attemptedAdminKeys.join(', ')}).`);
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
 
     if (role === 'employee' && !isOwner && !isMember && !isTeamMember && !isDeptMember && !isLead) {
       const error: any = new Error('You can only update projects assigned to you or your department.');

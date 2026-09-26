@@ -156,11 +156,11 @@ export function can(
         }
         return true;
 
-      // Tasks: can read, update assigned, and comment. Cannot create or delete organization resources
+      // Tasks: can read, create, update assigned, and comment. Cannot delete organization resources
       case 'tasks:read':
       case 'tasks:comment':
-        return true;
       case 'tasks:create':
+        return true;
       case 'tasks:delete':
         return false;
       case 'tasks:update':
@@ -192,8 +192,9 @@ export function can(
       case 'documents:read':
       case 'documents:download':
       case 'documents:createPersonal':
-      case 'documents:createOrg':
         return true;
+      case 'documents:createOrg':
+        return false;
       case 'documents:delete':
         if (resource && context?.userId) {
           const ownerId = resource.owner_id || resource.ownerId;

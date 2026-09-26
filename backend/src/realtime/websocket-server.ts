@@ -165,6 +165,18 @@ export class WorkspaceWebSocketServer {
           return;
         }
 
+        // Verify session is still valid (revocation check)
+        if (token) {
+          const validSession = await AuthService.getSession(token);
+          if (!validSession) {
+            ChannelManager.unregisterClient(authenticatedClient);
+            await PresenceManager.handleDisconnect(authenticatedClient.userId, authenticatedClient.workspaceId, socketId);
+            socket.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Session revoked.' }));
+            socket.close(4401, 'Session Revoked');
+            return;
+          }
+        }
+
         authenticatedClient.lastActive = new Date();
         authenticatedClient.isAlive = true;
 
@@ -221,6 +233,15 @@ export class WorkspaceWebSocketServer {
 
         // 6. Broadcast Ephemeral Event (typing indicators, cursors, etc.)
         if (data.type === 'broadcast' && data.event) {
+          // Cross-workspace broadcast prevention
+          if (data.channel && data.channel.startsWith('workspace:')) {
+            const targetWs = data.channel.split(':')[1];
+            if (targetWs !== authenticatedClient.workspaceId) {
+              socket.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN', message: 'Cannot broadcast to foreign workspace.' }));
+              return;
+            }
+          }
+
           const eventPayload = {
             type: data.event,
             workspaceId: authenticatedClient.workspaceId,
@@ -390,6 +411,8 @@ export class WorkspaceWebSocketServer {
     let roleFilter: ((role: string) => boolean) | undefined;
     if (event.type.startsWith('crm_') || event.type.startsWith('crm:')) {
       roleFilter = (role: string) => role === 'admin' || role === 'employee';
+    } else if (event.type.startsWith('project.') || event.type.startsWith('project:')) {
+      roleFilter = (role: string) => role === 'admin';
     }
 
     // Broadcast to workspace channel

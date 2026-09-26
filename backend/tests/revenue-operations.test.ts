@@ -152,10 +152,9 @@ export async function runRevenueOperationsTests() {
   assert(planAdmin.data.subscription.workspaceId === workspaceAId, '3.2 Plan belongs to TechCorp workspace');
   assert(planAdmin.data.subscription.plan === 'free', '3.3 Default initial plan is free');
 
-  // 3.2 Employee GET Plan (Read-Only)
+  // 3.2 Employee GET Plan (403 Forbidden - Admin only)
   const planEmp = await requestApi('GET', '/api/billing/plan', undefined, tokenEmp);
-  assert(planEmp.status === 200, '3.4 Employee has read-only plan access');
-  assert(planEmp.data.subscription.plan === 'free', '3.5 Employee sees correct plan');
+  assert(planEmp.status === 403, '3.4 Employee blocked from billing plan (403 Forbidden)');
 
   // 3.3 Intern GET Plan (403 Forbidden)
   const planIntern = await requestApi('GET', '/api/billing/plan', undefined, tokenIntern);
@@ -209,7 +208,7 @@ export async function runRevenueOperationsTests() {
   assert(usageRes.data.usage.hasOverage === false, '4.5 No overage on Starter tier (3/15 members)');
 
   const empUsage = await requestApi('GET', '/api/billing/usage', undefined, tokenEmp);
-  assert(empUsage.status === 200, '4.6 Employee can inspect usage metrics');
+  assert(empUsage.status === 403, '4.6 Employee blocked from usage metering (403 Forbidden)');
 
   const internUsage = await requestApi('GET', '/api/billing/usage', undefined, tokenIntern);
   assert(internUsage.status === 403, '4.7 Intern blocked from usage metering (403 Forbidden)');

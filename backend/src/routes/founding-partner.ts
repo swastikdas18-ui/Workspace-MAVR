@@ -7,7 +7,7 @@ import { WorkspaceRepository } from '../repositories/workspace-repository';
 import { BillingRepository } from '../repositories/billing-repository';
 import { EventService } from '../services/event-service';
 import { authMiddleware } from '../middleware/auth';
-import { requireWorkspaceRole } from '../middleware/rbac';
+import { requirePlatformAdmin } from '../middleware/rbac';
 import { inMemoryDb } from '../../packages/database/index.js';
 
 export const foundingPartnerRouter = new Hono();
@@ -187,7 +187,7 @@ foundingPartnerRouter.get('/metrics', async (c) => {
  * GET /api/founding-partner/applications
  * List applications (Admin authenticated)
  */
-foundingPartnerRouter.get('/applications', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+foundingPartnerRouter.get('/applications', authMiddleware, requirePlatformAdmin(), async (c) => {
   const list = Array.from(partnerApplications.values()).sort(
     (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
   );
@@ -198,7 +198,7 @@ foundingPartnerRouter.get('/applications', authMiddleware, requireWorkspaceRole(
  * POST /api/founding-partner/approve
  * Approves a Founding Partner & auto-provisions a pre-configured MSME Workspace Template
  */
-foundingPartnerRouter.post('/approve', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+foundingPartnerRouter.post('/approve', authMiddleware, requirePlatformAdmin(), async (c) => {
   try {
     const user = c.get('user');
     const body = await c.req.json();

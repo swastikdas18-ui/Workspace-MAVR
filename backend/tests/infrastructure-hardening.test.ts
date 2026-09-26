@@ -116,14 +116,50 @@ export async function runInfrastructureHardeningTests() {
   assert(readyRes.status === 200, '3.3 /health/ready endpoint returns 200 OK');
   assert(readyRes.data?.checks?.websocketEngine === 'operational', '3.4 Readiness checks verify WebSockets operational');
 
+  // Create an ephemeral admin session for infrastructure metrics/backup probes
+  const { inMemoryDb } = await import('../packages/database/index.js');
+  const infraAdminToken = 'infra-admin-session-token';
+  const now = new Date();
+  inMemoryDb.users.set('infra-admin', {
+    id: 'infra-admin',
+    email: 'infra-admin@example.com',
+    name: 'Infra Admin',
+    role: 'admin',
+    platformRole: 'none',
+    createdAt: now,
+    updatedAt: now,
+  } as any);
+  inMemoryDb.workspaces.set('infra-ws', {
+    id: 'infra-ws',
+    name: 'Infra Workspace',
+    ownerId: 'infra-admin',
+    createdAt: now,
+  } as any);
+  inMemoryDb.workspaceMembers.set('infra-admin-mem', {
+    id: 'infra-admin-mem',
+    workspaceId: 'infra-ws',
+    userId: 'infra-admin',
+    role: 'admin',
+    joinedAt: now,
+  } as any);
+  inMemoryDb.sessions.set(infraAdminToken, {
+    id: 'infra-session',
+    token: infraAdminToken,
+    userId: 'infra-admin',
+    workspaceId: 'infra-ws',
+    expiresAt: new Date(Date.now() + 3600000),
+    createdAt: now,
+    lastActiveAt: now,
+  } as any);
+
   // Infrastructure Metrics
-  const metricsRes = await requestApi('GET', '/health/metrics');
+  const metricsRes = await requestApi('GET', '/health/metrics', undefined, infraAdminToken);
   assert(metricsRes.status === 200, '3.5 /health/metrics endpoint returns 200 OK');
   assert(metricsRes.data?.memory?.heapUsedMb > 0, '3.6 System memory telemetry tracked');
   assert(metricsRes.data?.realtime !== undefined, '3.7 Realtime connection metrics tracked');
 
   // PostgreSQL Backup Verification
-  const backupRes = await requestApi('POST', '/health/backup-verify');
+  const backupRes = await requestApi('POST', '/health/backup-verify', undefined, infraAdminToken);
   assert(backupRes.status === 200, '3.8 /health/backup-verify returns 200 OK');
   assert(backupRes.data?.integrityCheck === 'PASSED', '3.9 Disaster Recovery integrity check passed');
   assert(backupRes.data?.tablesVerified?.length >= 10, '3.10 All 11 core tables verified in backup audit');

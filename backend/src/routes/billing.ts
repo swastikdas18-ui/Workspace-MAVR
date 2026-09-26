@@ -17,6 +17,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import { upgradeBillingSchema } from '../schemas';
 import { BillingRepository, PLAN_CONFIG, PlanTier } from '../repositories/billing-repository';
 import { UsageService } from '../services/usage-service';
 
@@ -26,9 +28,9 @@ export const billingRouter = new Hono();
 billingRouter.use('*', authMiddleware);
 
 /**
- * GET /api/billing/plan - Plan details & limits (Admin & Employee)
+ * GET /api/billing/plan - Plan details & limits (Admin only)
  */
-billingRouter.get('/plan', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+billingRouter.get('/plan', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -55,7 +57,7 @@ billingRouter.get('/plan', requireWorkspaceRole(['admin', 'employee']), async (c
   }
 });
 
-billingRouter.get('/trial', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+billingRouter.get('/trial', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -69,9 +71,9 @@ billingRouter.get('/trial', requireWorkspaceRole(['admin', 'employee']), async (
 });
 
 /**
- * GET /api/billing/usage - Real-time metered resource consumption (Admin & Employee)
+ * GET /api/billing/usage - Real-time metered resource consumption (Admin only)
  */
-billingRouter.get('/usage', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+billingRouter.get('/usage', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -101,7 +103,7 @@ billingRouter.get('/invoices', requireWorkspaceRole(['admin']), async (c) => {
 /**
  * POST /api/billing/upgrade - Upgrade or change subscription tier (Admin ONLY)
  */
-billingRouter.post('/upgrade', requireWorkspaceRole(['admin']), async (c) => {
+billingRouter.post('/upgrade', requireWorkspaceRole(['admin']), validateBody(upgradeBillingSchema), async (c) => {
   const workspace = c.get('workspace');
   if (!workspace) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Workspace context missing' } }, 404);
@@ -109,13 +111,6 @@ billingRouter.post('/upgrade', requireWorkspaceRole(['admin']), async (c) => {
 
   const body = await c.req.json().catch(() => ({}));
   const { plan, billingCycle = 'monthly' } = body;
-
-  if (!plan || !['free', 'starter', 'business', 'scale', 'enterprise'].includes(plan)) {
-    return c.json(
-      { error: { code: 'INVALID_INPUT', message: 'Plan must be one of: free, starter, business, scale, enterprise' } },
-      400
-    );
-  }
 
   const updatedSub = await BillingRepository.updateSubscription(workspace.id, plan, billingCycle);
   return c.json({ success: true, subscription: updatedSub }, 200);

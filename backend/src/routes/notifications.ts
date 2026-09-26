@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { NotificationService } from '../services/notification-service';
 import { NotificationRepository } from '../repositories/notification-repository';
 import { inMemoryDb } from '../../packages/database/index.js';
@@ -155,7 +156,7 @@ notificationRouter.post('/:id/archive', archiveSingleHandler);
 /**
  * POST /api/notifications/retention/run - Trigger retention archive for notifications older than 90 days
  */
-notificationRouter.post('/retention/run', async (c) => {
+notificationRouter.post('/retention/run', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {

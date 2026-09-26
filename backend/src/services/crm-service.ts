@@ -208,6 +208,21 @@ export class CrmService {
       throw error;
     }
 
+    if (role === 'employee') {
+      if (updates.ownerId !== undefined && updates.ownerId !== existing.ownerId) {
+        const error: any = new Error('Employees cannot reassign CRM lead ownership.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+      if (updates.dealValue !== undefined && updates.dealValue !== existing.dealValue) {
+        const error: any = new Error('Employees cannot modify CRM deal value.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+    }
+
     if (updates.ownerId) {
       WorkspaceBoundaryValidator.validateWorkspaceMember(workspaceId, updates.ownerId);
     }

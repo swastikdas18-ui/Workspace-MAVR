@@ -179,24 +179,24 @@ export async function runDocumentsVisibilityTests() {
   assert(!empTitles.includes('Admin Personal Draft'), '✓ Private visibility: Employee does NOT see private document owned by Admin');
   assert(!empTitles.includes('Executive Payroll Summary'), '✓ Admin_only visibility: Employee does NOT see admin_only document');
 
-  // 6c. Intern Access Test -> Sees Workspace documents
+  // 6c. Intern Access Test -> Restricted learning sandbox (public & learning only, workspace restricted)
   const internListReq = new Request('http://localhost:3000/api/documents', { method: 'GET', headers: internHeaders });
   const internListRes = await app.fetch(internListReq);
   const internDocs = (await internListRes.json()).documents;
   const internTitles = internDocs.map((d: any) => d.title);
-  assert(internTitles.includes('Workspace Strategy Handbook'), '✓ Intern access: Sees workspace document');
+  assert(!internTitles.includes('Workspace Strategy Handbook'), '✓ Intern access: Blocked from workspace document');
   assert(!internTitles.includes('Admin Personal Draft'), '✓ Intern access: Blocked from private document');
   assert(!internTitles.includes('Executive Payroll Summary'), '✓ Intern access: Blocked from admin_only document');
 
   // 7. Employee Document Creation & Deletion Security Tests
-  // 7a. Employee Upload Test -> Should succeed
+  // 7a. Employee Upload Test -> Should succeed for personal document
   const empUploadReq = new Request('http://localhost:3000/api/documents', {
     method: 'POST',
     headers: empHeaders,
-    body: JSON.stringify({ title: 'Employee Design Doc', visibility: 'workspace' })
+    body: JSON.stringify({ title: 'Employee Design Doc', visibility: 'private' })
   });
   const empUploadRes = await app.fetch(empUploadReq);
-  assert(empUploadRes.status === 201, '✓ Employee security: Employee can upload workspace document (201 Created)');
+  assert(empUploadRes.status === 201, '✓ Employee security: Employee can upload personal document (201 Created)');
   const empDocId = (await empUploadRes.json()).document.id;
 
   // 7b. Employee Deleting Admin Document -> Should fail (403 Forbidden)
@@ -238,7 +238,7 @@ export async function runDocumentsVisibilityTests() {
   const uploadDocxReq = new Request('http://localhost:3000/api/documents', {
     method: 'POST',
     headers: empHeaders,
-    body: JSON.stringify({ title: 'Product Specification Doc', fileType: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', visibility: 'workspace' })
+    body: JSON.stringify({ title: 'Product Specification Doc', fileType: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', visibility: 'private' })
   });
   const uploadDocxRes = await app.fetch(uploadDocxReq);
   assert(uploadDocxRes.status === 201, '✓ Documents upload: DOCX document uploaded successfully (201 Created)');
@@ -249,7 +249,7 @@ export async function runDocumentsVisibilityTests() {
   const uploadPngReq = new Request('http://localhost:3000/api/documents', {
     method: 'POST',
     headers: empHeaders,
-    body: JSON.stringify({ title: 'Architecture Diagram Image', fileType: 'png', mimeType: 'image/png', visibility: 'workspace' })
+    body: JSON.stringify({ title: 'Architecture Diagram Image', fileType: 'png', mimeType: 'image/png', visibility: 'private' })
   });
   const uploadPngRes = await app.fetch(uploadPngReq);
   assert(uploadPngRes.status === 201, '✓ Documents upload: PNG image document uploaded successfully (201 Created)');

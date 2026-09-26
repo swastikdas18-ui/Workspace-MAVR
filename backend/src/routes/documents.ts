@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
-import { requirePermission } from '../middleware/rbac';
+import { requirePermission, requireWorkspaceRole } from '../middleware/rbac';
 import { DocumentService } from '../services/document-service';
 import { ObjectStorageService } from '../services/object-storage-service';
 import { normalizeRole } from '../lib/permissions';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const documentRouter = new Hono();
 
@@ -39,19 +40,35 @@ documentRouter.get('/', requirePermission('documents:read'), async (c) => {
  */
 documentRouter.get('/vault/*', async (c) => {
   try {
-    const key = c.req.path.replace(/^\/api\/documents\/vault\//, '');
+    const key = c.req.path.replace(/^\/api\/documents\/vault\//, '').replace(/^\/documents\/vault\//, '');
     const user = c.get('user');
     const workspace = c.get('workspace');
     if (!workspace) {
       return c.json({ error: { code: 'NOT_FOUND', message: 'No active workspace.' } }, 404);
     }
     const decodedKey = decodeURIComponent(key);
+
+    // Verify document visibility
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const existing = Array.from(inMemoryDb.documents.values()).find(
+      (d) => d.workspaceId === workspace.id && (d.storageKey === decodedKey || d.r2Key === decodedKey)
+    );
+    if (existing) {
+      if (role === 'intern' && existing.visibility !== 'public' && existing.visibility !== 'learning') {
+        return c.json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } }, 403);
+      }
+      if (role === 'employee' && (existing.visibility === 'admin_only' || (existing.visibility === 'private' && existing.ownerId !== user.id))) {
+        return c.json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } }, 403);
+      }
+    }
+
     const obj = await ObjectStorageService.getObject(workspace.id, decodedKey);
     c.header('Content-Type', obj.contentType);
     c.header('Content-Length', String(obj.contentLength));
     return c.body(obj.body as any);
   } catch (err: any) {
-    return c.json({ error: { code: 'NOT_FOUND', message: err.message || 'Object not found.' } }, 404);
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 404);
+    return c.json({ error: { code: err.code || 'NOT_FOUND', message: err.message || 'Object not found.' } }, status);
   }
 });
 
@@ -67,6 +84,21 @@ documentRouter.get('/download-stream', async (c) => {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid download parameters.' } }, 400);
     }
     const decodedKey = decodeURIComponent(key);
+
+    // Verify document visibility
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const existing = Array.from(inMemoryDb.documents.values()).find(
+      (d) => d.workspaceId === workspace.id && (d.storageKey === decodedKey || d.r2Key === decodedKey)
+    );
+    if (existing) {
+      if (role === 'intern' && existing.visibility !== 'public' && existing.visibility !== 'learning') {
+        return c.json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } }, 403);
+      }
+      if (role === 'employee' && (existing.visibility === 'admin_only' || (existing.visibility === 'private' && existing.ownerId !== user.id))) {
+        return c.json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } }, 403);
+      }
+    }
+
     const obj = await ObjectStorageService.getObject(workspace.id, decodedKey);
     c.header('Content-Type', obj.contentType);
     c.header('Content-Length', String(obj.contentLength));
@@ -74,7 +106,8 @@ documentRouter.get('/download-stream', async (c) => {
     c.header('Content-Disposition', `attachment; filename="${filename}"`);
     return c.body(obj.body as any);
   } catch (err: any) {
-    return c.json({ error: { code: 'NOT_FOUND', message: err.message || 'Object not found.' } }, 404);
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 404);
+    return c.json({ error: { code: err.code || 'NOT_FOUND', message: err.message || 'Object not found.' } }, status);
   }
 });
 
@@ -189,8 +222,8 @@ const uploadHandler = async (c: any) => {
   }
 };
 
-documentRouter.post('/', requirePermission('documents:createOrg'), uploadHandler);
-documentRouter.post('/upload', requirePermission('documents:createOrg'), uploadHandler);
+documentRouter.post('/', requireWorkspaceRole(['admin', 'employee']), uploadHandler);
+documentRouter.post('/upload', requireWorkspaceRole(['admin', 'employee']), uploadHandler);
 
 /**
  * DELETE /api/documents/:id - Delete document (Admin any, Employee own, Intern blocked)

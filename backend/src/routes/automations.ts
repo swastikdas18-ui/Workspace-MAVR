@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import { createAutomationRuleSchema, updateAutomationRuleSchema } from '../schemas';
 import { AutomationRepository } from '../repositories/automation-repository';
 import { AutomationService } from '../services/automation-service';
 import { AuditRepository } from '../repositories/audit-repository';
@@ -35,14 +37,14 @@ const listRulesHandler = async (c: any) => {
   }
 };
 
-automationRouter.get('/', requireWorkspaceRole(['admin', 'employee']), listRulesHandler);
-automationRouter.get('/rules', requireWorkspaceRole(['admin', 'employee']), listRulesHandler);
+automationRouter.get('/', requireWorkspaceRole(['admin']), listRulesHandler);
+automationRouter.get('/rules', requireWorkspaceRole(['admin']), listRulesHandler);
 
 /**
  * GET /api/automations/templates - List pre-built automation templates
- * Allowed: ADMIN & EMPLOYEE
+ * Allowed: ADMIN only
  */
-automationRouter.get('/templates', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/templates', requireWorkspaceRole(['admin']), async (c) => {
   return c.json({ templates: AutomationService.TEMPLATES }, 200);
 });
 
@@ -73,9 +75,9 @@ automationRouter.post('/templates/:templateId/install', requireWorkspaceRole(['a
 
 /**
  * GET /api/automations/rules/:id - Get single rule
- * Allowed: ADMIN & EMPLOYEE
+ * Allowed: ADMIN only
  */
-automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.get('/rules/:id', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -102,7 +104,7 @@ automationRouter.get('/rules/:id', requireWorkspaceRole(['admin', 'employee']), 
  * POST /api/automations/rules - Create new automation rule
  * Allowed: ADMIN only
  */
-automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
+automationRouter.post('/rules', requireWorkspaceRole(['admin']), validateBody(createAutomationRuleSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -111,13 +113,6 @@ automationRouter.post('/rules', requireWorkspaceRole(['admin']), async (c) => {
     }
 
     const body = await c.req.json();
-
-    if (!body.name || !body.name.trim()) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Rule name is required.' } }, 400);
-    }
-    if (!body.triggerType && !body.trigger_type) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Trigger type is required.' } }, 400);
-    }
 
     const triggerType = body.triggerType || body.trigger_type;
     const triggerConfig = body.triggerConfig || body.trigger_config || {};
@@ -215,8 +210,8 @@ const updateRuleHandler = async (c: any) => {
   }
 };
 
-automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
-automationRouter.patch('/rules/:id', requireWorkspaceRole(['admin']), updateRuleHandler);
+automationRouter.put('/rules/:id', requireWorkspaceRole(['admin']), validateBody(updateAutomationRuleSchema), updateRuleHandler);
+automationRouter.patch('/rules/:id', requireWorkspaceRole(['admin']), validateBody(updateAutomationRuleSchema), updateRuleHandler);
 
 /**
  * PATCH /api/automations/rules/:id/toggle - Toggle rule enabled/active state
@@ -382,9 +377,9 @@ automationRouter.get('/metrics', requireWorkspaceRole(['admin']), analyticsHandl
 
 /**
  * POST /api/automations/trigger - Test or manually execute an automation trigger
- * Allowed: ADMIN & EMPLOYEE
+ * Allowed: ADMIN only
  */
-automationRouter.post('/trigger', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+automationRouter.post('/trigger', requireWorkspaceRole(['admin']), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');

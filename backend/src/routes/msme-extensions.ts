@@ -2,6 +2,18 @@ import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { requireRole, requireWorkspaceRole } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import {
+  createWikiPageSchema,
+  updateWikiPageSchema,
+  addWikiCommentSchema,
+  startTimeTrackingSchema,
+  manualTimeTrackingSchema,
+  guestSignApprovalSchema,
+  guestInviteSchema,
+  calendarEventSchema,
+  emailLogSchema,
+} from '../schemas';
 import { WikiRepository } from '../repositories/wiki-repository';
 import { TimeTrackingRepository } from '../repositories/time-tracking-repository';
 import {
@@ -12,6 +24,7 @@ import { IntegrationRepository } from '../repositories/integration-repository';
 import { generateSecureToken } from '../lib/secure-token';
 import { GUEST_SESSION_COOKIE, CSRF_COOKIE } from '../lib/session-cookies';
 import { logSecurityEvent, requestSecurityMeta } from '../lib/security-audit';
+import { inMemoryDb } from '../../packages/database/index.js';
 
 export const wikiRouter = new Hono();
 export const timeRouter = new Hono();
@@ -69,7 +82,7 @@ const getPageHandler = async (c: any) => {
   const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
   const page = await WikiRepository.getPageById(pageId);
-  if (!page || (workspace && page.workspaceId !== workspace.id)) {
+  if (!workspace || !page || page.workspaceId !== workspace.id) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
   }
 
@@ -92,6 +105,9 @@ const getPageHandler = async (c: any) => {
     }
     if (page.visibility === 'department' && (!userDepartmentId || page.departmentId !== userDepartmentId)) {
       return c.json({ error: { code: 'FORBIDDEN', message: 'Department document access restricted.' } }, 403);
+    }
+    if (role === 'intern' && (page.visibility === 'workspace' || page.visibility === 'team')) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Interns can only access learning or public documents.' } }, 403);
     }
   }
 
@@ -123,8 +139,8 @@ const createPageHandler = async (c: any) => {
 
   return c.json({ page }, 201);
 };
-wikiRouter.post('/', requireWorkspaceRole(['admin', 'employee']), createPageHandler);
-wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), createPageHandler);
+wikiRouter.post('/', requireWorkspaceRole(['admin', 'employee']), validateBody(createWikiPageSchema), createPageHandler);
+wikiRouter.post('/pages', requireWorkspaceRole(['admin', 'employee']), validateBody(createWikiPageSchema), createPageHandler);
 
 const updatePageHandler = async (c: any) => {
   const workspace = c.get('workspace');
@@ -167,9 +183,9 @@ const updatePageHandler = async (c: any) => {
 
   return c.json({ page: updated }, 200);
 };
-wikiRouter.patch('/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
-wikiRouter.patch('/pages/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
-wikiRouter.put('/:id', requireWorkspaceRole(['admin', 'employee']), updatePageHandler);
+wikiRouter.patch('/:id', requireWorkspaceRole(['admin', 'employee']), validateBody(updateWikiPageSchema), updatePageHandler);
+wikiRouter.patch('/pages/:id', requireWorkspaceRole(['admin', 'employee']), validateBody(updateWikiPageSchema), updatePageHandler);
+wikiRouter.put('/:id', requireWorkspaceRole(['admin', 'employee']), validateBody(updateWikiPageSchema), updatePageHandler);
 
 const deletePageHandler = async (c: any) => {
   const workspace = c.get('workspace');
@@ -199,23 +215,53 @@ wikiRouter.delete('/pages/:id', requireWorkspaceRole(['admin', 'employee']), del
 
 wikiRouter.get('/pages/:id/comments', async (c) => {
   const workspace = c.get('workspace');
+  const user = c.get('user');
+  const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
 
   // SECURITY (Phase 17 — Fix #8): comments may only be read for pages inside
-  // the caller's workspace.
+  // the caller's workspace and accessible under role visibility.
   const page = await WikiRepository.getPageById(pageId);
   if (!page || (workspace && page.workspaceId !== workspace.id)) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
+  }
+
+  if (role !== 'admin') {
+    if (page.visibility === 'admin_only') {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Admin only document.' } }, 403);
+    }
+    if (page.visibility === 'private' && page.createdBy !== user?.id) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Private document access restricted.' } }, 403);
+    }
+    if (role === 'intern' && (page.visibility === 'workspace' || page.visibility === 'team')) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Interns cannot view comments on workspace documents.' } }, 403);
+    }
   }
 
   const comments = await WikiRepository.getPageComments(pageId);
   return c.json({ comments }, 200);
 });
 
-wikiRouter.post('/pages/:id/comments', requireWorkspaceRole(['admin', 'employee']), async (c) => {
+wikiRouter.post('/pages/:id/comments', requireWorkspaceRole(['admin', 'employee']), validateBody(addWikiCommentSchema), async (c) => {
+  const workspace = c.get('workspace');
   const user = c.get('user');
+  const role = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
   const pageId = c.req.param('id');
   const body = await c.req.json().catch(() => ({}));
+
+  const page = await WikiRepository.getPageById(pageId);
+  if (!page || (workspace && page.workspaceId !== workspace.id)) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Page not found' } }, 404);
+  }
+
+  if (role !== 'admin') {
+    if (page.visibility === 'admin_only') {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Admin only document.' } }, 403);
+    }
+    if (page.visibility === 'private' && page.createdBy !== user?.id) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Private document access restricted.' } }, 403);
+    }
+  }
 
   const comment = await WikiRepository.addComment({
     pageId,
@@ -233,10 +279,17 @@ wikiRouter.post('/pages/:id/comments', requireWorkspaceRole(['admin', 'employee'
 // ============================================================================
 timeRouter.use('*', authMiddleware);
 
-timeRouter.post('/start', async (c) => {
+timeRouter.post('/start', validateBody(startTimeTrackingSchema), async (c) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
+
+  if (body.taskId) {
+    const task = inMemoryDb.tasks.get(body.taskId);
+    if (!task || (workspace?.id && task.workspaceId !== workspace.id)) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Task not found in active workspace.' } }, 404);
+    }
+  }
 
   const entry = await TimeTrackingRepository.startTimer({
     workspaceId: workspace?.id || 'ws-default',
@@ -274,10 +327,17 @@ timeRouter.get('/active', async (c) => {
   return c.json({ activeTimer: active }, 200);
 });
 
-timeRouter.post('/manual', async (c) => {
+timeRouter.post('/manual', validateBody(manualTimeTrackingSchema), async (c) => {
   const workspace = c.get('workspace');
   const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
+
+  if (body.taskId) {
+    const task = inMemoryDb.tasks.get(body.taskId);
+    if (!task || (workspace?.id && task.workspaceId !== workspace.id)) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Task not found in active workspace.' } }, 404);
+    }
+  }
 
   const entry = await TimeTrackingRepository.logManualEntry({
     workspaceId: workspace?.id || 'ws-default',
@@ -451,15 +511,11 @@ guestPortalRouter.get('/auth/:token', async (c) => {
  *
  * Everything else: 401 unauthenticated / 403 unauthorized.
  */
-guestPortalRouter.post('/approvals/:id/sign', optionalAuthMiddleware, async (c) => {
+guestPortalRouter.post('/approvals/:id/sign', optionalAuthMiddleware, validateBody(guestSignApprovalSchema), async (c) => {
   const approvalId = c.req.param('id');
   const body = await c.req.json().catch(() => ({}));
   const signatureName = typeof body.signatureName === 'string' ? body.signatureName : '';
   const feedback = typeof body.feedback === 'string' ? body.feedback : undefined;
-
-  if (!signatureName.trim()) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: 'signatureName is required.' } }, 400);
-  }
 
   const approval = GuestPortalRepository.getApprovalById(approvalId);
 
@@ -545,13 +601,10 @@ guestPortalRouter.post('/approvals/:id/sign', optionalAuthMiddleware, async (c) 
 });
 
 // Admin invite endpoint
-guestPortalRouter.post('/invite', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+guestPortalRouter.post('/invite', authMiddleware, requireWorkspaceRole(['admin']), validateBody(guestInviteSchema), async (c) => {
   const workspace = c.get('workspace');
   const body = await c.req.json().catch(() => ({}));
   const { email, name, company, projectId } = body;
-  if (!email || !name) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: 'email and name are required.' } }, 400);
-  }
 
   const guest = await GuestPortalRepository.inviteGuest({
     workspaceId: workspace?.id || 'ws-default',
@@ -567,7 +620,7 @@ guestPortalRouter.post('/invite', authMiddleware, requireWorkspaceRole(['admin']
 // ============================================================================
 // 4. EMAIL & CALENDAR INTEGRATION ROUTER
 // ============================================================================
-integrationRouter.use('*', authMiddleware);
+integrationRouter.use('*', authMiddleware, requireWorkspaceRole(['admin', 'employee']));
 
 integrationRouter.get('/calendar/events', async (c) => {
   const workspace = c.get('workspace');
@@ -576,7 +629,7 @@ integrationRouter.get('/calendar/events', async (c) => {
   return c.json({ events }, 200);
 });
 
-integrationRouter.post('/calendar/events', async (c) => {
+integrationRouter.post('/calendar/events', validateBody(calendarEventSchema), async (c) => {
   const workspace = c.get('workspace');
   const body = await c.req.json().catch(() => ({}));
 
@@ -601,7 +654,7 @@ integrationRouter.get('/email/lead/:crmId', async (c) => {
   return c.json({ emails }, 200);
 });
 
-integrationRouter.post('/email/log', async (c) => {
+integrationRouter.post('/email/log', validateBody(emailLogSchema), async (c) => {
   const workspace = c.get('workspace');
   const body = await c.req.json().catch(() => ({}));
 

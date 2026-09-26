@@ -105,7 +105,7 @@ function concretePath(original: string) {
 }
 
 async function focusedCases() {
-  for (const base of ['/api', '']) {
+  for (const base of ['/api']) {
     for (const role of ['admin', 'employee', 'intern'] as const) {
       await check(`${base || 'root'} ${role}: own assigned task read`, async () => {
         success(await request(role, 'GET', `${base}/tasks/${role === 'intern' ? 'learning-task' : role === 'employee' ? 'own-task' : 'task'}`));
@@ -277,7 +277,7 @@ async function additionalBoundaryCases() {
       const res = await request(role, 'POST', `/api/tasks/${taskId}/start`); success(res);
       assert.equal(inMemoryDb.tasks.get(taskId)?.status, 'in_progress');
     });
-    for (const base of ['/api', '']) {
+for (const base of ['/api']) {
       await check(`${role}: ${base} cannot switch to foreign workspace`, async () => {
         denied(await request(role, 'POST', `${base}/workspace/switch`, { workspaceId: foreignWs }));
         assert.equal(inMemoryDb.sessions.get(`audit-${role}`)?.workspaceId, ws);

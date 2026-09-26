@@ -272,15 +272,14 @@ export async function runAutomationTests() {
 
   // 2.4 Employee Role Restrictions
   {
-    // Employee can view rules
+    // Employee CANNOT view rules (Admin only requirement)
     const listRes = await testApi(
       'GET',
       '/api/automations/rules',
       undefined,
       { Authorization: `Bearer ${employeeToken}` }
     );
-    assert(listRes.status === 200, 'Employee can list automation rules');
-    assert(listRes.data.rules.length === 3, 'Employee sees all 3 active workspace rules');
+    assert(listRes.status === 403, 'Employee is forbidden from listing automation rules (403)');
 
     // Employee CANNOT create rule (403 Forbidden)
     const createRes = await testApi(

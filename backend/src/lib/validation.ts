@@ -1,5 +1,5 @@
 import { getDb, schema, inMemoryDb } from '../../packages/database/index.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export class WorkspaceBoundaryValidator {
   /**
@@ -39,6 +39,19 @@ export class WorkspaceBoundaryValidator {
     try {
       const db = getDb();
       if (db) {
+        // Check if user exists in the users table at all
+        const [userRow] = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(eq(schema.users.id, userId));
+
+        if (!userRow) {
+          const error: any = new Error('One or more selected members no longer exist');
+          error.code = 'BAD_REQUEST';
+          error.status = 400;
+          throw error;
+        }
+
         // Check workspace owner
         const [ws] = await db
           .select({ ownerId: schema.workspaces.ownerId })
@@ -63,16 +76,24 @@ export class WorkspaceBoundaryValidator {
         if (membership) {
           return;
         }
+
+        // User exists but is not a member of this workspace
+        const error: any = new Error('One or more selected members are not part of this workspace.');
+        error.code = 'BAD_REQUEST';
+        error.status = 400;
+        throw error;
       }
-    } catch {
-      // In-memory fallback
+    } catch (err: any) {
+      // Re-throw known validation errors
+      if (err.code === 'BAD_REQUEST') throw err;
+      // In-memory fallback for other errors
     }
 
     const user = inMemoryDb.users.get(userId);
     if (!user) {
-      const error: any = new Error('Referenced user does not exist.');
-      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
-      error.status = 403;
+      const error: any = new Error('One or more selected members no longer exist');
+      error.code = 'BAD_REQUEST';
+      error.status = 400;
       throw error;
     }
 
@@ -83,9 +104,9 @@ export class WorkspaceBoundaryValidator {
     const isOwner = inMemoryDb.workspaces.get(workspaceId)?.ownerId === userId;
 
     if (!isMember && !isOwner) {
-      const error: any = new Error('Referenced user is not a member of the active workspace.');
-      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
-      error.status = 403;
+      const error: any = new Error('One or more selected members are not part of this workspace.');
+      error.code = 'BAD_REQUEST';
+      error.status = 400;
       throw error;
     }
   }
@@ -96,36 +117,109 @@ export class WorkspaceBoundaryValidator {
   static validateWorkspaceMember(workspaceId: string, userId: string | null | undefined): void {
     if (!userId) return;
 
+    // When PostgreSQL is connected, skip sync in-memory validation entirely.
+    // The async validator (validateWorkspaceMemberAsync) should be used instead.
+    try {
+      const db = getDb();
+      if (db) {
+        // PostgreSQL is available — sync in-memory check is unreliable, skip it.
+        // Callers should use validateWorkspaceMemberAsync or validateWorkspaceMembersAsync.
+        return;
+      }
+    } catch {
+      // No db, fall through to in-memory check
+    }
+
     const user = inMemoryDb.users.get(userId);
     const isMember = Array.from(inMemoryDb.workspaceMembers.values()).some(
       (wm) => wm.workspaceId === workspaceId && wm.userId === userId
     );
     const isOwner = inMemoryDb.workspaces.get(workspaceId)?.ownerId === userId;
 
-    // If in-memory records exist and fail, but db might be present, allow or validate
     if (!user && inMemoryDb.users.size > 0) {
-      // In unit test mode where inMemoryDb is authoritative
-      const error: any = new Error('Referenced user does not exist.');
-      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
-      error.status = 403;
+      const error: any = new Error('One or more selected members no longer exist');
+      error.code = 'BAD_REQUEST';
+      error.status = 400;
       throw error;
     }
 
     if (inMemoryDb.users.size > 0 && !isMember && !isOwner) {
-      const error: any = new Error('Referenced user is not a member of the active workspace.');
-      error.code = 'WORKSPACE_BOUNDARY_VIOLATION';
-      error.status = 403;
+      const error: any = new Error('One or more selected members are not part of this workspace.');
+      error.code = 'BAD_REQUEST';
+      error.status = 400;
       throw error;
     }
   }
 
   /**
-   * Validate that an array of member IDs all belong to the specified workspace
+   * Validate that an array of member IDs all belong to the specified workspace (sync)
    */
   static validateWorkspaceMembers(workspaceId: string, memberIds: string[] | undefined): void {
     if (!memberIds || !Array.isArray(memberIds)) return;
     for (const memberId of memberIds) {
       this.validateWorkspaceMember(workspaceId, memberId);
+    }
+  }
+
+  /**
+   * Validate that an array of member IDs all belong to the specified workspace (async - PostgreSQL aware)
+   */
+  static async validateWorkspaceMembersAsync(workspaceId: string, memberIds: string[] | undefined): Promise<void> {
+    if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) return;
+
+    try {
+      const db = getDb();
+      if (db) {
+        const userRows = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(inArray(schema.users.id, memberIds));
+
+        const existingUserIds = userRows.map((u) => u.id);
+        const missingUsers = memberIds.filter((id) => !existingUserIds.includes(id));
+
+        console.log({
+          memberIds,
+          existingUserIds,
+          missingUsers,
+        });
+
+        if (missingUsers.length > 0) {
+          const error: any = new Error('One or more selected members no longer exist');
+          error.code = 'BAD_REQUEST';
+          error.status = 400;
+          throw error;
+        }
+
+        // Check workspace membership or ownership for each user
+        for (const memberId of memberIds) {
+          await this.validateWorkspaceMemberAsync(workspaceId, memberId);
+        }
+        return;
+      }
+    } catch (err: any) {
+      if (err.code === 'BAD_REQUEST') throw err;
+      // In-memory fallback
+    }
+
+    const existingUserIds = memberIds.filter((id) => inMemoryDb.users.has(id));
+    const missingUsers = memberIds.filter((id) => !existingUserIds.includes(id));
+
+    console.log({
+      memberIds,
+      existingUserIds,
+      missingUsers,
+    });
+
+    if (missingUsers.length > 0) {
+      const error: any = new Error('One or more selected members no longer exist');
+      error.code = 'BAD_REQUEST';
+      error.status = 400;
+      throw error;
+    }
+
+    for (const memberId of memberIds) {
+      await this.validateWorkspaceMemberAsync(workspaceId, memberId);
     }
   }
 

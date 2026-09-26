@@ -8,6 +8,8 @@ import { BackupService } from '../services/backup-service';
 import { BackupVerificationService } from '../services/backup-verification-service';
 import { EmailDeliveryVerifier } from '../services/email-delivery-verifier';
 import { PaymentHealthService } from '../services/payment-health-service';
+import { authMiddleware } from '../middleware/auth';
+import { requireWorkspaceRole } from '../middleware/rbac';
 
 export const healthRouter = new Hono();
 
@@ -110,25 +112,25 @@ healthRouter.get('/ready', async (c) => {
 });
 
 // Storage Health Probe (Backblaze B2 read/write/delete drill)
-healthRouter.get('/storage', async (c) => {
+healthRouter.get('/storage', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const storageHealth = await ObjectStorageService.healthCheck();
   return c.json(storageHealth, storageHealth.status === 'error' ? 503 : 200);
 });
 
 // 3. Email Infrastructure Verification (Part 3)
-healthRouter.get('/email', async (c) => {
+healthRouter.get('/email', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const emailReport = await EmailDeliveryVerifier.verifyEmailInfrastructure();
   return c.json(emailReport, emailReport.status === 'critical' ? 503 : 200);
 });
 
 // 4. Payment Gateway Verification (Part 4)
-healthRouter.get('/payments', async (c) => {
+healthRouter.get('/payments', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const paymentReport = await PaymentHealthService.verifyPaymentHealth();
   return c.json(paymentReport, paymentReport.status === 'failed' ? 503 : 200);
 });
 
 // 5. Observability & Sentry Verification (Part 6)
-healthRouter.get('/observability', async (c) => {
+healthRouter.get('/observability', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   const observabilityReport = await SentryService.verifyObservabilityPipeline();
   return c.json(observabilityReport, 200);
 });
@@ -156,7 +158,7 @@ healthRouter.post('/client-error', async (c) => {
 });
 
 // 6. Infrastructure Metrics & Telemetry
-healthRouter.get('/metrics', (c) => {
+healthRouter.get('/metrics', authMiddleware, requireWorkspaceRole(['admin']), (c) => {
   const memoryUsage = process.memoryUsage();
 
   return c.json(
@@ -180,7 +182,7 @@ healthRouter.get('/metrics', (c) => {
 });
 
 // 7. PostgreSQL Backup Verification Drill (Part 5)
-healthRouter.post('/backup-verify', async (c) => {
+healthRouter.post('/backup-verify', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
     const result = await BackupVerificationService.simulateRestore(body?.backupId);

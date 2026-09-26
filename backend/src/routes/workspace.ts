@@ -1,6 +1,12 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { resolveMembershipRole } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import {
+  switchWorkspaceSchema,
+  createWorkspaceSchema,
+  updateWorkspaceSettingsSchema,
+} from '../schemas';
 import { WorkspaceService } from '../services/workspace-service';
 import { WorkspaceRepository } from '../repositories/workspace-repository';
 
@@ -86,12 +92,17 @@ workspaceRouter.get('/', async (c) => {
   try {
     const user = c.get('user');
     const requestedWsId = c.req.query('workspaceId');
-    const listAll = c.req.query('all') === 'true' || c.req.path.includes('/workspaces');
+    const listAll = c.req.query('all') === 'true';
 
     const workspaces = await WorkspaceService.getUserWorkspaces(user.id);
 
     if (listAll && !requestedWsId) {
       return c.json({ workspaces }, 200);
+    }
+
+    const { role } = await resolveMembershipRole(c);
+    if (role === 'intern') {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Intern sandbox accounts cannot access workspace configuration.' } }, 403);
     }
 
     let workspace;
@@ -149,13 +160,6 @@ const switchHandler = async (c: any) => {
     const body = await c.req.json().catch(() => ({}));
     const targetWsId = body.workspaceId || body.id;
 
-    if (!targetWsId) {
-      return c.json(
-        { error: { code: 'BAD_REQUEST', message: 'workspaceId is required.' } },
-        400
-      );
-    }
-
     const workspace = await WorkspaceService.switchWorkspace(user.id, sessionToken, targetWsId);
     return c.json({ success: true, workspace }, 200);
   } catch (err: any) {
@@ -165,13 +169,13 @@ const switchHandler = async (c: any) => {
     );
   }
 };
-workspaceRouter.post('/switch', switchHandler);
-workspaceRouter.post('/select', switchHandler);
+workspaceRouter.post('/switch', validateBody(switchWorkspaceSchema), switchHandler);
+workspaceRouter.post('/select', validateBody(switchWorkspaceSchema), switchHandler);
 
 /**
  * POST /workspace - Create new workspace (Admin only)
  */
-workspaceRouter.post('/', async (c) => {
+workspaceRouter.post('/', validateBody(createWorkspaceSchema), async (c) => {
   try {
     const user = c.get('user');
     const { role: effectiveRole } = await resolveMembershipRole(c);
@@ -184,12 +188,6 @@ workspaceRouter.post('/', async (c) => {
     }
 
     const body = await c.req.json();
-    if (!body.name || !body.name.trim()) {
-      return c.json(
-        { error: { code: 'BAD_REQUEST', message: 'Workspace name is required.' } },
-        400
-      );
-    }
 
     const workspace = await WorkspaceService.createWorkspace(user.id, {
       name: body.name.trim(),
@@ -252,8 +250,8 @@ const updateSettingsHandler = async (c: any) => {
   }
 };
 
-workspaceRouter.patch('/settings', updateSettingsHandler);
-workspaceRouter.patch('/', updateSettingsHandler);
+workspaceRouter.patch('/settings', validateBody(updateWorkspaceSettingsSchema), updateSettingsHandler);
+workspaceRouter.patch('/', validateBody(updateWorkspaceSettingsSchema), updateSettingsHandler);
 
 /**
  * DELETE /:workspaceId/members/:memberId or /members/:id - Remove member from workspace (Admin only)

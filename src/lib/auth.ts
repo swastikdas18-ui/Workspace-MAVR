@@ -74,8 +74,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   employee: {
     workspace: { view: true, manage: false },
     projects: { viewAll: false, viewAssigned: true, create: false, edit: false, delete: false, comment: true, updateProgress: true },
-    tasks: { viewAll: false, viewAssigned: true, create: false, updateStatus: true, delete: false, assign: false },
-    documents: { viewAll: false, viewShared: true, viewLearning: true, createOrgDoc: false, createPersonalDoc: false, delete: false, download: true },
+    tasks: { viewAll: false, viewAssigned: true, create: true, updateStatus: true, delete: false, assign: false },
+    documents: { viewAll: false, viewShared: true, viewLearning: true, createOrgDoc: false, createPersonalDoc: true, delete: false, download: true },
     crm: { viewAll: false, viewAssigned: true, managePipeline: false, editNotes: true, createRecord: false, deleteRecord: false },
     teams: { viewAll: false, viewMyTeam: true, manageTeams: false, inviteMembers: false },
     analytics: { view: false, exportReports: false },

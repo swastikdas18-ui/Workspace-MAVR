@@ -1,6 +1,13 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import {
+  createProjectSchema,
+  updateProjectSchema,
+  projectProgressSchema,
+  projectRequestChangesSchema,
+} from '../schemas';
 import { ProjectService } from '../services/project-service';
 import { normalizeRole } from '../lib/permissions';
 
@@ -64,7 +71,7 @@ projectRouter.get('/:id', requirePermission('projects:read'), async (c) => {
 /**
  * POST /api/projects - Create project (Admin only)
  */
-projectRouter.post('/', requirePermission('projects:create'), async (c) => {
+projectRouter.post('/', requirePermission('projects:create'), validateBody(createProjectSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -75,31 +82,30 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
     const body = await c.req.json();
-    console.log('[POST /api/projects body]', body);
-    console.log('[ROUTER] POST /api/projects -> incoming payload:', {
-      workspaceId: workspace.id,
-      userId: user.id,
-      title: body.title || body.name,
-      departmentId: body.departmentId || body.department_id,
-      memberIds: body.memberIds || body.member_ids,
-    });
     const title = (body.title || body.name || '').trim();
-    if (!title) {
-      return c.json({ error: { code: 'BAD_REQUEST', message: 'Project title is required.' } }, 400);
-    }
-
     const departmentId = body.departmentId || body.department_id;
+    const memberIds = body.memberIds || body.member_ids;
+
+    console.log(
+      "PROJECT CREATE REQUEST",
+      {
+        memberIds,
+        departmentId,
+        title
+      }
+    );
+
     if (departmentId) {
       const { departmentRepository } = await import('../repositories/people-repository.js');
       if (!(await departmentRepository.exists(departmentId, workspace.id))) {
-        return c.json({ error: { code: 'BAD_REQUEST', message: 'Selected department does not exist' } }, 400);
+        return c.json({ error: 'Selected department does not exist', message: 'Selected department does not exist' }, 400);
       }
     }
 
     const project = await ProjectService.createProject(workspace.id, user.id, role, {
       ...body,
       title,
-      departmentId: body.departmentId || body.department_id,
+      departmentId,
       dueDate: body.dueDate || body.due_date || new Date(Date.now() + 30 * 86400000).toISOString(),
     });
     console.log('[ROUTER] POST /api/projects -> project created successfully:', {
@@ -110,8 +116,13 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
     return c.json({ project }, 201);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : 400);
+    const errorMessage = err.message || 'Failed to create project.';
     return c.json(
-      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to create project.' } },
+      {
+        error: errorMessage,
+        message: errorMessage,
+        code: err.code || 'BAD_REQUEST',
+      },
       status
     );
   }
@@ -123,6 +134,7 @@ projectRouter.post('/', requirePermission('projects:create'), async (c) => {
 projectRouter.patch(
   '/:id',
   requirePermission('projects:update'),
+  validateBody(updateProjectSchema),
   async (c) => {
     try {
       const user = c.get('user');
@@ -183,7 +195,7 @@ projectRouter.post('/:id/start', async (c) => {
 /**
  * POST /api/projects/:id/progress - Update project progress with note
  */
-projectRouter.post('/:id/progress', async (c) => {
+projectRouter.post('/:id/progress', validateBody(projectProgressSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -262,7 +274,7 @@ projectRouter.post('/:id/approve', async (c) => {
 /**
  * POST /api/projects/:id/request-changes - Request changes on project (review -> in_progress)
  */
-projectRouter.post('/:id/request-changes', async (c) => {
+projectRouter.post('/:id/request-changes', validateBody(projectRequestChangesSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');

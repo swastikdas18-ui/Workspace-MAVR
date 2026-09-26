@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
+import { requireWorkspaceRole } from '../middleware/rbac';
 import { AnalyticsRepository } from '../repositories/analytics-repository';
 import { DashboardService } from '../services/dashboard-service';
 import { ProjectRepository } from '../repositories/project-repository';
@@ -100,7 +101,7 @@ dashboardRouter.get('/', async (c) => {
 /**
  * GET /api/dashboard/executive - Full real-time executive dashboard aggregates
  */
-dashboardRouter.get('/executive', async (c) => {
+const executiveHandler = async (c: any) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace?.id) {
@@ -113,4 +114,7 @@ dashboardRouter.get('/executive', async (c) => {
     console.error('[Dashboard API Error] /executive error:', err.message || err);
     return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
   }
-});
+};
+
+dashboardRouter.get('/executive', requireWorkspaceRole(['admin']), executiveHandler);
+dashboardRouter.on('HEAD', '/executive', requireWorkspaceRole(['admin']), async (c) => c.body(null, 200));

@@ -339,9 +339,9 @@ const MainAppContent: React.FC = () => {
         return <NotificationsView />;
       case 'workspace':
         return (
-          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="Workspace configuration and member management is restricted to Company Administrators." />}>
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Workspace configuration and member management is restricted to Company Staff." />}>
             <WorkspaceView />
-          </RequireRole>
+          </RoleGuard>
         );
 
       case 'projects':
@@ -427,7 +427,7 @@ const MainAppContent: React.FC = () => {
 
       case 'crm':
         return (
-          <RequireRole role="admin" fallback={<ForbiddenPage requiredRole="ADMIN" message="CRM customer pipelines, deal values, and forecasting are restricted to Administrators." />}>
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="CRM customer pipelines, deal values, and forecasting are restricted to Staff." />}>
             <CrmView
               routeLeadId={crmLeadIdParam}
               onRouteChange={(newLeadId) => {
@@ -438,13 +438,13 @@ const MainAppContent: React.FC = () => {
                 }
               }}
             />
-          </RequireRole>
+          </RoleGuard>
         );
 
       case 'teams':
       case 'people':
         return (
-          <RoleGuard allowedRoles={['admin', 'employee', 'intern']} fallback={<ForbiddenPage requiredRole="ADMIN, EMPLOYEE, or INTERN" message="Department directories and people operations are restricted." />}>
+          <RoleGuard allowedRoles={['admin', 'employee']} fallback={<ForbiddenPage requiredRole="ADMIN or EMPLOYEE" message="Department directories and people operations are restricted to staff." />}>
             <PeopleView />
           </RoleGuard>
         );

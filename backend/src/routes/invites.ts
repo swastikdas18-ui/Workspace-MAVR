@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { authMiddleware } from '../middleware/auth';
 import { requireWorkspaceRole } from '../middleware/rbac';
+import { validateBody } from '../middleware/validator';
+import { createInviteSchema, acceptInviteSchema } from '../schemas';
 import { InviteService } from '../services/invite-service';
 import { generateSecureToken } from '../lib/secure-token';
 import {
@@ -49,7 +51,7 @@ function issueSessionCookies(c: Context, result: { token: string; expiresAt: str
 /**
  * POST /api/invites - Create invite (Admin only)
  */
-inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
+inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), validateBody(createInviteSchema), async (c) => {
   try {
     const user = c.get('user');
     const workspace = c.get('workspace');
@@ -62,12 +64,6 @@ inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c
     }
 
     const body = await c.req.json();
-    if (!body.email) {
-      return c.json(
-        { error: { code: 'BAD_REQUEST', message: 'Email address is required.' } },
-        400
-      );
-    }
 
     const allowedRoles = ['admin', 'employee', 'intern'];
     const assignedRole = allowedRoles.includes(body.role) ? body.role : 'employee';
@@ -90,17 +86,11 @@ inviteRouter.post('/', authMiddleware, requireWorkspaceRole(['admin']), async (c
 });
 
 /**
- * GET /api/invites - List active invites for workspace (Admin only, graceful [] for others)
+ * GET /api/invites - List active invites for workspace (Admin only)
  */
-inviteRouter.get('/', authMiddleware, async (c) => {
+inviteRouter.get('/', authMiddleware, requireWorkspaceRole(['admin']), async (c) => {
   try {
-    const user = c.get('user');
     const workspace = c.get('workspace');
-    const effectiveRole = (workspace?.roleInWorkspace || user?.role || 'employee').toLowerCase();
-
-    if (effectiveRole !== 'admin') {
-      return c.json({ invites: [] }, 200);
-    }
 
     if (!workspace) {
       return c.json(
@@ -151,15 +141,9 @@ inviteRouter.get('/:token', async (c) => {
 /**
  * POST /api/invites/accept - Public accept invite & provision membership (No auto-login session)
  */
-inviteRouter.post('/accept', async (c) => {
+inviteRouter.post('/accept', validateBody(acceptInviteSchema), async (c) => {
   try {
     const body = await c.req.json();
-    if (!body.token || !body.name || !body.password) {
-      return c.json(
-        { error: { code: 'BAD_REQUEST', message: 'Token, name, and password are required.' } },
-        400
-      );
-    }
 
     const result = await InviteService.acceptInvite({
       token: body.token,

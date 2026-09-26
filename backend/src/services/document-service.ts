@@ -59,13 +59,8 @@ export class DocumentService {
         return false;
       });
     } else if (role === 'intern') {
-      // Intern: workspace docs, department docs for their department (plus legacy public/learning)
-      docs = docs.filter((d) => {
-        if (d.visibility === 'admin_only' || d.visibility === 'private') return false;
-        if (d.visibility === 'department') return userDepartmentId && d.departmentId === userDepartmentId;
-        if (d.visibility === 'workspace' || d.visibility === 'public' || d.visibility === 'learning') return true;
-        return false;
-      });
+      // Intern: learning sandbox limited to public or learning documents
+      docs = docs.filter((d) => d.visibility === 'public' || d.visibility === 'learning');
     }
 
     return docs.map((d) => ({
@@ -99,7 +94,20 @@ export class DocumentService {
     input: CreateDocumentInput
   ): Promise<any> {
     const role = normalizeRole(rawRole);
-    if (!can(role, 'documents:createOrg', undefined, { userId, workspaceId })) {
+    const visibility = input.visibility || 'workspace';
+    if (role === 'intern') {
+      const error: any = new Error('Interns are forbidden from uploading documents.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+    if (role === 'employee' && visibility !== 'private') {
+      const error: any = new Error('Employees can only upload private documents.');
+      error.code = 'FORBIDDEN';
+      error.status = 403;
+      throw error;
+    }
+    if (role !== 'admin' && !can(role, 'documents:createOrg', undefined, { userId, workspaceId }) && visibility !== 'private') {
       const error: any = new Error(`Role [${role.toUpperCase()}] is forbidden from uploading organization documents.`);
       error.code = 'FORBIDDEN';
       error.status = 403;
@@ -231,11 +239,33 @@ export class DocumentService {
       throw error;
     }
 
-    if (role === 'employee' && existing.visibility === 'private' && existing.ownerId !== userId) {
-      const error: any = new Error('Unauthorized to view private document.');
-      error.code = 'FORBIDDEN';
-      error.status = 403;
-      throw error;
+    if (role === 'employee') {
+      if (existing.visibility === 'admin_only') {
+        const error: any = new Error('Admin only document.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+      if (existing.visibility === 'private' && existing.ownerId !== userId) {
+        const error: any = new Error('Unauthorized to view private document.');
+        error.code = 'FORBIDDEN';
+        error.status = 403;
+        throw error;
+      }
+      if (existing.visibility === 'department') {
+        let userDepartmentId: string | null = null;
+        try {
+          const { PeopleRepository } = await import('../repositories/people-repository.js');
+          const profile = await PeopleRepository.getProfileByUserId(workspaceId, userId);
+          userDepartmentId = profile?.departmentId || (profile as any)?.department?.id || null;
+        } catch {}
+        if (!userDepartmentId || existing.departmentId !== userDepartmentId) {
+          const error: any = new Error('Unauthorized to view department document.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+      }
     }
 
     return {
@@ -388,11 +418,33 @@ export class DocumentService {
         error.status = 403;
         throw error;
       }
-      if (role === 'employee' && existing.visibility === 'private' && existing.ownerId !== userId) {
-        const error: any = new Error('Unauthorized to download private document.');
-        error.code = 'FORBIDDEN';
-        error.status = 403;
-        throw error;
+      if (role === 'employee') {
+        if (existing.visibility === 'admin_only') {
+          const error: any = new Error('Admin only document.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+        if (existing.visibility === 'private' && existing.ownerId !== userId) {
+          const error: any = new Error('Unauthorized to download private document.');
+          error.code = 'FORBIDDEN';
+          error.status = 403;
+          throw error;
+        }
+        if (existing.visibility === 'department') {
+          let userDepartmentId: string | null = null;
+          try {
+            const { PeopleRepository } = await import('../repositories/people-repository.js');
+            const profile = await PeopleRepository.getProfileByUserId(workspaceId, userId || '');
+            userDepartmentId = profile?.departmentId || (profile as any)?.department?.id || null;
+          } catch {}
+          if (!userDepartmentId || existing.departmentId !== userDepartmentId) {
+            const error: any = new Error('Unauthorized to download department document.');
+            error.code = 'FORBIDDEN';
+            error.status = 403;
+            throw error;
+          }
+        }
       }
     }
 

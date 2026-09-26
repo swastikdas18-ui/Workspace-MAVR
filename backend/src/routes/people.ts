@@ -2,6 +2,28 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth.js';
 import { PeopleService } from '../services/people-service.js';
 import { getAuthorizationContext } from '../middleware/rbac.js';
+import { inMemoryDb } from '../../packages/database/index.js';
+import { normalizeRole } from '../lib/permissions.js';
+import { validateBody } from '../middleware/validator.js';
+import {
+  updateProfileSchema,
+  createDepartmentSchema,
+  updateDepartmentSchema,
+  addDepartmentMemberSchema,
+  setDepartmentLeadSchema,
+  moveDepartmentMemberSchema,
+  reassignManagerSchema,
+  transferDepartmentSchema,
+  requestLeaveSchema,
+  reviewLeaveSchema,
+  attendanceCheckInSchema,
+  attendanceCheckOutSchema,
+  createGoalSchema,
+  updateGoalProgressSchema,
+  createReviewCycleSchema,
+  submitSelfReviewSchema,
+  submitManagerReviewSchema,
+} from '../schemas/index.js';
 
 export const peopleRouter = new Hono();
 export const departmentRouter = new Hono();
@@ -36,10 +58,19 @@ const requireLeadOrAdmin = async (c: any, next: any) => {
   return next();
 };
 
+const requireStaff = async (c: any, next: any) => {
+  const authCtx = await getAuthorizationContext(c);
+  if (authCtx.roleInWorkspace === 'intern') {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'Forbidden: Interns do not have access to staff directory.' } }, 403);
+  }
+  c.set('authContext', authCtx);
+  return next();
+};
+
 /**
  * GET /api/people/profiles - List employee directory with search and multi-facet filtering
  */
-peopleRouter.get('/profiles', async (c) => {
+peopleRouter.get('/profiles', requireStaff, async (c) => {
   try {
     const workspace = c.get('workspace');
     if (!workspace) {
@@ -69,7 +100,7 @@ peopleRouter.get('/profiles', async (c) => {
 /**
  * GET /api/people/profiles/:userId - Get specific employee profile
  */
-peopleRouter.get('/profiles/:userId', async (c) => {
+peopleRouter.get('/profiles/:userId', requireStaff, async (c) => {
   try {
     const workspace = c.get('workspace');
     const userId = c.req.param('userId');
@@ -88,7 +119,7 @@ peopleRouter.get('/profiles/:userId', async (c) => {
 /**
  * PUT /api/people/profiles/:userId - Update employee profile
  */
-peopleRouter.put('/profiles/:userId', async (c) => {
+peopleRouter.put('/profiles/:userId', validateBody(updateProfileSchema), async (c) => {
   try {
     const authCtx = await getAuthorizationContext(c);
     const targetUserId = c.req.param('userId');
@@ -105,7 +136,7 @@ peopleRouter.put('/profiles/:userId', async (c) => {
 /**
  * GET /api/people/departments - List all departments
  */
-peopleRouter.get('/departments', async (c) => {
+peopleRouter.get('/departments', requireStaff, async (c) => {
   try {
     const workspace = c.get('workspace');
     const departments = await PeopleService.listDepartments(workspace.id);
@@ -118,15 +149,11 @@ peopleRouter.get('/departments', async (c) => {
 /**
  * POST /api/people/departments - Create new department (Admin only)
  */
-peopleRouter.post('/departments', requireAdmin, async (c) => {
+peopleRouter.post('/departments', requireAdmin, validateBody(createDepartmentSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.name || !body.name.trim()) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Department name is required.' } }, 400);
-    }
 
     const department = await PeopleService.createDepartment(workspace.id, user.id, body);
     return c.json({ department, message: 'Department created successfully.' }, 201);
@@ -145,7 +172,7 @@ peopleRouter.post('/departments', requireAdmin, async (c) => {
 /**
  * PUT /api/people/departments/:id - Update department (Admin only)
  */
-peopleRouter.put('/departments/:id', requireAdmin, async (c) => {
+peopleRouter.put('/departments/:id', requireAdmin, validateBody(updateDepartmentSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
@@ -195,6 +222,10 @@ peopleRouter.delete('/departments/:id', requireAdmin, async (c) => {
 // --- Department Handlers (accessible via both /api/people/departments and /departments) ---
 const listDepartmentMembersHandler = async (c: any) => {
   try {
+    const authCtx = await getAuthorizationContext(c);
+    if (authCtx.roleInWorkspace === 'intern') {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Forbidden: Interns do not have access to department members.' } }, 403);
+    }
     const workspace = c.get('workspace');
     const departmentId = c.req.param('id');
 
@@ -214,9 +245,6 @@ const addDepartmentMemberHandler = async (c: any) => {
     const body = await c.req.json();
 
     const targetUserId = body.userId || body.memberId || body.user_id || body.member_id;
-    if (!targetUserId) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'userId or memberId is required.' } }, 400);
-    }
 
     const profile = await PeopleService.addDepartmentMember(workspace.id, user.id, departmentId, targetUserId);
     return c.json({ profile, message: 'Member added to department successfully.' }, 200);
@@ -268,10 +296,6 @@ const moveMemberHandler = async (c: any) => {
     const targetUserId = paramMemberId || body.userId || body.memberId;
     const toDepartmentId = body.toDepartmentId || body.targetDepartmentId || body.departmentId;
 
-    if (!targetUserId || !toDepartmentId) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'targetUserId and toDepartmentId are required.' } }, 400);
-    }
-
     const profile = await PeopleService.moveDepartmentMember(workspace.id, user.id, departmentId, toDepartmentId, targetUserId);
     return c.json({ profile, message: 'Member moved to new department successfully.' }, 200);
   } catch (err: any) {
@@ -282,24 +306,24 @@ const moveMemberHandler = async (c: any) => {
 
 // Registered on peopleRouter (under /api/people/departments/... or /departments/...)
 peopleRouter.get('/departments/:id/members', listDepartmentMembersHandler);
-peopleRouter.post('/departments/:id/members', requireAdmin, addDepartmentMemberHandler);
+peopleRouter.post('/departments/:id/members', requireAdmin, validateBody(addDepartmentMemberSchema), addDepartmentMemberHandler);
 peopleRouter.delete('/departments/:id/members/:memberId', requireAdmin, removeDepartmentMemberHandler);
-peopleRouter.patch('/departments/:id/lead', requireAdmin, setDepartmentLeadHandler);
-peopleRouter.patch('/departments/:id/members/:memberId/move', requireAdmin, moveMemberHandler);
-peopleRouter.post('/departments/:id/members/move', requireAdmin, moveMemberHandler);
+peopleRouter.patch('/departments/:id/lead', requireAdmin, validateBody(setDepartmentLeadSchema), setDepartmentLeadHandler);
+peopleRouter.patch('/departments/:id/members/:memberId/move', requireAdmin, validateBody(moveDepartmentMemberSchema), moveMemberHandler);
+peopleRouter.post('/departments/:id/members/move', requireAdmin, validateBody(moveDepartmentMemberSchema), moveMemberHandler);
 
 // Registered on departmentRouter (mounted directly at /departments and /api/departments)
 departmentRouter.get('/:id/members', listDepartmentMembersHandler);
-departmentRouter.post('/:id/members', requireAdmin, addDepartmentMemberHandler);
+departmentRouter.post('/:id/members', requireAdmin, validateBody(addDepartmentMemberSchema), addDepartmentMemberHandler);
 departmentRouter.delete('/:id/members/:memberId', requireAdmin, removeDepartmentMemberHandler);
-departmentRouter.patch('/:id/lead', requireAdmin, setDepartmentLeadHandler);
-departmentRouter.patch('/:id/members/:memberId/move', requireAdmin, moveMemberHandler);
-departmentRouter.post('/:id/members/move', requireAdmin, moveMemberHandler);
+departmentRouter.patch('/:id/lead', requireAdmin, validateBody(setDepartmentLeadSchema), setDepartmentLeadHandler);
+departmentRouter.patch('/:id/members/:memberId/move', requireAdmin, validateBody(moveDepartmentMemberSchema), moveMemberHandler);
+departmentRouter.post('/:id/members/move', requireAdmin, validateBody(moveDepartmentMemberSchema), moveMemberHandler);
 
 /**
  * GET /api/people/org-chart - Get visual hierarchy org chart
  */
-peopleRouter.get('/org-chart', async (c) => {
+peopleRouter.get('/org-chart', requireStaff, async (c) => {
   try {
     const workspace = c.get('workspace');
     const orgChart = await PeopleService.getOrgChart(workspace.id);
@@ -312,15 +336,11 @@ peopleRouter.get('/org-chart', async (c) => {
 /**
  * POST /api/people/org-chart/reassign - Reassign employee manager (Admin only)
  */
-peopleRouter.post('/org-chart/reassign', requireAdmin, async (c) => {
+peopleRouter.post('/org-chart/reassign', requireAdmin, validateBody(reassignManagerSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.userId) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } }, 400);
-    }
 
     const profile = await PeopleService.reassignManager(workspace.id, user.id, body.userId, body.managerId || null);
     return c.json({ profile, message: 'Manager reassigned successfully.' }, 200);
@@ -332,15 +352,11 @@ peopleRouter.post('/org-chart/reassign', requireAdmin, async (c) => {
 /**
  * POST /api/people/org-chart/transfer - Transfer employee department (Admin only)
  */
-peopleRouter.post('/org-chart/transfer', requireAdmin, async (c) => {
+peopleRouter.post('/org-chart/transfer', requireAdmin, validateBody(transferDepartmentSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.userId) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } }, 400);
-    }
 
     const profile = await PeopleService.transferDepartment(workspace.id, user.id, body.userId, body.departmentId || null);
     return c.json({ profile, message: 'Department transferred successfully.' }, 200);
@@ -372,15 +388,11 @@ peopleRouter.get('/leaves', async (c) => {
 /**
  * POST /api/people/leaves - Request leave
  */
-peopleRouter.post('/leaves', async (c) => {
+peopleRouter.post('/leaves', validateBody(requestLeaveSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.startDate || !body.endDate || !body.reason) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'startDate, endDate, and reason are required.' } }, 400);
-    }
 
     const leave = await PeopleService.requestLeave(workspace.id, user.id, body);
     return c.json({ leave, message: 'Leave requested successfully.' }, 201);
@@ -392,7 +404,7 @@ peopleRouter.post('/leaves', async (c) => {
 /**
  * PATCH /api/people/leaves/:id/approve - Approve leave request
  */
-peopleRouter.patch('/leaves/:id/approve', async (c) => {
+peopleRouter.patch('/leaves/:id/approve', validateBody(reviewLeaveSchema), async (c) => {
   try {
     const authCtx = await getAuthorizationContext(c);
     const leaveId = c.req.param('id');
@@ -409,7 +421,7 @@ peopleRouter.patch('/leaves/:id/approve', async (c) => {
 /**
  * PATCH /api/people/leaves/:id/reject - Reject leave request
  */
-peopleRouter.patch('/leaves/:id/reject', async (c) => {
+peopleRouter.patch('/leaves/:id/reject', validateBody(reviewLeaveSchema), async (c) => {
   try {
     const authCtx = await getAuthorizationContext(c);
     const leaveId = c.req.param('id');
@@ -442,7 +454,7 @@ peopleRouter.get('/leaves/balances', async (c) => {
 /**
  * POST /api/people/attendance/check-in - Check in for the day
  */
-peopleRouter.post('/attendance/check-in', async (c) => {
+peopleRouter.post('/attendance/check-in', validateBody(attendanceCheckInSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
@@ -458,7 +470,7 @@ peopleRouter.post('/attendance/check-in', async (c) => {
 /**
  * POST /api/people/attendance/check-out - Check out for the day
  */
-peopleRouter.post('/attendance/check-out', async (c) => {
+peopleRouter.post('/attendance/check-out', validateBody(attendanceCheckOutSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
@@ -512,7 +524,7 @@ peopleRouter.get('/attendance/history', async (c) => {
 /**
  * GET /api/people/attendance/metrics - Get today's attendance summary metrics
  */
-peopleRouter.get('/attendance/metrics', async (c) => {
+peopleRouter.get('/attendance/metrics', requireAdmin, async (c) => {
   try {
     const workspace = c.get('workspace');
     const metrics = await PeopleService.getAttendanceMetrics(workspace.id);
@@ -552,15 +564,11 @@ peopleRouter.get('/goals', async (c) => {
 /**
  * POST /api/people/goals - Create new Goal (OKR)
  */
-peopleRouter.post('/goals', async (c) => {
+peopleRouter.post('/goals', validateBody(createGoalSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.title || !body.dueDate) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'title and dueDate are required.' } }, 400);
-    }
 
     const goal = await PeopleService.createGoal(workspace.id, user.id, body);
     return c.json({ goal, message: 'Goal created successfully.' }, 201);
@@ -572,11 +580,19 @@ peopleRouter.post('/goals', async (c) => {
 /**
  * PATCH /api/people/goals/:id/progress - Check-in Goal progress update
  */
-peopleRouter.patch('/goals/:id/progress', async (c) => {
+peopleRouter.patch('/goals/:id/progress', validateBody(updateGoalProgressSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const goalId = c.req.param('id');
+    const role = normalizeRole(workspace.roleInWorkspace || user.role);
+
+    // Caller must own the goal unless admin
+    const existing = inMemoryDb.goals.get(goalId);
+    if (existing && role !== 'admin' && existing.userId !== user.id) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Cannot update progress on another user goal.' } }, 403);
+    }
+
     const body = await c.req.json();
 
     const progressValue = Number(body.progressValue) || 0;
@@ -585,7 +601,8 @@ peopleRouter.patch('/goals/:id/progress', async (c) => {
     const goal = await PeopleService.updateGoalProgress(workspace.id, goalId, user.id, progressValue, progressPercent, body.notes);
     return c.json({ goal, message: 'Goal progress updated.' }, 200);
   } catch (err: any) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to update goal progress.' } }, 400);
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 400);
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to update goal progress.' } }, status);
   }
 });
 
@@ -615,15 +632,11 @@ peopleRouter.get('/performance/reviews', async (c) => {
 /**
  * POST /api/people/performance/reviews - Create performance review cycle (Admin only)
  */
-peopleRouter.post('/performance/reviews', requireAdmin, async (c) => {
+peopleRouter.post('/performance/reviews', requireAdmin, validateBody(createReviewCycleSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const body = await c.req.json();
-
-    if (!body.userId || !body.reviewerId) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'userId and reviewerId are required.' } }, 400);
-    }
 
     const review = await PeopleService.createReviewCycle(workspace.id, user.id, body);
     return c.json({ review, message: 'Performance review initiated.' }, 201);
@@ -635,24 +648,32 @@ peopleRouter.post('/performance/reviews', requireAdmin, async (c) => {
 /**
  * POST /api/people/performance/reviews/:id/self - Submit self review
  */
-peopleRouter.post('/performance/reviews/:id/self', async (c) => {
+peopleRouter.post('/performance/reviews/:id/self', validateBody(submitSelfReviewSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');
     const reviewId = c.req.param('id');
+
+    // Self review can only be submitted by the review subject
+    const existing = inMemoryDb.performanceReviews.get(reviewId);
+    if (existing && existing.userId !== user.id) {
+      return c.json({ error: { code: 'FORBIDDEN', message: 'Cannot submit self-review for another user.' } }, 403);
+    }
+
     const body = await c.req.json();
 
     const review = await PeopleService.submitSelfReview(workspace.id, reviewId, user.id, body.selfRatings || {}, body.comments);
     return c.json({ review, message: 'Self review submitted.' }, 200);
   } catch (err: any) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: err.message || 'Failed to submit self review.' } }, 400);
+    const status = err.status || (err.code === 'FORBIDDEN' ? 403 : 400);
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to submit self review.' } }, status);
   }
 });
 
 /**
  * POST /api/people/performance/reviews/:id/manager - Submit manager review & final ratings
  */
-peopleRouter.post('/performance/reviews/:id/manager', requireLeadOrAdmin, async (c) => {
+peopleRouter.post('/performance/reviews/:id/manager', requireLeadOrAdmin, validateBody(submitManagerReviewSchema), async (c) => {
   try {
     const workspace = c.get('workspace');
     const user = c.get('user');

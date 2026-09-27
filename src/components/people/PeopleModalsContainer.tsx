@@ -122,33 +122,39 @@ export const PeopleModalsContainer: React.FC<PeopleModalsContainerProps> = ({
 }) => {
   return (
     <>
-      <InviteMemberModal
-        isOpen={isInviteModalOpen}
-        setIsOpen={setIsInviteModalOpen}
-        loadInvites={loadInvites}
-        addToast={addToast}
-        users={users}
-        teams={teams}
-        generatedInvite={generatedInvite}
-        setGeneratedInvite={setGeneratedInvite}
-        copiedToken={copiedToken}
-        setCopiedToken={setCopiedToken}
-      />
+      {isInviteModalOpen && (
+        <InviteMemberModal
+          isOpen={isInviteModalOpen}
+          setIsOpen={setIsInviteModalOpen}
+          loadInvites={loadInvites}
+          addToast={addToast}
+          users={users}
+          teams={teams}
+          generatedInvite={generatedInvite}
+          setGeneratedInvite={setGeneratedInvite}
+          copiedToken={copiedToken}
+          setCopiedToken={setCopiedToken}
+        />
+      )}
 
-      <CreateTeamModal
-        isOpen={isCreateTeamModalOpen}
-        setIsOpen={setIsCreateTeamModalOpen}
-        loadData={loadData}
-        addToast={addToast}
-        users={users}
-      />
+      {isCreateTeamModalOpen && (
+        <CreateTeamModal
+          isOpen={isCreateTeamModalOpen}
+          setIsOpen={setIsCreateTeamModalOpen}
+          loadData={loadData}
+          addToast={addToast}
+          users={users}
+        />
+      )}
 
-      <LeaveRequestModal
-        isOpen={isRequestLeaveModalOpen}
-        setIsOpen={setIsRequestLeaveModalOpen}
-        loadData={loadData}
-        addToast={addToast}
-      />
+      {isRequestLeaveModalOpen && (
+        <LeaveRequestModal
+          isOpen={isRequestLeaveModalOpen}
+          setIsOpen={setIsRequestLeaveModalOpen}
+          loadData={loadData}
+          addToast={addToast}
+        />
+      )}
 
       <RemoveMemberConfirmModal
         isOpen={!!memberToRemove}

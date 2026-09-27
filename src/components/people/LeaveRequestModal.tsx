@@ -32,6 +32,14 @@ export const LeaveRequestModal: React.FC<{
     }
   };
 
+  console.log("[LEAVE MODAL]", {
+    isOpen,
+    source: 'LeaveRequestModal',
+    pathname: typeof window !== 'undefined' ? window.location.pathname : ''
+  });
+
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="relative bg-[#0F172A] border border-white/10 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">

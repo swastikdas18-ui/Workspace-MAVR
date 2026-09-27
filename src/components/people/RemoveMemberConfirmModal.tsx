@@ -58,7 +58,7 @@ export const RemoveMemberConfirmModal: React.FC<{
         <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div className="flex items-center gap-2 text-rose-400">
             <svg className="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M6 18l12-12" />
             </svg>
             <h3 className="font-bold text-slate-100 text-base">Remove Member</h3>
           </div>
@@ -71,7 +71,7 @@ export const RemoveMemberConfirmModal: React.FC<{
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M6 18l12-12" />
             </svg>
           </button>
         </div>

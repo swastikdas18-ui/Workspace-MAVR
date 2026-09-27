@@ -19,7 +19,7 @@ export function usePeopleData({ currentRole, workspaceId, loadInvites }: UsePeop
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dirRes, deptRes, leaveRes, attTodayRes, attHistRes] = await Promise.all([
+      const [dirRes, deptRes, leaveRes, attTodayRes, attHistRes] = await Promise.allSettled([
         api.getEmployeeDirectory(),
         api.getDepartments(),
         api.getLeaveRequests(),
@@ -27,14 +27,14 @@ export function usePeopleData({ currentRole, workspaceId, loadInvites }: UsePeop
         api.getAttendanceHistory(),
       ]);
 
-      if (dirRes?.profiles) setProfiles(dirRes.profiles);
-      if (deptRes?.departments) setDepartments(deptRes.departments);
-      if (leaveRes?.leaves) setLeaves(leaveRes.leaves);
-      if (attTodayRes) {
-        setTodayAttendance(attTodayRes.record);
-        setIsCheckedIn(attTodayRes.isCheckedIn);
+      if (dirRes.status === 'fulfilled' && dirRes.value?.profiles) setProfiles(dirRes.value.profiles);
+      if (deptRes.status === 'fulfilled' && deptRes.value?.departments) setDepartments(deptRes.value.departments);
+      if (leaveRes.status === 'fulfilled' && leaveRes.value?.leaves) setLeaves(leaveRes.value.leaves);
+      if (attTodayRes.status === 'fulfilled' && attTodayRes.value) {
+        setTodayAttendance(attTodayRes.value.record);
+        setIsCheckedIn(attTodayRes.value.isCheckedIn);
       }
-      if (attHistRes?.history) setAttendanceHistory(attHistRes.history);
+      if (attHistRes.status === 'fulfilled' && attHistRes.value?.history) setAttendanceHistory(attHistRes.value.history);
     } catch (err: any) {
       console.error('Failed to load People OS data:', err);
     } finally {

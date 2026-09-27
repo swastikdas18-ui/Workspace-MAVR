@@ -22,7 +22,9 @@ export const RemoveMemberConfirmModal: React.FC<{
   removeWorkspaceMember, loadData, addToast,
   isRemovingMember, setIsRemovingMember
 }) => {
-  const targetName = memberToRemove.user?.name || memberToRemove.name || (memberToRemove.user?.email ? memberToRemove.user.email.split('@')[0] : 'Member');
+  if (!isOpen || !memberToRemove) return null;
+
+  const targetName = memberToRemove?.user?.name || memberToRemove?.name || (memberToRemove?.user?.email ? memberToRemove.user.email.split('@')[0] : 'Member');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +119,7 @@ export const RemoveMemberConfirmModal: React.FC<{
 
             <button
               type="submit"
-              disabled={!removeConfirmName.trim().toLowerCase() === targetName.trim().toLowerCase() || isRemovingMember}
+              disabled={removeConfirmName.trim().toLowerCase() !== targetName.trim().toLowerCase() || isRemovingMember}
               className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 shadow-lg shadow-rose-600/20"
             >
               {isRemovingMember ? (

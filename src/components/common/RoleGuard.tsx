@@ -14,7 +14,11 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   fallback,
   children,
 }) => {
-  const { currentRole } = useWorkspace();
+  const { currentRole, currentUser } = useWorkspace();
+
+  if (!currentUser) {
+    return null;
+  }
 
   if (!allowedRoles.includes(currentRole)) {
     if (fallback !== undefined) {

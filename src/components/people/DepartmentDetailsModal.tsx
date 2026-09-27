@@ -65,8 +65,9 @@ export const DepartmentDetailsModal: React.FC<DepartmentDetailsModalProps> = ({
   if (!isOpen || !department) return null;
 
   const candidateProfiles = allProfiles.filter((p) => {
+    if (!p) return false;
     const pUserId = p.userId || p.user?.id || p.id;
-    return !members.some((m) => (m.userId || m.user?.id) === pUserId);
+    return !members.some((m) => m && (m.userId || m.user?.id) === pUserId);
   });
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -152,6 +153,7 @@ export const DepartmentDetailsModal: React.FC<DepartmentDetailsModalProps> = ({
   };
 
   const filteredMembers = members.filter((m) => {
+    if (!m) return false;
     const name = (m.user?.name || m.name || '').toLowerCase();
     const email = (m.user?.email || m.email || '').toLowerCase();
     const designation = (m.designation || '').toLowerCase();

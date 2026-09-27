@@ -105,7 +105,7 @@ const tabToPathMap: Record<string, string> = {
 };
 
 const MainAppContent: React.FC = () => {
-  const { isLandingPage, isAuthBootstrapping, currentRole, activeTab, setActiveTab, userWorkspaces, currentWorkspace } = useWorkspace();
+  const { isLandingPage, isAuthBootstrapping, currentUser, currentRole, activeTab, setActiveTab, userWorkspaces, currentWorkspace } = useWorkspace();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   
   // Standalone Route ID Parameters
@@ -302,7 +302,7 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  if (isLandingPage) {
+  if (isLandingPage || !currentUser) {
     return <LandingPage />;
   }
 

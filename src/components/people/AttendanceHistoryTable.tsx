@@ -14,10 +14,12 @@ export const AttendanceHistoryTable = ({ attendanceHistory }) => {
         </tr>
       </thead>
       <tbody className="divide-y divide-white/5">
-        {attendanceHistory.map((a) => (
-          <tr key={a.id} className="hover:bg-white/[0.02] transition">
-            <td className="p-3.5 font-medium text-slate-100">{a.date}</td>
-            <td className="p-3.5">{a.user?.name || 'Staff Member'}</td>
+        {attendanceHistory.map((a) => {
+          if (!a) return null;
+          return (
+            <tr key={a.id} className="hover:bg-white/[0.02] transition">
+              <td className="p-3.5 font-medium text-slate-100">{a.date}</td>
+              <td className="p-3.5">{a.user?.name || a.userName || 'Staff Member'}</td>
             <td className="p-3.5 text-slate-300">
               {a.checkInAt ? new Date(a.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
             </td>
@@ -41,7 +43,8 @@ export const AttendanceHistoryTable = ({ attendanceHistory }) => {
               </span>
             </td>
           </tr>
-        ))}
+        );
+      })}
       </tbody>
     </table>
   );

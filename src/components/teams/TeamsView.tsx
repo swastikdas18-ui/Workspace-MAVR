@@ -17,12 +17,6 @@ export const TeamsView: React.FC = () => {
     addTeamMembers, removeTeamMember, moveTeamMember, setTeamLead
   } = useWorkspace();
 
-  // Guard: show loading state until workspace data is ready
-  if (isWorkspaceLoading) return <div className="p-8 text-center">Loading workspace...</div>;
-
-  // Guard: show empty state if no current user
-  if (!currentUser) return <div className="p-8 text-center">Please sign in to view teams.</div>;
-
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
   
@@ -57,7 +51,13 @@ export const TeamsView: React.FC = () => {
     if (currentRole === 'admin') {
       loadInvites();
     }
-  }, [currentRole, isWorkspaceLoading, currentUser]);
+  }, [currentRole, isWorkspaceLoading, currentUser, loadInvites]);
+
+  // Guard: show loading state until workspace data is ready
+  if (isWorkspaceLoading) return <div className="p-8 text-center">Loading workspace...</div>;
+
+  // Guard: show empty state if no current user
+  if (!currentUser) return <div className="p-8 text-center">Please sign in to view teams.</div>;
 
   // Keep selectedTeam synced with latest teams array
   const activeSelectedTeam = selectedTeam ? teams.find((t) => t.id === selectedTeam.id) || selectedTeam : null;

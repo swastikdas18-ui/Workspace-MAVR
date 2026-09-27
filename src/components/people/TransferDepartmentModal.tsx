@@ -57,13 +57,14 @@ export const TransferDepartmentModal: React.FC<TransferDepartmentModalProps> = (
                 required
                 value={targetReassignUser?.userId || targetReassignUser?.id || ''}
                 onChange={(e) => {
-                  const found = profiles.find((p) => (p.userId || p.id) === e.target.value || p.user?.id === e.target.value);
+                  const found = profiles.find((p) => p && ((p.userId || p.id) === e.target.value || p.user?.id === e.target.value));
                   setTargetReassignUser(found || null);
                 }}
                 className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
               >
                 <option value="">-- Choose Employee --</option>
                 {profiles.map((p) => {
+                  if (!p) return null;
                   const val = p.userId || p.user?.id || p.id;
                   const displayName = p.user?.name || p.name || (p.user?.email ? p.user.email.split('@')[0] : 'Employee');
                   return (

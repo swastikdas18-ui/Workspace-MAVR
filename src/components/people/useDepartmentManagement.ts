@@ -54,7 +54,8 @@ export function useDepartmentManagement({ loadData, addToast }: UseDepartmentMan
   const handleTransferDepartmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetReassignUser || !selectedNewDeptId) return;
-    const targetUserId = targetReassignUser.userId || targetReassignUser.user?.id || targetReassignUser.id;
+    const targetUserId = targetReassignUser?.userId || targetReassignUser?.user?.id || targetReassignUser?.id;
+    if (!targetUserId) return;
     try {
       await api.transferDepartment(targetUserId, selectedNewDeptId);
       addToast({ type: 'success', title: 'Department Transferred', message: 'Employee transferred successfully.' });

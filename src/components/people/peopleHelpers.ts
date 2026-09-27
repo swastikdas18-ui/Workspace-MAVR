@@ -6,9 +6,11 @@ export function filterProfiles(
   departments: any[]
 ) {
   return profiles.filter((p) => {
+    if (!p) return false;
     const matchesSearch =
       !searchQuery ||
       p.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.designation?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.skills?.some((s: string) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 

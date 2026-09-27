@@ -225,17 +225,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
           >
             <div className="relative shrink-0">
-              <UserAvatar name={currentUser.name} avatar={currentUser.avatar} size="md" />
+              <UserAvatar name={currentUser?.name || 'User'} avatar={currentUser?.avatar} size="md" />
               <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#B8FF3B] rounded-full border-2 border-[#12141A]" />
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-100 truncate group-hover:text-[#B8FF3B] transition-colors">
-                  {currentUser.name}
+                  {currentUser?.name || 'User'}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <span className="ui-caption text-slate-400 truncate max-w-[100px]">
-                    {currentUser.title || currentUser.email}
+                    {currentUser?.title || currentUser?.email || ''}
                   </span>
                   <span className="ui-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#B8FF3B]/15 text-[#B8FF3B] border border-[#B8FF3B]/25">
                     {currentRole}

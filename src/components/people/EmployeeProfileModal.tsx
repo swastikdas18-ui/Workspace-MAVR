@@ -97,7 +97,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
                     .filter((p) => p.userId !== selectedProfile.userId)
                     .map((p) => (
                       <option key={p.userId} value={p.userId}>
-                        {p.user?.name} ({p.designation})
+                        {p.user?.name || p.name || 'Staff Member'} ({p.designation || 'Staff'})
                       </option>
                     ))}
                 </select>

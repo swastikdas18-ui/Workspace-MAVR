@@ -10,8 +10,12 @@ interface RequireRoleProps {
 }
 
 export const RequireRole: React.FC<RequireRoleProps> = ({ role, fallback, children }) => {
-  const { currentRole } = useWorkspace();
+  const { currentRole, currentUser } = useWorkspace();
   const requiredRoles = Array.isArray(role) ? role : [role];
+
+  if (!currentUser) {
+    return null;
+  }
 
   if (!requiredRoles.includes(currentRole)) {
     if (fallback !== undefined) {

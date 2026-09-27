@@ -64,6 +64,7 @@ export const AddDepartmentMemberModal: React.FC<AddDepartmentMemberModalProps> =
                 >
                   <option value="">-- Choose Member --</option>
                   {candidateProfiles.map((p) => {
+                    if (!p) return null;
                     const id = p.userId || p.user?.id || p.id;
                     const name = p.user?.name || p.name || p.email;
                     const deptName = p.department?.name ? `(Current: ${p.department.name})` : '(Unassigned)';

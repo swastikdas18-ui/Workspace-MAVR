@@ -68,13 +68,15 @@ export const DepartmentsSubTab: React.FC<DepartmentsSubTabProps> = ({
           .map((dept) => {
             const assignedCount = profiles.filter(
               (p) =>
-                p.departmentId === dept.id ||
-                p.department?.id === dept.id ||
-                (p.department?.name && p.department.name.toLowerCase() === dept.name?.toLowerCase()) ||
-                dept.headId === p.userId ||
-                dept.head?.id === p.userId ||
-                dept.head?.id === p.user?.id ||
-                dept.headId === p.user?.id
+                p && (
+                  p.departmentId === dept.id ||
+                  p.department?.id === dept.id ||
+                  (p.department?.name && p.department.name.toLowerCase() === dept.name?.toLowerCase()) ||
+                  dept.headId === p.userId ||
+                  dept.head?.id === p.userId ||
+                  dept.head?.id === p.user?.id ||
+                  dept.headId === p.user?.id
+                )
             ).length;
             const memberCount = Math.max(assignedCount, dept.memberCount || 0);
 

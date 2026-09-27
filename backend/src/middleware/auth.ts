@@ -37,7 +37,17 @@ export async function authMiddleware(c: Context, next: Next) {
 
   console.log(`[Auth] AUTH MIDDLEWARE -> Path: ${c.req.path}, Transport: ${transport}, Token Present: ${!!token}`);
 
+  const cookieToken = getCookie(c, WORKSPACE_SESSION_COOKIE) || readCookieFromHeader(cookieHeader, WORKSPACE_SESSION_COOKIE);
+
   if (!token) {
+    console.log('[AUTH SESSION CHECK]', {
+      cookiePresent: !!cookieToken,
+      sessionTokenPresent: false,
+      sessionFound: false,
+      userFound: false,
+      origin: c.req.header('origin') || c.req.header('host') || 'unknown',
+      authenticated: false,
+    });
     return c.json(
       {
         error: {
@@ -50,6 +60,15 @@ export async function authMiddleware(c: Context, next: Next) {
   }
 
   const sessionData = await AuthService.getSession(token);
+
+  console.log('[AUTH SESSION CHECK]', {
+    cookiePresent: !!cookieToken,
+    sessionTokenPresent: !!token,
+    sessionFound: !!sessionData,
+    userFound: !!sessionData?.user,
+    origin: c.req.header('origin') || c.req.header('host') || 'unknown',
+    authenticated: !!sessionData,
+  });
 
   if (!sessionData) {
     console.warn(`[Auth] Session invalid or expired for path: ${c.req.path}`);

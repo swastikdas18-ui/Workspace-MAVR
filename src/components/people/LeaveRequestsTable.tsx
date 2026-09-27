@@ -22,11 +22,13 @@ export const LeaveRequestsTable: React.FC<{
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
-          {leaves.map((l) => (
-            <tr key={l.id} className="hover:bg-white/[0.02] transition">
-              <td className="p-3.5 font-medium text-slate-100">
-                {l.user?.name || 'Team Member'}
-              </td>
+          {leaves.map((l) => {
+            if (!l) return null;
+            return (
+              <tr key={l.id} className="hover:bg-white/[0.02] transition">
+                <td className="p-3.5 font-medium text-slate-100">
+                  {l.user?.name || l.userName || 'Team Member'}
+                </td>
               <td className="p-3.5 capitalize">{l.leaveType}</td>
               <td className="p-3.5">
                 {new Date(l.startDate).toLocaleDateString()} - {new Date(l.endDate).toLocaleDateString()}
@@ -75,7 +77,8 @@ export const LeaveRequestsTable: React.FC<{
                 </td>
               )}
             </tr>
-          ))}
+          );
+        })}
           {leaves.length === 0 && (
             <tr>
               <td colSpan={6} className="py-10 text-center">

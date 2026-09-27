@@ -95,11 +95,14 @@ export const EditDepartmentModal: React.FC<EditDepartmentModalProps> = ({
                 className="w-full bg-[#111827] border border-white/[0.08] rounded-xl p-3 text-white focus:outline-none focus:border-purple-500"
               >
                 <option value="">No Lead Assigned</option>
-                {profiles.map((p) => (
-                  <option key={p.userId || p.id} value={p.userId || p.id}>
-                    {p.user?.name || p.name} ({p.designation || 'Staff'})
-                  </option>
-                ))}
+                {profiles.map((p) => {
+                  if (!p) return null;
+                  return (
+                    <option key={p.userId || p.id} value={p.userId || p.id}>
+                      {p.user?.name || p.name || 'Staff Member'} ({p.designation || 'Staff'})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

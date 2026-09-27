@@ -25,11 +25,12 @@ export const DepartmentMembersList: React.FC<DepartmentMembersListProps> = ({
   return (
     <div className="grid grid-cols-1 gap-2.5">
       {filteredMembers.map((member) => {
-        const targetUserId = member.userId || member.user?.id;
+        if (!member) return null;
+        const targetUserId = member.userId || member.user?.id || member.id;
         const name = member.user?.name || member.name || (member.user?.email ? member.user.email.split('@')[0] : 'Member');
         const email = member.user?.email || member.email || '';
         const role = (member.user?.role || member.role || 'employee').toLowerCase();
-        const isLead = member.departmentPosition === 'lead' || department.headId === targetUserId;
+        const isLead = member.departmentPosition === 'lead' || department?.headId === targetUserId;
         const isBusy = busyMemberId === targetUserId;
 
         return (

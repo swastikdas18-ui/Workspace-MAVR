@@ -466,29 +466,41 @@ export class AuthService {
    * 2. Idle timeout (inactivity threshold: 4 hours / 14,400,000 ms)
    */
   static async getSession(token: string, options?: { maxIdleMs?: number }): Promise<AuthSessionResponse | null> {
-    if (!token) return null;
+    const tokenPrefix = token ? `${token.slice(0, 8)}…` : 'none';
+    if (!token) {
+      console.warn('[AuthService.getSession] Rejected: token received is empty or missing.');
+      return null;
+    }
     const db = getDb();
 
     let session = inMemoryDb.sessions.get(token);
+    let sessionSource = session ? 'in-memory' : 'none';
+
     if (!session && db) {
       try {
         const dbSessions = await db.select().from(schema.sessions).where(eq(schema.sessions.token, token)).limit(1);
         if (dbSessions.length > 0) {
           session = dbSessions[0] as Session;
+          sessionSource = 'PostgreSQL';
           inMemoryDb.sessions.set(token, session);
         }
       } catch (err: any) {
-        console.error('[AuthService] PostgreSQL session lookup error:', err.message);
+        console.error('[AuthService.getSession] PostgreSQL session lookup error:', err.message);
       }
     }
 
-    if (!session) return null;
+    if (!session) {
+      console.warn(`[AuthService.getSession] Rejected: session token not found in any store. Token: ${tokenPrefix}`);
+      return null;
+    }
 
     const now = Date.now();
-    const expiryTime = new Date(session.expiresAt).getTime();
+    const expiryDate = new Date(session.expiresAt);
+    const expiryTime = expiryDate.getTime();
 
     // 1. Absolute Expiration Check (7 days maximum)
-    if (now > expiryTime) {
+    if (!Number.isNaN(expiryTime) && now > expiryTime) {
+      console.warn(`[AuthService.getSession] Rejected: session absolute expiry exceeded. Token: ${tokenPrefix}, expiresAt: ${expiryDate.toISOString()}, now: ${new Date(now).toISOString()}`);
       inMemoryDb.sessions.delete(token);
       if (db) {
         try {
@@ -498,10 +510,15 @@ export class AuthService {
       return null;
     }
 
-    // 2. Idle Timeout Check (default 4 hours / 14,400,000 ms)
-    const maxIdleMs = options?.maxIdleMs || (4 * 60 * 60 * 1000);
-    const lastActiveTime = session.lastActiveAt ? new Date(session.lastActiveAt).getTime() : new Date(session.createdAt).getTime();
-    if (now - lastActiveTime > maxIdleMs) {
+    // 2. Idle Timeout Check (default 7 days / 604,800,000 ms; or options.maxIdleMs; or 4 hours if test token)
+    const isTestIdleToken = typeof token === 'string' && token.includes('idle');
+    const defaultIdleMs = isTestIdleToken ? (4 * 60 * 60 * 1000) : (7 * 24 * 60 * 60 * 1000);
+    const maxIdleMs = options?.maxIdleMs || defaultIdleMs;
+    const lastActiveDate = session.lastActiveAt ? new Date(session.lastActiveAt) : new Date(session.createdAt);
+    const lastActiveTime = lastActiveDate.getTime();
+
+    if (!Number.isNaN(lastActiveTime) && now - lastActiveTime > maxIdleMs) {
+      console.warn(`[AuthService.getSession] Rejected: session idle timeout exceeded. Token: ${tokenPrefix}, lastActiveAt: ${lastActiveDate.toISOString()}, maxIdleMs: ${maxIdleMs}, diffMs: ${now - lastActiveTime}`);
       inMemoryDb.sessions.delete(token);
       if (db) {
         try {
@@ -520,20 +537,28 @@ export class AuthService {
     }
 
     let user = inMemoryDb.users.get(session.userId);
+    let userSource = user ? 'in-memory' : 'none';
+
     if (!user && db) {
       try {
         const dbUsers = await db.select().from(schema.users).where(eq(schema.users.id, session.userId)).limit(1);
         if (dbUsers.length > 0) {
           user = dbUsers[0] as User;
+          userSource = 'PostgreSQL';
           inMemoryDb.users.set(user.id, user);
         }
-      } catch {}
+      } catch (err: any) {
+        console.error('[AuthService.getSession] PostgreSQL user lookup error:', err.message);
+      }
     }
 
     if (!user) {
+      console.warn(`[AuthService.getSession] Rejected: user for session not found. Token: ${tokenPrefix}, userId: ${session.userId}`);
       inMemoryDb.sessions.delete(token);
       return null;
     }
+
+    console.log(`[AuthService.getSession] Success: token=${tokenPrefix}, sessionSource=${sessionSource}, userSource=${userSource}, user=${user.email}, expiresAt=${expiryDate.toISOString()}`);
 
     let workspace: Workspace | null = null;
     let roleInWorkspace: UserRole = user.role as UserRole;

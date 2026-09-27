@@ -33,6 +33,7 @@ export async function createUiRouteProbe() {
     const old = (globalThis as any).__rbacUiContext;
     (globalThis as any).__rbacUiContext = {
       currentRole: role, permissions: ROLE_PERMISSIONS[role], activeTab: tab,
+      currentUser: { id: role, name: role, email: `${role}@rbac.example`, role },
       isLandingPage: false, isAuthBootstrapping: false, currentWorkspace: { id: 'audit-workspace' },
       userWorkspaces: [{ id: 'audit-workspace' }], setActiveTab: () => {},
     };

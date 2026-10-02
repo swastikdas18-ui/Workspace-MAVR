@@ -87,6 +87,7 @@ export const tasks = pgTable("tasks", {
   priority: text("priority", { enum: ["low", "medium", "high", "urgent", "critical"] }).default("medium").notNull(),
   assignedTo: text("assigned_to").notNull().references(() => users.id),
   projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  createdBy: text("created_by").references(() => users.id),
   dueDate: timestamp("due_date").notNull(),
   isLearningTask: boolean("is_learning_task").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),

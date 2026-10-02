@@ -15,6 +15,8 @@
  * 9. Prints full SQL evidence and API responses
  */
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+
 import { neon } from '@neondatabase/serverless';
 import { app } from '../backend/src/app';
 import { seedPoloTechnologies } from '../backend/packages/database/seed';
@@ -185,7 +187,7 @@ async function verifyProductionDataPersistence() {
   if (sql) {
     const [teamRow] = await sql`SELECT id, name, workspace_id, lead_id FROM teams WHERE id = ${createdTeamId}`;
     const [projRow] = await sql`SELECT id, title, workspace_id, created_by FROM projects WHERE id = ${createdProjectId}`;
-    const [taskRow] = await sql`SELECT id, title, workspace_id, project_id, assigned_to FROM tasks WHERE id = ${createdTaskId}`;
+    const [taskRow] = await sql`SELECT id, title, workspace_id, project_id, team_id, assigned_to, created_by, is_learning_task, status, priority FROM tasks WHERE id = ${createdTaskId}`;
     const [wikiRow] = await sql`SELECT id, title, workspace_id, created_by FROM wiki_pages WHERE id = ${createdWikiId}`;
     const [timeRow] = await sql`SELECT id, workspace_id, task_id, duration_minutes FROM task_time_entries WHERE id = ${createdTimeEntryId}`;
 
@@ -308,7 +310,7 @@ async function verifyProductionDataPersistence() {
   if (sql) {
     const [teamRow2] = await sql`SELECT id, name, workspace_id, lead_id FROM teams WHERE id = ${createdTeamId}`;
     const [projRow2] = await sql`SELECT id, title, workspace_id, created_by FROM projects WHERE id = ${createdProjectId}`;
-    const [taskRow2] = await sql`SELECT id, title, workspace_id, project_id, assigned_to FROM tasks WHERE id = ${createdTaskId}`;
+    const [taskRow2] = await sql`SELECT id, title, workspace_id, project_id, team_id, assigned_to, created_by, is_learning_task, status, priority FROM tasks WHERE id = ${createdTaskId}`;
     const [wikiRow2] = await sql`SELECT id, title, workspace_id, created_by FROM wiki_pages WHERE id = ${createdWikiId}`;
     const [timeRow2] = await sql`SELECT id, workspace_id, task_id, duration_minutes FROM task_time_entries WHERE id = ${createdTimeEntryId}`;
 

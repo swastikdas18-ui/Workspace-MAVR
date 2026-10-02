@@ -168,8 +168,9 @@ export class TaskRepository {
           });
 
           // RBAC Filtering
+          const initialCount = taskRows.length;
           if (role === 'intern' && userId) {
-            taskRows = taskRows.filter((t) => t.assignedTo === userId);
+            taskRows = taskRows.filter((t) => t.assignedTo === userId && t.isLearningTask !== false);
           } else if (role === 'employee' && userId) {
             const memberRows = await db
               .select()
@@ -188,10 +189,30 @@ export class TaskRepository {
               );
             ownedProjects.forEach((p) => memberProjectIds.add(p.id));
 
+            // Fetch user's teams in workspace to ensure team tasks are visible
+            const teamMemberRows = await db
+              .select()
+              .from(schema.teamMembers)
+              .where(eq(schema.teamMembers.userId, userId));
+            const userTeamIds = new Set(teamMemberRows.map((tm) => tm.teamId));
+
+            const ledTeams = await db
+              .select()
+              .from(schema.teams)
+              .where(
+                and(
+                  eq(schema.teams.workspaceId, workspaceId),
+                  eq(schema.teams.leadId, userId)
+                )
+              );
+            ledTeams.forEach((t) => userTeamIds.add(t.id));
+
             taskRows = taskRows.filter((t) => {
               const isAssigned = t.assignedTo === userId;
+              const isCreator = (t as any).createdBy === userId;
               const isProjectMember = t.projectId ? memberProjectIds.has(t.projectId) : false;
-              return isAssigned || isProjectMember;
+              const isTeamTask = (t as any).teamId ? userTeamIds.has((t as any).teamId) : false;
+              return isAssigned || isCreator || isProjectMember || isTeamTask;
             });
           }
 
@@ -219,6 +240,14 @@ export class TaskRepository {
             taskRows = taskRows.filter((t) => (t as any).isBlocked === isBlocked);
           }
 
+          console.log('[TaskRepository.listTasks Postgres]', {
+            workspaceId,
+            userId,
+            role,
+            totalFetched: initialCount,
+            returnedCount: taskRows.length,
+          });
+
           return taskRows.map((t) => ({
             id: t.id,
             title: t.title,
@@ -233,6 +262,7 @@ export class TaskRepository {
             workspaceId: t.workspaceId || workspaceId,
             departmentId: (t as any).departmentId || null,
             teamId: (t as any).teamId || null,
+            createdBy: (t as any).createdBy || undefined,
             dueDate: t.dueDate,
             startedAt: (t as any).startedAt || null,
             completedAt: (t as any).completedAt || null,
@@ -253,8 +283,8 @@ export class TaskRepository {
           return [];
         }
       }
-    } catch {
-      // Fallback to in-memory
+    } catch (err) {
+      console.error('[TaskRepository.listTasks Error, falling back to in-memory]', err);
     }
 
     // In-memory fallback
@@ -263,7 +293,7 @@ export class TaskRepository {
     );
 
     if (role === 'intern' && userId) {
-      allTasks = allTasks.filter((t) => t.assignedTo === userId);
+      allTasks = allTasks.filter((t) => t.assignedTo === userId && t.isLearningTask !== false);
     } else if (role === 'employee' && userId) {
       const userProjectIds = new Set(
         Array.from(inMemoryDb.projectMembers.values())
@@ -418,6 +448,7 @@ export class TaskRepository {
             workspaceId: task.workspaceId || workspaceId,
             departmentId: (task as any).departmentId || null,
             teamId: (task as any).teamId || null,
+            createdBy: (task as any).createdBy || undefined,
             dueDate: task.dueDate,
             startedAt: (task as any).startedAt || null,
             completedAt: (task as any).completedAt || null,
@@ -436,8 +467,8 @@ export class TaskRepository {
           };
         }
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.error('[TaskRepository.getTaskById Error, falling back to in-memory]', err);
     }
 
     const t = inMemoryDb.tasks.get(taskId);
@@ -542,6 +573,7 @@ export class TaskRepository {
           departmentId: data.departmentId || null,
           workspaceId,
           teamId: data.teamId || null,
+          createdBy: userId,
           dueDate,
           isBlocked: false,
           blockedReason: null,
@@ -552,9 +584,23 @@ export class TaskRepository {
           linkedMessageId: data.linkedMessageId || null,
           createdAt: now,
         });
+
+        console.log('[TaskRepository.createTask Postgres Insert Success]', {
+          taskId,
+          workspaceId,
+          userId,
+          assignedTo,
+          isLearningTask: data.isLearningTask || false,
+        });
       }
-    } catch {
-      // In memory already saved
+    } catch (err) {
+      console.error('[TaskRepository.createTask DB Insert Error, saved to in-memory]', {
+        taskId,
+        workspaceId,
+        userId,
+        assignedTo,
+        error: err,
+      });
     }
 
     // Log creation activity
@@ -695,8 +741,12 @@ export class TaskRepository {
             );
         }
       }
-    } catch {
-      // In-memory handled
+    } catch (err) {
+      console.error('[TaskRepository.updateTask DB Update Error, saved to in-memory]', {
+        taskId,
+        workspaceId,
+        error: err,
+      });
     }
 
     const commentsCount = Array.from(inMemoryDb.taskComments.values()).filter(
@@ -779,8 +829,12 @@ export class TaskRepository {
             )
           );
       }
-    } catch {
-      // In-memory handled
+    } catch (err) {
+      console.error('[TaskRepository.deleteTask DB Delete Error, memory cleaned]', {
+        taskId,
+        workspaceId,
+        error: err,
+      });
     }
 
     return true;

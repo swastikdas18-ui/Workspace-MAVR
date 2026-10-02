@@ -65,6 +65,20 @@ async function verifyProductionDatabase() {
     console.log(`Workflow columns audit: ${missingWorkflowCols.length === 0 ? '✅ ALL PRESENT' : '❌ MISSING: ' + missingWorkflowCols.join(', ')}`);
     console.log('--------------------------------------------------------------------------------');
 
+    // Schema Column Audit: tasks table
+    const taskColumns = await sql`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'tasks' 
+      ORDER BY ordinal_position;
+    `;
+    console.log('TASKS TABLE COLUMNS:');
+    console.table(taskColumns);
+    const requiredTaskCols = ['created_by', 'assigned_to', 'project_id', 'team_id', 'workspace_id', 'is_learning_task', 'due_date', 'status', 'priority'];
+    const missingTaskCols = requiredTaskCols.filter((col) => !taskColumns.some((c: any) => c.column_name === col));
+    console.log(`Tasks columns audit: ${missingTaskCols.length === 0 ? '✅ ALL PRESENT' : '❌ MISSING: ' + missingTaskCols.join(', ')}`);
+    console.log('--------------------------------------------------------------------------------');
+
     // 2. Query Table Row Counts
     const usersCount = await sql`SELECT COUNT(*)::int AS count FROM users;`;
     const workspacesCount = await sql`SELECT COUNT(*)::int AS count FROM workspaces;`;
@@ -77,10 +91,13 @@ async function verifyProductionDatabase() {
     const teamMembersCount = await sql`SELECT COUNT(*)::int AS count FROM team_members;`;
     const sessionsCount = await sql`SELECT COUNT(*)::int AS count FROM sessions;`;
 
+    const tasksCount = await sql`SELECT COUNT(*)::int AS count FROM tasks;`;
+
     console.log(`SELECT COUNT(*) FROM users;             -> ${usersCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM workspaces;        -> ${workspacesCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM teams;             -> ${teamsCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM projects;          -> ${projectsCount[0]?.count}`);
+    console.log(`SELECT COUNT(*) FROM tasks;             -> ${tasksCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM project_members;   -> ${projectMembersCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM project_teams;     -> ${projectTeamsCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM project_updates;   -> ${projectUpdatesCount[0]?.count}`);
@@ -88,6 +105,13 @@ async function verifyProductionDatabase() {
     console.log(`SELECT COUNT(*) FROM team_members;      -> ${teamMembersCount[0]?.count}`);
     console.log(`SELECT COUNT(*) FROM sessions;          -> ${sessionsCount[0]?.count}`);
     console.log('--------------------------------------------------------------------------------');
+
+    if (tasksCount[0]?.count > 0) {
+      console.log('✅ PASS: Tasks exist in PostgreSQL database (tasks > 0)');
+      const taskRows = await sql`SELECT id, title, status, priority, created_by, assigned_to, project_id, team_id, is_learning_task FROM tasks LIMIT 10;`;
+      console.log('\nSample Tasks in PostgreSQL:');
+      console.table(taskRows);
+    }
 
     if (usersCount[0]?.count > 0) {
       console.log('✅ PASS: Users exist in PostgreSQL database (users > 0)');

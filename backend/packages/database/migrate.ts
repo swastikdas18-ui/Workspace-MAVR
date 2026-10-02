@@ -261,6 +261,7 @@ export async function runMigrations() {
         project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
         team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+        created_by TEXT REFERENCES users(id),
         due_date TIMESTAMP WITH TIME ZONE NOT NULL,
         started_at TIMESTAMP WITH TIME ZONE,
         completed_at TIMESTAMP WITH TIME ZONE,
@@ -272,6 +273,8 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by TEXT REFERENCES users(id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by);`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_department_id ON tasks(department_id);`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS story_points INTEGER DEFAULT 1;`;

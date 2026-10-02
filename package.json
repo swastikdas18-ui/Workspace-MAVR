@@ -14,6 +14,7 @@
     "db:migrate": "tsx backend/packages/database/migrate.ts",
     "db:seed": "tsx scripts/seed-production.ts",
     "db:verify": "tsx scripts/verify-production-db.ts",
+    "task:verify": "tsx scripts/verify-tasks-neon-production-e2e.ts",
     "db:recovery": "tsx scripts/execute-neon-recovery.ts",
     "auth:verify": "tsx scripts/verify-live-auth.ts",
     "preview": "vite preview",

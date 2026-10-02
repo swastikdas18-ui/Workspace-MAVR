@@ -38,6 +38,8 @@ import { runWorkspaceMemberRemovalTests } from './workspace-member-removal.test'
 import { runDepartmentMemberManagementTests } from './department-member-management.test';
 import { runDepartmentLeadRbacTests } from './department-lead-rbac.test';
 import { runProjectMemberValidationTests } from './project-member-validation.test';
+import { runTaskPersistenceLifecycleTests } from './task-persistence-lifecycle.test';
+import { runTaskProductionPersistenceAudit } from './task-production-persistence-audit.test';
 
 async function main() {
   try {
@@ -118,6 +120,10 @@ async function main() {
     await runDepartmentLeadRbacTests();
     console.log('\n>>> Starting Suite 42: Workspace OS — Project Member Validation & Referential Integrity');
     await runProjectMemberValidationTests();
+    console.log('\n>>> Starting Suite 43: Workspace OS — Task Persistence & RBAC Scoping Lifecycle');
+    await runTaskPersistenceLifecycleTests();
+    console.log('\n>>> Starting Suite 44: Workspace OS — Production Persistence Audit (Tasks Module)');
+    await runTaskProductionPersistenceAudit();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

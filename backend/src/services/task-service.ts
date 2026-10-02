@@ -319,6 +319,8 @@ export class TaskService {
         team_id: t.teamId || null,
         teamId: t.teamId || null,
         workspace_id: t.workspaceId,
+        created_by: t.createdBy || null,
+        createdBy: t.createdBy || null,
         due_date: t.dueDate ? new Date(t.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
         started_at: t.startedAt ? new Date(t.startedAt).toISOString() : null,
         completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : null,
@@ -439,6 +441,18 @@ export class TaskService {
     const rawStatus = input.status || 'todo';
     const status = rawStatus === 'completed' ? 'done' : rawStatus;
 
+    // If isLearningTask is not explicitly set, determine whether assignee is an intern or if caller assigned to intern
+    let isLearningTask = input.isLearningTask ?? input.is_learning_task;
+    if (isLearningTask === undefined) {
+      const assigneeMap = await this.resolveAssigneeMap([assignedTo]);
+      const assigneeUser = assigneeMap.get(assignedTo);
+      if (assigneeUser && (assigneeUser as any).role === 'intern') {
+        isLearningTask = true;
+      } else {
+        isLearningTask = false;
+      }
+    }
+
     const task = await TaskRepository.createTask(workspaceId, userId, {
       title: input.title.trim(),
       description: input.description?.trim() || '',
@@ -451,7 +465,7 @@ export class TaskService {
       teamId: input.teamId || input.team_id,
       departmentId: taskDepartmentId,
       dueDate,
-      isLearningTask: input.isLearningTask || input.is_learning_task || false,
+      isLearningTask,
       sourceMessageId: input.sourceMessageId || input.source_message_id || null,
       sourceConversationId: input.sourceConversationId || input.source_conversation_id || null,
       linkedConversationId: input.linkedConversationId || input.linked_conversation_id || null,
@@ -515,6 +529,8 @@ export class TaskService {
       team_id: task.teamId || null,
       teamId: task.teamId || null,
       workspace_id: task.workspaceId,
+      created_by: task.createdBy || null,
+      createdBy: task.createdBy || null,
       due_date: task.dueDate.toISOString().substring(0, 10),
       created_at: task.createdAt.toISOString().substring(0, 10),
       createdAt: task.createdAt.toISOString().substring(0, 10),
@@ -616,6 +632,8 @@ export class TaskService {
       team_id: existing.teamId || null,
       teamId: existing.teamId || null,
       workspace_id: existing.workspaceId,
+      created_by: existing.createdBy || null,
+      createdBy: existing.createdBy || null,
       due_date: existing.dueDate ? new Date(existing.dueDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
       started_at: existing.startedAt ? new Date(existing.startedAt).toISOString() : null,
       completed_at: existing.completedAt ? new Date(existing.completedAt).toISOString() : null,

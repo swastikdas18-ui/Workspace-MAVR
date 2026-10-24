@@ -283,11 +283,18 @@ export class TaskRepository {
           return [];
         }
       }
-    } catch (err) {
-      console.error('[TaskRepository.listTasks Error, falling back to in-memory]', err);
+    } catch (err: any) {
+      console.error('[TaskRepository.listTasks Error]', {
+        workspaceId,
+        userId: options?.userId,
+        error: err?.message || err,
+      });
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to query tasks from PostgreSQL: ${err?.message || err}`);
+      }
     }
 
-    // In-memory fallback
+    // In-memory fallback (strictly reserved for test isolation / offline development)
     let allTasks = Array.from(inMemoryDb.tasks.values()).filter(
       (t) => t.workspaceId === workspaceId
     );
@@ -467,8 +474,15 @@ export class TaskRepository {
           };
         }
       }
-    } catch (err) {
-      console.error('[TaskRepository.getTaskById Error, falling back to in-memory]', err);
+    } catch (err: any) {
+      console.error('[TaskRepository.getTaskById Error]', {
+        taskId,
+        workspaceId,
+        error: err?.message || err,
+      });
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to query task from PostgreSQL: ${err?.message || err}`);
+      }
     }
 
     const t = inMemoryDb.tasks.get(taskId);
@@ -554,8 +568,6 @@ export class TaskRepository {
       createdAt: now,
     };
 
-    inMemoryDb.tasks.set(taskId, newTaskRecord);
-
     try {
       const db = getDb();
       if (db) {
@@ -593,15 +605,20 @@ export class TaskRepository {
           isLearningTask: data.isLearningTask || false,
         });
       }
-    } catch (err) {
-      console.error('[TaskRepository.createTask DB Insert Error, saved to in-memory]', {
+    } catch (err: any) {
+      console.error('[TaskRepository.createTask DB Insert Error]', {
         taskId,
         workspaceId,
         userId,
         assignedTo,
-        error: err,
+        error: err?.message || err,
       });
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to persist task to PostgreSQL: ${err?.message || err}`);
+      }
     }
+
+    inMemoryDb.tasks.set(taskId, newTaskRecord);
 
     // Log creation activity
     await this.addTaskUpdate(taskId, userId, {
@@ -647,7 +664,7 @@ export class TaskRepository {
     taskId: string,
     updates: UpdateTaskParams
   ): Promise<TaskEntity | null> {
-    const existing = inMemoryDb.tasks.get(taskId);
+    let existing = inMemoryDb.tasks.get(taskId);
     if (!existing || existing.workspaceId !== workspaceId) {
       try {
         const db = getDb();
@@ -662,10 +679,39 @@ export class TaskRepository {
               )
             );
           if (!dbTask) return null;
+          existing = {
+            id: dbTask.id,
+            title: dbTask.title,
+            description: dbTask.description || '',
+            status: dbTask.status,
+            priority: dbTask.priority,
+            storyPoints: (dbTask as any).storyPoints || 1,
+            estimatedHours: (dbTask as any).estimatedHours || null,
+            actualHours: (dbTask as any).actualHours || 0,
+            assignedTo: dbTask.assignedTo,
+            projectId: dbTask.projectId,
+            departmentId: (dbTask as any).departmentId || null,
+            teamId: (dbTask as any).teamId || null,
+            workspaceId: dbTask.workspaceId || workspaceId,
+            dueDate: dbTask.dueDate,
+            startedAt: (dbTask as any).startedAt || null,
+            completedAt: (dbTask as any).completedAt || null,
+            reviewedBy: (dbTask as any).reviewedBy || null,
+            reviewedAt: (dbTask as any).reviewedAt || null,
+            blockedReason: (dbTask as any).blockedReason || null,
+            isBlocked: (dbTask as any).isBlocked || false,
+            isLearningTask: dbTask.isLearningTask || false,
+            createdAt: dbTask.createdAt,
+          };
+          inMemoryDb.tasks.set(taskId, existing);
         } else {
           return null;
         }
-      } catch {
+      } catch (err: any) {
+        console.error('[TaskRepository.updateTask lookup error]', { taskId, workspaceId, error: err?.message || err });
+        if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+          throw new Error(`Failed to query task from PostgreSQL: ${err?.message || err}`);
+        }
         return null;
       }
     }
@@ -698,8 +744,6 @@ export class TaskRepository {
       isBlocked: updates.isBlocked !== undefined ? updates.isBlocked : (existing?.isBlocked || false),
       isLearningTask: updates.isLearningTask !== undefined ? updates.isLearningTask : existing?.isLearningTask || false,
     };
-
-    inMemoryDb.tasks.set(taskId, updated);
 
     try {
       const db = getDb();
@@ -741,13 +785,18 @@ export class TaskRepository {
             );
         }
       }
-    } catch (err) {
-      console.error('[TaskRepository.updateTask DB Update Error, saved to in-memory]', {
+    } catch (err: any) {
+      console.error('[TaskRepository.updateTask DB Update Error]', {
         taskId,
         workspaceId,
-        error: err,
+        error: err?.message || err,
       });
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to update task in PostgreSQL: ${err?.message || err}`);
+      }
     }
+
+    inMemoryDb.tasks.set(taskId, updated);
 
     const commentsCount = Array.from(inMemoryDb.taskComments.values()).filter(
       (c) => c.taskId === taskId
@@ -793,17 +842,6 @@ export class TaskRepository {
    * Delete task and associated comments & updates
    */
   static async deleteTask(workspaceId: string, taskId: string): Promise<boolean> {
-    const existing = inMemoryDb.tasks.get(taskId);
-    if (existing && existing.workspaceId === workspaceId) {
-      inMemoryDb.tasks.delete(taskId);
-      Array.from(inMemoryDb.taskComments.entries()).forEach(([id, c]) => {
-        if (c.taskId === taskId) inMemoryDb.taskComments.delete(id);
-      });
-      Array.from(inMemoryDb.taskUpdates.entries()).forEach(([id, u]) => {
-        if (u.taskId === taskId) inMemoryDb.taskUpdates.delete(id);
-      });
-    }
-
     try {
       const db = getDb();
       if (db) {
@@ -829,11 +867,25 @@ export class TaskRepository {
             )
           );
       }
-    } catch (err) {
-      console.error('[TaskRepository.deleteTask DB Delete Error, memory cleaned]', {
+    } catch (err: any) {
+      console.error('[TaskRepository.deleteTask DB Delete Error]', {
         taskId,
         workspaceId,
-        error: err,
+        error: err?.message || err,
+      });
+      if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+        throw new Error(`Failed to delete task from PostgreSQL: ${err?.message || err}`);
+      }
+    }
+
+    const existing = inMemoryDb.tasks.get(taskId);
+    if (existing && existing.workspaceId === workspaceId) {
+      inMemoryDb.tasks.delete(taskId);
+      Array.from(inMemoryDb.taskComments.entries()).forEach(([id, c]) => {
+        if (c.taskId === taskId) inMemoryDb.taskComments.delete(id);
+      });
+      Array.from(inMemoryDb.taskUpdates.entries()).forEach(([id, u]) => {
+        if (u.taskId === taskId) inMemoryDb.taskUpdates.delete(id);
       });
     }
 

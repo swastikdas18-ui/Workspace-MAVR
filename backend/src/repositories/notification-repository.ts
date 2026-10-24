@@ -16,6 +16,7 @@ export interface NotificationEntity {
   priority: NotificationPriority;
   entityType?: string | null;
   entityId?: string | null;
+  link?: string | null;
   isRead: boolean;
   archived: boolean;
   readAt?: Date | null;

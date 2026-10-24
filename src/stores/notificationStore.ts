@@ -218,8 +218,8 @@ class NotificationStore {
   public async syncLatest(): Promise<void> {
     try {
       // 1. Fetch unread count
-      const countRes = await api.get('/api/notifications/unread-count').catch(() => null);
-      const serverUnreadCount = countRes?.count !== undefined ? countRes.count : null;
+      const countRes = await api.getNotificationUnreadCount().catch(() => null);
+      const serverUnreadCount = countRes?.count !== undefined ? countRes.count : (countRes?.unreadCount !== undefined ? countRes.unreadCount : null);
 
       // 2. Fetch recent notifications
       const notifsRes = await api.getNotifications({ limit: 50 }).catch(() => null);

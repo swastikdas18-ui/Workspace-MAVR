@@ -323,7 +323,7 @@ export class TeamService {
     // Emit event: Member Added (triggers automation engine, activity log, eventbus)
     try {
       await EventService.emitMemberAdded(
-        { workspaceId, actorId: actorId || userId },
+        { workspaceId, actorId: actorId || targetUserId },
         {
           teamId,
           teamName: existing.name,

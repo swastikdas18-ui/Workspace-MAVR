@@ -40,6 +40,7 @@ taskRouter.get('/', async (c) => {
     const isBlocked = isBlockedQuery !== undefined ? isBlockedQuery === 'true' : undefined;
 
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const start = Date.now();
     const tasks = await TaskService.getTasks(workspace.id, user.id, role, {
       projectId,
       teamId,
@@ -49,9 +50,25 @@ taskRouter.get('/', async (c) => {
       isBlocked,
     });
 
+    console.info('[Tasks API] List tasks', {
+      op: 'list_tasks',
+      workspaceId: workspace.id,
+      userId: user.id,
+      role,
+      count: tasks.length,
+      durationMs: Date.now() - start,
+    });
+
     return c.json({ tasks }, 200);
   } catch (err: any) {
     const status = err.status || 500;
+    console.error('[Tasks API Error] List tasks failed', {
+      op: 'list_tasks',
+      workspaceId: c.get('workspace')?.id,
+      userId: c.get('user')?.id,
+      errorCode: err.code || 'INTERNAL_SERVER_ERROR',
+      status,
+    });
     return c.json(
       { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get tasks.' } },
       status
@@ -91,11 +108,29 @@ taskRouter.post('/', validateBody(createTaskSchema), async (c) => {
     }
 
     const body = await c.req.json();
+    const start = Date.now();
 
     const task = await TaskService.createTask(workspace.id, user.id, role, body);
+
+    console.info('[Tasks API] Created task', {
+      op: 'create_task',
+      workspaceId: workspace.id,
+      taskId: task.id,
+      userId: user.id,
+      role,
+      durationMs: Date.now() - start,
+    });
+
     return c.json({ task }, 201);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : 400);
+    console.error('[Tasks API Error] Create task failed', {
+      op: 'create_task',
+      workspaceId: c.get('workspace')?.id,
+      userId: c.get('user')?.id,
+      errorCode: err.code || 'BAD_REQUEST',
+      status,
+    });
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to create task.' } },
       status
@@ -122,6 +157,14 @@ taskRouter.get('/:id', async (c) => {
     return c.json({ task }, 200);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    console.error('[Tasks API Error] Get task failed', {
+      op: 'get_task',
+      workspaceId: c.get('workspace')?.id,
+      taskId: c.req.param('id'),
+      userId: c.get('user')?.id,
+      errorCode: err.code || 'BAD_REQUEST',
+      status,
+    });
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to fetch task.' } },
       status
@@ -144,11 +187,30 @@ const updateTaskHandler = async (c: any) => {
     const taskId = c.req.param('id');
     const body = await c.req.json();
     const role = normalizeRole(workspace.roleInWorkspace || user.role);
+    const start = Date.now();
 
     const task = await TaskService.updateTask(workspace.id, user.id, role, taskId, body);
+
+    console.info('[Tasks API] Updated task', {
+      op: 'update_task',
+      workspaceId: workspace.id,
+      taskId,
+      userId: user.id,
+      role,
+      durationMs: Date.now() - start,
+    });
+
     return c.json({ task }, 200);
   } catch (err: any) {
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    console.error('[Tasks API Error] Update task failed', {
+      op: 'update_task',
+      workspaceId: c.get('workspace')?.id,
+      taskId: c.req.param('id'),
+      userId: c.get('user')?.id,
+      errorCode: err.code || 'VALIDATION_ERROR',
+      status,
+    });
     return c.json(
       { error: { code: err.code || 'VALIDATION_ERROR', message: err.message || 'Failed to update task.' } },
       status
@@ -377,12 +439,29 @@ taskRouter.delete('/:id', async (c) => {
     }
 
     const taskId = c.req.param('id');
+    const start = Date.now();
     await TaskService.deleteTask(workspace.id, user.id, role, taskId);
+
+    console.info('[Tasks API] Deleted task', {
+      op: 'delete_task',
+      workspaceId: workspace.id,
+      taskId,
+      userId: user.id,
+      role,
+      durationMs: Date.now() - start,
+    });
 
     return c.json({ success: true, message: 'Task deleted successfully.' }, 200);
   } catch (err: any) {
-    console.log('[DELETE /api/tasks/:id ERROR]', err?.code, err?.status, err?.message);
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : err.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    console.error('[Tasks API Error] Delete task failed', {
+      op: 'delete_task',
+      workspaceId: c.get('workspace')?.id,
+      taskId: c.req.param('id'),
+      userId: c.get('user')?.id,
+      errorCode: err.code || 'BAD_REQUEST',
+      status,
+    });
     return c.json(
       { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to delete task.' } },
       status

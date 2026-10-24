@@ -44,6 +44,7 @@ import { runNotificationSystemTests } from './notification-system.test';
 import { runRealtimeNotificationTests } from './realtime-notification.test';
 import { runNotificationSystemQaSuite } from './notification-qa.test';
 import { runNotificationSystemUatSuite } from './notification-uat.test';
+import { runTaskColdStartPersistenceTests } from './task-cold-start-persistence.test';
 
 async function main() {
   try {
@@ -136,6 +137,8 @@ async function main() {
     await runNotificationSystemQaSuite();
     console.log('\n>>> Starting Suite 48: Workspace OS — Notification System UAT & Final Validation Suite');
     await runNotificationSystemUatSuite();
+    console.log('\n>>> Starting Suite 49: Workspace OS — Task Cold-Start Persistence & Data Consistency Suite');
+    await runTaskColdStartPersistenceTests();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

@@ -62,6 +62,8 @@ export async function validateDatabaseSchema(databaseUrl?: string): Promise<{ va
         'title',
         'workspace_id',
         'project_id',
+        'assigned_to',
+        'created_by',
         'status',
         'priority',
         'story_points',

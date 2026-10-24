@@ -123,16 +123,35 @@ taskRouter.post('/', validateBody(createTaskSchema), async (c) => {
 
     return c.json({ task }, 201);
   } catch (err: any) {
-    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : 400);
+    const correlationId = err.correlationId || c.res.headers.get('X-Request-ID') || ('req-' + crypto.randomUUID());
+    const isDbError = err.code === 'DATABASE_ERROR' || (err.message && err.message.includes('insert into'));
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : (isDbError ? 500 : 400));
+
     console.error('[Tasks API Error] Create task failed', {
-      op: 'create_task',
+      op: 'task.create',
+      correlationId,
       workspaceId: c.get('workspace')?.id,
       userId: c.get('user')?.id,
-      errorCode: err.code || 'BAD_REQUEST',
+      errorCode: err.code || (isDbError ? 'DATABASE_ERROR' : 'BAD_REQUEST'),
+      sqlState: err.sqlState || err.cause?.code || null,
+      constraint: err.constraint || err.cause?.constraint || null,
       status,
+      internalMessage: err.cause?.message || err.message,
     });
+
+    // Sanitized client message - NEVER expose raw SQL queries or schema parameters
+    const clientMessage = isDbError
+      ? `Failed to persist task to database. Please try again or reference correlation ID: ${correlationId}`
+      : (err.message && !err.message.includes('insert into') ? err.message : 'Failed to create task.');
+
     return c.json(
-      { error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to create task.' } },
+      {
+        error: {
+          code: isDbError ? 'DATABASE_ERROR' : (err.code || 'BAD_REQUEST'),
+          message: clientMessage,
+          correlationId,
+        },
+      },
       status
     );
   }

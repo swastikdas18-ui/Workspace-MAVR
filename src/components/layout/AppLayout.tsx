@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Copy, CheckCircle2, UserPlus } from 'lucide-react';
 import { getFrontendUrl, api } from '../../lib/api';
 import { UserRole, WorkspaceInvite, TaskPriority, Department } from '../../types';
+import { AssigneePicker } from '../tasks/AssigneePicker';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -745,16 +746,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-stone-700 font-medium mb-1">Assignee</label>
-                    <select
-                      value={taskAssigneeId}
-                      onChange={(e) => setTaskAssigneeId(e.target.value)}
-                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] rounded-xl p-2.5 text-stone-900 focus:outline-none focus:border-amber-600 transition-colors"
-                    >
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                      ))}
-                    </select>
+                    <AssigneePicker
+                      users={users}
+                      selectedUserId={taskAssigneeId}
+                      onSelectUser={(newAssigneeId) => setTaskAssigneeId(newAssigneeId)}
+                      label="Assignee"
+                      placeholder="Search member..."
+                      allowClear={false}
+                    />
                   </div>
                 </div>
 

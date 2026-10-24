@@ -822,9 +822,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         projectId: data.project_id,
         dueDate: data.due_date,
         isLearningTask: data.is_learning_task,
+        storyPoints: data.story_points ?? (data as any).storyPoints,
+        estimatedHours: data.estimated_hours ?? (data as any).estimatedHours,
       };
       if (data.department_id || data.departmentId) {
         payload.departmentId = data.department_id || data.departmentId;
+      }
+      if (data.team_id || (data as any).teamId) {
+        payload.teamId = data.team_id || (data as any).teamId;
       }
       const res = await api.createTask(payload);
       if (res.task) {

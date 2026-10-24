@@ -542,15 +542,26 @@ export class TaskRepository {
     const assignedTo = data.assignedTo && data.assignedTo.trim() ? data.assignedTo.trim() : userId;
     const initialStatus = data.status === 'completed' ? 'done' : (data.status || 'todo');
 
+    // Coerce numeric fields to integers for PostgreSQL integer column compatibility
+    const storyPoints = data.storyPoints !== undefined && data.storyPoints !== null
+      ? (Math.round(Number(data.storyPoints)) || 1)
+      : 1;
+    const estimatedHours = data.estimatedHours !== undefined && data.estimatedHours !== null && !isNaN(Number(data.estimatedHours))
+      ? Math.round(Number(data.estimatedHours))
+      : null;
+    const actualHours = data.actualHours !== undefined && data.actualHours !== null && !isNaN(Number(data.actualHours))
+      ? Math.round(Number(data.actualHours))
+      : 0;
+
     const newTaskRecord = {
       id: taskId,
       title: data.title,
       description: data.description || '',
       status: initialStatus,
       priority: data.priority || 'medium',
-      storyPoints: data.storyPoints || 1,
-      estimatedHours: data.estimatedHours || null,
-      actualHours: data.actualHours || 0,
+      storyPoints,
+      estimatedHours,
+      actualHours,
       assignedTo,
       projectId: data.projectId,
       departmentId: data.departmentId || null,
@@ -577,9 +588,9 @@ export class TaskRepository {
           description: data.description || '',
           status: initialStatus,
           priority: data.priority || 'medium',
-          storyPoints: data.storyPoints || 1,
-          estimatedHours: data.estimatedHours || null,
-          actualHours: data.actualHours || 0,
+          storyPoints,
+          estimatedHours,
+          actualHours,
           assignedTo,
           projectId: data.projectId,
           departmentId: data.departmentId || null,
@@ -606,15 +617,36 @@ export class TaskRepository {
         });
       }
     } catch (err: any) {
+      const correlationId = 'task-err-' + crypto.randomUUID();
+      const sqlState = err?.code || err?.routine || 'UNKNOWN_PG_ERROR';
+      const constraint = err?.constraint || null;
+      const relation = err?.table || 'tasks';
+
       console.error('[TaskRepository.createTask DB Insert Error]', {
+        operation: 'task.create',
+        correlationId,
+        sqlState,
+        constraint,
+        relation,
         taskId,
         workspaceId,
         userId,
         assignedTo,
+        failedPhase: 'insert_execution',
         error: err?.message || err,
       });
+
       if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
-        throw new Error(`Failed to persist task to PostgreSQL: ${err?.message || err}`);
+        const customError: any = new Error(
+          `Failed to persist task to database. Please quote correlation ID: ${correlationId}`
+        );
+        customError.code = 'DATABASE_ERROR';
+        customError.sqlState = sqlState;
+        customError.constraint = constraint;
+        customError.table = relation;
+        customError.correlationId = correlationId;
+        customError.cause = err;
+        throw customError;
       }
     }
 
@@ -633,9 +665,9 @@ export class TaskRepository {
       description: data.description || '',
       status: initialStatus,
       priority: data.priority || 'medium',
-      storyPoints: data.storyPoints || 1,
-      estimatedHours: data.estimatedHours || null,
-      actualHours: data.actualHours || 0,
+      storyPoints,
+      estimatedHours,
+      actualHours,
       assignedTo,
       projectId: data.projectId,
       departmentId: data.departmentId || null,

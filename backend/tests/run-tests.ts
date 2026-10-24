@@ -45,6 +45,8 @@ import { runRealtimeNotificationTests } from './realtime-notification.test';
 import { runNotificationSystemQaSuite } from './notification-qa.test';
 import { runNotificationSystemUatSuite } from './notification-uat.test';
 import { runTaskColdStartPersistenceTests } from './task-cold-start-persistence.test';
+import { runEnterpriseTaskAssigneeUxTests } from './enterprise-task-assignee-ux.test';
+import { runTaskCreateSqlIntegrityTests } from './task-create-sql-integrity.test';
 
 async function main() {
   try {
@@ -139,6 +141,10 @@ async function main() {
     await runNotificationSystemUatSuite();
     console.log('\n>>> Starting Suite 49: Workspace OS — Task Cold-Start Persistence & Data Consistency Suite');
     await runTaskColdStartPersistenceTests();
+    console.log('\n>>> Starting Suite 50: Workspace OS — Enterprise Task Assignment UX & State Integrity Suite');
+    await runEnterpriseTaskAssigneeUxTests();
+    console.log('\n>>> Starting Suite 51: Workspace OS — Task Creation SQL & Referential Integrity Suite');
+    await runTaskCreateSqlIntegrityTests();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

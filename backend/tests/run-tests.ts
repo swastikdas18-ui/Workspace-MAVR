@@ -40,6 +40,10 @@ import { runDepartmentLeadRbacTests } from './department-lead-rbac.test';
 import { runProjectMemberValidationTests } from './project-member-validation.test';
 import { runTaskPersistenceLifecycleTests } from './task-persistence-lifecycle.test';
 import { runTaskProductionPersistenceAudit } from './task-production-persistence-audit.test';
+import { runNotificationSystemTests } from './notification-system.test';
+import { runRealtimeNotificationTests } from './realtime-notification.test';
+import { runNotificationSystemQaSuite } from './notification-qa.test';
+import { runNotificationSystemUatSuite } from './notification-uat.test';
 
 async function main() {
   try {
@@ -124,6 +128,14 @@ async function main() {
     await runTaskPersistenceLifecycleTests();
     console.log('\n>>> Starting Suite 44: Workspace OS — Production Persistence Audit (Tasks Module)');
     await runTaskProductionPersistenceAudit();
+    console.log('\n>>> Starting Suite 45: Workspace OS — Notification Foundation System (Phase 1)');
+    await runNotificationSystemTests();
+    console.log('\n>>> Starting Suite 46: Workspace OS — Real-Time Notification Delivery System (Phase 2)');
+    await runRealtimeNotificationTests();
+    console.log('\n>>> Starting Suite 47: Workspace OS — Notification System Production QA & Audit Suite');
+    await runNotificationSystemQaSuite();
+    console.log('\n>>> Starting Suite 48: Workspace OS — Notification System UAT & Final Validation Suite');
+    await runNotificationSystemUatSuite();
 
     console.log('\n🌟 ALL TEST SUITES PASSED CLEANLY 🌟\n');
     process.exit(0);

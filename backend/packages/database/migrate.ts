@@ -415,9 +415,11 @@ export async function runMigrations() {
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link TEXT;`;
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium';`;
     await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE;`;
+    await sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMP WITH TIME ZONE;`;
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_entity_id ON notifications(entity_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_archived ON notifications(archived);`;
 
     // 14b. Notification Preferences table

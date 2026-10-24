@@ -320,16 +320,36 @@ export class TeamService {
     const member = await TeamRepository.addMember(teamId, targetUserId, roleInTeam, workspaceId);
     const updatedTeam = await TeamRepository.getTeamById(workspaceId, teamId);
 
-    // Emit event: Member added to team
-    await EventService.emitMemberAdded(
-      { workspaceId, actorId: actorId || targetUserId },
-      {
-        teamId,
-        teamName: existing.name,
-        userId: targetUserId,
-        role: roleInTeam,
-      }
-    );
+    // Emit event: Member Added (triggers automation engine, activity log, eventbus)
+    try {
+      await EventService.emitMemberAdded(
+        { workspaceId, actorId: actorId || userId },
+        {
+          teamId,
+          teamName: existing.name,
+          userId: targetUserId,
+          role: roleInTeam,
+        }
+      );
+    } catch (e) {
+      console.warn('Failed to emit member added event:', e);
+    }
+
+    // Dispatch Notification: TEAM_MEMBER_ADDED
+    try {
+      const { NotificationService } = await import('./notification-service.js');
+      await NotificationService.createNotification({
+        workspaceId,
+        recipientId: targetUserId,
+        actorId: actorId || undefined,
+        type: 'team_member_added',
+        title: 'Added to Team',
+        message: `You were added to team "${existing.name}" as ${roleInTeam}.`,
+        entityType: 'team',
+        entityId: teamId,
+        link: '/people',
+      }).catch(() => null);
+    } catch {}
 
     return {
       member,
@@ -388,6 +408,22 @@ export class TeamService {
           role: 'member',
         }
       );
+
+      // Dispatch Notification: TEAM_MEMBER_ADDED
+      try {
+        const { NotificationService } = await import('./notification-service.js');
+        await NotificationService.createNotification({
+          workspaceId,
+          recipientId: uId,
+          actorId: actorId || undefined,
+          type: 'team_member_added',
+          title: 'Added to Team',
+          message: `You were added to team "${existing.name}".`,
+          entityType: 'team',
+          entityId: teamId,
+          link: '/people',
+        }).catch(() => null);
+      } catch {}
     }
 
     const updatedTeam = await TeamRepository.getTeamById(workspaceId, teamId);

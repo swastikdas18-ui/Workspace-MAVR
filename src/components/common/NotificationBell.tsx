@@ -7,22 +7,10 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { api } from '../../lib/api';
-import { realtimeClient } from '../../lib/realtime';
+import { notificationRealtime } from '../../services/notificationRealtime';
+import { notificationStore, NotificationItem } from '../../stores/notificationStore';
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  entityType?: string;
-  entityId?: string;
-  link?: string;
-  isRead: boolean;
-  archived?: boolean;
-  createdAt: string | Date;
-  metadata?: Record<string, any> | null;
-}
+interface Notification extends NotificationItem {}
 
 const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
   // People OS
@@ -125,73 +113,54 @@ function renderPriorityBadge(priority?: string) {
 }
 
 export const NotificationBell: React.FC = () => {
-  const { setActiveTab: setAppActiveTab } = useWorkspace();
+  const { setActiveTab: setAppActiveTab, addToast } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>(() => notificationStore.getState().notifications);
+  const [unreadCount, setUnreadCount] = useState<number>(() => notificationStore.getState().unreadCount);
   const [activeTab, setActiveTab] = useState<'unread' | 'read' | 'archived'>('unread');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'people' | 'projects' | 'tasks' | 'crm' | 'mentions'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [bellRinging, setBellRinging] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.getNotifications({ tab: activeTab });
-      if (res && res.notifications) {
-        setNotifications(
-          res.notifications.map((n: any) => ({
-            id: n.id,
-            title: n.title,
-            message: n.message,
-            type: n.type || 'system',
-            priority: n.priority || 'medium',
-            entityType: n.entityType || n.entity_type,
-            entityId: n.entityId || n.entity_id,
-            link: n.link,
-            isRead: n.isRead || n.read || false,
-            archived: n.archived || false,
-            createdAt: n.createdAt || n.created_at || new Date(),
-            metadata: n.metadata,
-          }))
-        );
-      }
-    } catch {
-      // Fallback
-    }
-  };
-
+  // Initialize store and listen to updates
   useEffect(() => {
-    fetchNotifications();
+    const unsubStoreInit = notificationStore.init();
 
-    // Instant real-time push notification receiver
-    const unsubNotif = realtimeClient.on('notification_created', (payload: any) => {
-      if (payload) {
-        const newNotif: Notification = {
-          id: payload.id || `notif-${Date.now()}`,
-          title: payload.title || 'Workspace Update',
-          message: payload.message || '',
-          type: payload.type || 'system',
-          priority: payload.priority || 'medium',
-          entityType: payload.entityType || payload.entity_type,
-          entityId: payload.entityId || payload.entity_id,
-          link: payload.link,
-          isRead: false,
-          archived: false,
-          createdAt: payload.createdAt || new Date(),
-          metadata: payload.metadata,
-        };
-        setNotifications((prev) => [newNotif, ...prev.filter((item) => item.id !== newNotif.id)]);
+    const unsubStoreListener = notificationStore.subscribe((state) => {
+      setNotifications(state.notifications);
+      setUnreadCount(state.unreadCount);
+    });
+
+    // Real-time notification receiver: trigger bell ring & toast popup
+    const unsubRealtimeNotif = notificationRealtime.onNotificationCreated((notif: any) => {
+      if (notif) {
+        // Trigger bell wiggle animation
+        setBellRinging(true);
+        setTimeout(() => setBellRinging(false), 1200);
+
+        // Toast popup: format Title & Message
+        if (addToast) {
+          addToast({
+            title: notif.title || 'Notification',
+            message: notif.message || '',
+            type: notif.type?.includes('reject') || notif.type?.includes('overdue') ? 'warning' : 'info',
+          });
+        }
       }
     });
 
-    const pollInterval = setInterval(fetchNotifications, 15000);
     return () => {
-      unsubNotif();
-      clearInterval(pollInterval);
+      unsubStoreInit();
+      unsubStoreListener();
+      unsubRealtimeNotif();
     };
-  }, [activeTab]);
+  }, [addToast]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead && !n.archived).length;
+  const fetchNotifications = async () => {
+    await notificationStore.syncLatest();
+  };
 
   const handleNavigateEntity = (notif: Notification) => {
     markAsRead(notif.id);
@@ -229,13 +198,11 @@ export const NotificationBell: React.FC = () => {
   }, [isOpen]);
 
   const markAsRead = async (id: string) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
-    await api.markNotificationRead(id).catch(() => null);
+    await notificationStore.markRead(id);
   };
 
   const markAllAsRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    await api.markAllNotificationsRead().catch(() => null);
+    await notificationStore.markAllRead();
   };
 
   const archiveNotification = async (id: string) => {
@@ -297,7 +264,12 @@ export const NotificationBell: React.FC = () => {
         className="relative p-2 rounded-xl bg-[#111827] border border-[#1E293B] hover:bg-slate-800 transition-all text-slate-400 hover:text-slate-100 cursor-pointer shadow-xs"
         aria-label="Open notifications"
       >
-        <Bell className="w-4 h-4" />
+        <motion.div
+          animate={bellRinging ? { rotate: [0, -18, 18, -14, 14, -8, 8, 0], scale: [1, 1.15, 1] } : { rotate: 0, scale: 1 }}
+          transition={{ duration: 0.8, ease: 'easeInOut' }}
+        >
+          <Bell className="w-4 h-4" />
+        </motion.div>
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}

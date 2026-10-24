@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "f8cc10bb-b460-45e8-8e1f-ea1782b9f3ed",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "D:\\Development\\MAVR\\Workspace-MAVR\\docs\\diagrams\\web-request-cache-miss.sequence.json",
+  "output": "D:\\Development\\MAVR\\Workspace-MAVR\\docs\\diagrams\\web-request-cache-miss.html",
+  "specification": {
+    "sha256": "3a58cc9ff8accd4bdc3f3205102164474c39e2af8f04addf06c7551e3dc6f166",
+    "bytes": 3875
+  },
+  "artifact": {
+    "sha256": "58555628573aaf17997cfced0557fbfa4857e1bb26ce98388319b38c3325be29",
+    "bytes": 754478
+  }
+}

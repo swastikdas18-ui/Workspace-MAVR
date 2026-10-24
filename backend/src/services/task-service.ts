@@ -877,7 +877,7 @@ export class TaskService {
         actorId: userId,
         title: 'Task Assigned to You',
         message: `You have been assigned task "${updatedTask.title}".`,
-        type: 'task_assigned',
+        type: 'task_reassigned',
         entityType: 'task',
         entityId: updatedTask.id,
         link: `/tasks/${updatedTask.id}`,

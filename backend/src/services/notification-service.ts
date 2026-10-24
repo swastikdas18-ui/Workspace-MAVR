@@ -8,32 +8,51 @@ import {
 } from '../repositories/notification-repository';
 import { inMemoryDb, getDb, schema } from '../../packages/database/index.js';
 import { EventBus } from '../realtime/event-bus';
+import { RealtimeNotificationService } from './realtime-notification-service.js';
 
 export type { NotificationPriority, UserNotificationPreferences };
 
 export type NotificationType =
-  // People OS
+  // Standard Phase 1 Canonical Enums
+  | 'TASK_ASSIGNED'
+  | 'TASK_REASSIGNED'
+  | 'TASK_COMPLETED'
+  | 'TASK_STATUS_CHANGED'
+  | 'PROJECT_ADDED'
+  | 'PROJECT_ARCHIVED'
+  | 'TEAM_MEMBER_ADDED'
+  | 'TEAM_MEMBER_REMOVED'
+  | 'LEAVE_SUBMITTED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
+  | 'WORKSPACE_INVITE'
+  | 'ROLE_CHANGED'
+  | 'COMMENT_MENTION'
+  // Existing lowercase aliases
+  | 'task_assigned'
+  | 'task_reassigned'
+  | 'task_completed'
+  | 'task_overdue'
+  | 'task_status_changed'
   | 'employee_invited'
   | 'employee_joined'
   | 'leave_submitted'
   | 'leave_approved'
   | 'leave_rejected'
-  // Projects
   | 'initiative_created'
   | 'initiative_assigned'
   | 'initiative_started'
   | 'initiative_review_requested'
   | 'initiative_approved'
   | 'initiative_rejected'
-  // Tasks
-  | 'task_assigned'
-  | 'task_completed'
-  | 'task_overdue'
-  | 'task_status_changed'
-  // CRM
+  | 'team_member_added'
+  | 'team_member_removed'
+  | 'project_added'
+  | 'project_archived'
+  | 'workspace_invite'
+  | 'role_changed'
   | 'lead_assigned'
   | 'deal_stage_changed'
-  // Collaboration & Mentions
   | 'mention_received'
   | 'comment_mentioned'
   | 'wiki_created'
@@ -154,6 +173,11 @@ export class NotificationService {
 
     const notification = await NotificationRepository.createNotification(notificationParams);
 
+    // Audit Log: [NOTIFICATION_CREATED]
+    console.log(
+      `[NOTIFICATION_CREATED] notificationId=${notification.id} recipientId=${notification.recipientId} actorId=${notification.actorId || 'system'} type=${notification.type} workspaceId=${notification.workspaceId}`
+    );
+
     // Emit realtime event: notification.created
     try {
       EventBus.publishWorkspaceEvent(
@@ -183,6 +207,14 @@ export class NotificationService {
       console.warn('[NotificationService] EventBus publish error:', err);
     }
 
+    // Phase 2 Real-Time Delivery: Publish NOTIFICATION_CREATED & UNREAD_COUNT_UPDATED
+    try {
+      await RealtimeNotificationService.publishNotification(notification);
+      await RealtimeNotificationService.publishUnreadCount(dto.recipientId, dto.workspaceId);
+    } catch (err) {
+      console.warn('[NotificationService] Realtime delivery error:', err);
+    }
+
     return notification;
   }
 
@@ -207,17 +239,62 @@ export class NotificationService {
   }
 
   /**
+   * getUserNotifications alias matching specification
+   */
+  static async getUserNotifications(
+    userId: string,
+    workspaceId?: string,
+    options?: { limit?: number; offset?: number; unreadOnly?: boolean }
+  ): Promise<NotificationEntity[]> {
+    return await NotificationRepository.getNotifications(
+      workspaceId || '',
+      userId,
+      options
+    );
+  }
+
+  /**
    * Mark a single notification as read for a recipient.
    */
   static async markRead(workspaceId: string, recipientId: string, notificationId: string): Promise<boolean> {
-    return await NotificationRepository.markAsRead(workspaceId, recipientId, notificationId);
+    const success = await NotificationRepository.markAsRead(workspaceId, recipientId, notificationId);
+    if (success) {
+      console.log(
+        `[NOTIFICATION_READ] notificationId=${notificationId} recipientId=${recipientId} workspaceId=${workspaceId}`
+      );
+      try {
+        await RealtimeNotificationService.publishUnreadCount(recipientId, workspaceId);
+      } catch {}
+    }
+    return success;
+  }
+
+  /**
+   * markAsRead alias matching specification
+   */
+  static async markAsRead(notificationId: string, userId: string, workspaceId?: string): Promise<boolean> {
+    return await this.markRead(workspaceId || '', userId, notificationId);
   }
 
   /**
    * Mark all notifications as read for a recipient.
    */
   static async markAllRead(workspaceId: string, recipientId: string): Promise<number> {
-    return await NotificationRepository.markAllAsRead(workspaceId, recipientId);
+    const count = await NotificationRepository.markAllAsRead(workspaceId, recipientId);
+    console.log(
+      `[NOTIFICATION_BULK_READ] recipientId=${recipientId} workspaceId=${workspaceId} updatedCount=${count}`
+    );
+    try {
+      await RealtimeNotificationService.publishUnreadCount(recipientId, workspaceId);
+    } catch {}
+    return count;
+  }
+
+  /**
+   * markAllAsRead alias matching specification
+   */
+  static async markAllAsRead(userId: string, workspaceId?: string): Promise<number> {
+    return await this.markAllRead(workspaceId || '', userId);
   }
 
   /**
@@ -237,7 +314,11 @@ export class NotificationService {
   /**
    * Get unread notification count for a recipient.
    */
-  static async getUnreadCount(workspaceId: string, recipientId: string): Promise<number> {
+  static async getUnreadCount(workspaceId: string, recipientId?: string): Promise<number> {
+    if (!recipientId) {
+      // If called with (userId)
+      return await NotificationRepository.getUnreadCount('', workspaceId);
+    }
     return await NotificationRepository.getUnreadCount(workspaceId, recipientId);
   }
 

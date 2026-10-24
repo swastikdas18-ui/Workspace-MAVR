@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+.gemini/
+.agents/
+.cursor/
+.gemini-skills/
+.gsd/
+.adapters/

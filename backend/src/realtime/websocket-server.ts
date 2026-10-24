@@ -1,6 +1,7 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import { WebSocketServer, WebSocket, RawData } from 'ws';
 import { AuthService } from '../services/auth-service';
+import { RealtimeNotificationService } from '../services/realtime-notification-service';
 import { EventBus, RealtimeEvent } from './event-bus';
 import { ChannelManager, RealtimeClient } from './channel-manager';
 import { PresenceManager } from './presence-manager';
@@ -276,6 +277,7 @@ export class WorkspaceWebSocketServer {
     socket.on('close', async () => {
       if (authenticatedClient) {
         ChannelManager.unregisterClient(authenticatedClient);
+        RealtimeNotificationService.unregisterConnection(authenticatedClient.userId, socketId);
         await PresenceManager.handleDisconnect(
           authenticatedClient.userId,
           authenticatedClient.workspaceId,
@@ -288,6 +290,7 @@ export class WorkspaceWebSocketServer {
       console.warn(`[WebSocket Error] Socket ${socketId}:`, err.message);
       if (authenticatedClient) {
         ChannelManager.unregisterClient(authenticatedClient);
+        RealtimeNotificationService.unregisterConnection(authenticatedClient.userId, socketId);
         await PresenceManager.handleDisconnect(
           authenticatedClient.userId,
           authenticatedClient.workspaceId,
@@ -347,6 +350,9 @@ export class WorkspaceWebSocketServer {
 
       // Register in ChannelManager
       ChannelManager.registerClient(client);
+
+      // Register in RealtimeNotificationService
+      RealtimeNotificationService.registerConnection(session.user.id, socketId);
 
       // Register in PresenceManager
       await PresenceManager.setUserOnline(

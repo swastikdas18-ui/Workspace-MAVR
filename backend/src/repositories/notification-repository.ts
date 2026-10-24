@@ -16,9 +16,9 @@ export interface NotificationEntity {
   priority: NotificationPriority;
   entityType?: string | null;
   entityId?: string | null;
-  link?: string | null;
   isRead: boolean;
   archived: boolean;
+  readAt?: Date | null;
   metadata?: Record<string, any> | null;
   createdAt: Date;
 }
@@ -38,6 +38,7 @@ export interface CreateNotificationParams {
   link?: string | null;
   isRead?: boolean;
   archived?: boolean;
+  readAt?: Date | null;
   metadata?: Record<string, any> | null;
   createdAt?: Date;
 }
@@ -144,6 +145,7 @@ export class NotificationRepository {
             link: r.link || null,
             isRead: r.isRead,
             archived: r.archived ?? false,
+            readAt: r.readAt ? new Date(r.readAt) : null,
             metadata: (r.metadata as Record<string, any>) || null,
             createdAt: r.createdAt,
           };
@@ -216,6 +218,7 @@ export class NotificationRepository {
             link: r.link || null,
             isRead: r.isRead,
             archived: r.archived ?? false,
+            readAt: r.readAt ? new Date(r.readAt) : null,
             metadata: (r.metadata as Record<string, any>) || null,
             createdAt: r.createdAt,
           };
@@ -270,6 +273,7 @@ export class NotificationRepository {
       link: data.link || null,
       isRead: data.isRead ?? false,
       archived,
+      readAt: data.readAt || (data.isRead ? now : null),
       metadata: data.metadata || null,
       createdAt: now,
     };
@@ -295,6 +299,7 @@ export class NotificationRepository {
           link: data.link || null,
           isRead: data.isRead ?? false,
           archived,
+          readAt: data.readAt || (data.isRead ? now : null),
           metadata: data.metadata || null,
           createdAt: now,
         });
@@ -381,6 +386,7 @@ export class NotificationRepository {
             link: r.link || null,
             isRead: r.isRead,
             archived: r.archived ?? false,
+            readAt: r.readAt ? new Date(r.readAt) : null,
             metadata: (r.metadata as Record<string, any>) || null,
             createdAt: new Date(r.createdAt),
           }));
@@ -402,6 +408,7 @@ export class NotificationRepository {
           ...n,
           priority: n.priority || 'medium',
           archived: n.archived ?? false,
+          readAt: n.readAt ? new Date(n.readAt) : null,
           recipientId: n.recipientId || n.userId,
           createdAt: new Date(n.createdAt),
         }));
@@ -483,8 +490,10 @@ export class NotificationRepository {
       memoryItem.workspaceId === workspaceId &&
       (memoryItem.recipientId === userId || memoryItem.userId === userId);
 
+    const now = new Date();
     if (isOwner && memoryItem) {
       memoryItem.isRead = true;
+      memoryItem.readAt = now;
     }
 
     try {
@@ -492,7 +501,7 @@ export class NotificationRepository {
       if (db) {
         await db
           .update(schema.notifications)
-          .set({ isRead: true })
+          .set({ isRead: true, readAt: now })
           .where(
             and(
               eq(schema.notifications.id, notificationId),
@@ -604,6 +613,7 @@ export class NotificationRepository {
    */
   static async markAllAsRead(workspaceId: string, userId: string): Promise<number> {
     let count = 0;
+    const now = new Date();
     for (const notif of inMemoryDb.notifications.values()) {
       if (
         notif.workspaceId === workspaceId &&
@@ -611,6 +621,7 @@ export class NotificationRepository {
         !notif.isRead
       ) {
         notif.isRead = true;
+        notif.readAt = now;
         count++;
       }
     }
@@ -620,7 +631,7 @@ export class NotificationRepository {
       if (db) {
         await db
           .update(schema.notifications)
-          .set({ isRead: true })
+          .set({ isRead: true, readAt: now })
           .where(
             and(
               eq(schema.notifications.workspaceId, workspaceId),
@@ -634,6 +645,41 @@ export class NotificationRepository {
       }
     } catch {
       // Handled
+    }
+
+    return count;
+  }
+
+  /**
+   * Delete old notifications older than specified days
+   */
+  static async deleteOldNotifications(workspaceId: string, days: number = 30): Promise<number> {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    let count = 0;
+
+    for (const [id, notif] of inMemoryDb.notifications.entries()) {
+      if (
+        (!workspaceId || notif.workspaceId === workspaceId) &&
+        new Date(notif.createdAt) < cutoffDate
+      ) {
+        inMemoryDb.notifications.delete(id);
+        count++;
+      }
+    }
+
+    try {
+      const db = getDb();
+      if (db) {
+        const conditions = [lt(schema.notifications.createdAt, cutoffDate)];
+        if (workspaceId) {
+          conditions.push(eq(schema.notifications.workspaceId, workspaceId));
+        }
+        await db
+          .delete(schema.notifications)
+          .where(and(...conditions));
+      }
+    } catch (err) {
+      console.warn('[NotificationRepository.deleteOldNotifications] DB delete error:', err);
     }
 
     return count;

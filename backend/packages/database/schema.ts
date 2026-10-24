@@ -402,6 +402,7 @@ export const notifications = pgTable(
     link: text('link'),
     isRead: boolean('is_read').default(false).notNull(),
     archived: boolean('archived').default(false).notNull(),
+    readAt: timestamp('read_at'),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -411,6 +412,7 @@ export const notifications = pgTable(
     userIdx: index('idx_notifications_user_id').on(table.userId),
     priorityIdx: index('idx_notifications_priority').on(table.priority),
     isReadIdx: index('idx_notifications_is_read').on(table.isRead),
+    typeIdx: index('idx_notifications_type').on(table.type),
     archivedIdx: index('idx_notifications_archived').on(table.archived),
     createdAtIdx: index('idx_notifications_created_at').on(table.createdAt),
   })

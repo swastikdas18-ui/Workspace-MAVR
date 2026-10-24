@@ -436,6 +436,24 @@ peopleRouter.patch('/leaves/:id/reject', validateBody(reviewLeaveSchema), async 
 });
 
 /**
+ * PATCH /api/people/leaves/:id/review - Review leave request (backwards compatibility)
+ */
+peopleRouter.patch('/leaves/:id/review', async (c) => {
+  try {
+    const authCtx = await getAuthorizationContext(c);
+    const leaveId = c.req.param('id');
+    const body = await c.req.json().catch(() => ({}));
+    const decision = (body.decision || body.status || 'approved').toLowerCase() as 'approved' | 'rejected';
+
+    const leave = await PeopleService.reviewLeave(authCtx.workspaceId, leaveId, authCtx.userId, authCtx.roleInWorkspace, decision, body.reviewNotes);
+    return c.json({ leave, message: `Leave request ${decision}.` }, 200);
+  } catch (err: any) {
+    const status = err.status || 400;
+    return c.json({ error: { code: err.code || 'BAD_REQUEST', message: err.message || 'Failed to review leave.' } }, status);
+  }
+});
+
+/**
  * GET /api/people/leaves/balances - Get leave balance quotas
  */
 peopleRouter.get('/leaves/balances', async (c) => {

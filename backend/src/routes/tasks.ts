@@ -61,16 +61,35 @@ taskRouter.get('/', async (c) => {
 
     return c.json({ tasks }, 200);
   } catch (err: any) {
-    const status = err.status || 500;
+    const correlationId = err.correlationId || c.req.header('X-Request-ID') || c.req.header('x-request-id') || c.res.headers.get('X-Request-ID') || ('req-' + crypto.randomUUID());
+    const isDbError = err.code === 'DATABASE_ERROR' || (err.message && (err.message.includes('tasks') || err.message.includes('select') || err.message.includes('PostgreSQL')));
+    const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : (isDbError ? 500 : (err.code === 'NOT_FOUND' ? 404 : 500)));
+
     console.error('[Tasks API Error] List tasks failed', {
-      op: 'list_tasks',
+      op: 'tasks.list',
+      correlationId,
       workspaceId: c.get('workspace')?.id,
       userId: c.get('user')?.id,
-      errorCode: err.code || 'INTERNAL_SERVER_ERROR',
+      errorCode: err.code || (isDbError ? 'DATABASE_ERROR' : 'INTERNAL_SERVER_ERROR'),
+      sqlState: err.sqlState || err.cause?.code || null,
+      constraint: err.constraint || err.cause?.constraint || null,
       status,
+      internalMessage: err.cause?.message || err.message,
     });
+
+    // Sanitized client message - NEVER expose raw SQL queries or schema parameters
+    const clientMessage = isDbError
+      ? `Failed to retrieve tasks from database. Please try again or reference correlation ID: ${correlationId}`
+      : (err.message && !err.message.includes('select') && !err.message.includes('PostgreSQL') ? err.message : 'Failed to get tasks.');
+
     return c.json(
-      { error: { code: err.code || 'INTERNAL_SERVER_ERROR', message: err.message || 'Failed to get tasks.' } },
+      {
+        error: {
+          code: isDbError ? 'DATABASE_ERROR' : (err.code || 'INTERNAL_SERVER_ERROR'),
+          message: clientMessage,
+          correlationId,
+        },
+      },
       status
     );
   }

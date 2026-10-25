@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { getDb, inMemoryDb } from '../../packages/database/index.js';
+import { sql } from 'drizzle-orm';
+import { getDb, inMemoryDb, schema } from '../../packages/database/index.js';
 import { SentryService } from '../services/sentry-service';
 import { ChannelManager } from '../realtime/channel-manager';
 import { PresenceManager } from '../realtime/presence-manager';
@@ -41,12 +42,51 @@ healthRouter.get('/ready', async (c) => {
 
   const coreTables = ['users', 'workspaces', 'sessions', 'subscriptions'];
 
+  let tasksTableDiagnostic: any = null;
+
   if (db) {
     try {
       // Execute live SELECT 1 test
       await (db as any).execute?.('SELECT 1');
       dbHealthy = true;
       tablesVerified = [...coreTables];
+
+      // Safe Diagnostic Probe: check schema and sample task query
+      try {
+        let taskColumns: any[] = [];
+        try {
+          const colsRes = await (db as any).execute?.(
+            sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' ORDER BY ordinal_position`
+          );
+          taskColumns = Array.isArray(colsRes) ? colsRes : (colsRes?.rows || []);
+        } catch {}
+
+        const sampleQuery = await (db as any).select().from(schema.tasks).limit(1);
+        tasksTableDiagnostic = {
+          status: 'healthy',
+          sampleCount: sampleQuery.length,
+          columnCount: taskColumns.length,
+          columns: taskColumns.map((c: any) => c.column_name),
+        };
+      } catch (tErr: any) {
+        let rawCols: any[] = [];
+        try {
+          const rawRes = await (db as any).execute?.(
+            sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'tasks' ORDER BY ordinal_position`
+          );
+          rawCols = Array.isArray(rawRes) ? rawRes : (rawRes?.rows || []);
+        } catch {}
+
+        tasksTableDiagnostic = {
+          status: 'error',
+          code: tErr?.code || 'UNKNOWN',
+          routine: tErr?.routine || null,
+          detail: tErr?.detail || null,
+          hint: tErr?.hint || null,
+          message: tErr?.message || String(tErr),
+          existingColumnsInDb: rawCols.map((c: any) => c.column_name),
+        };
+      }
     } catch {
       // If direct SQL driver not connected in dev/test, verify inMemoryDb stores
       dbHealthy = inMemoryDb.users !== undefined && inMemoryDb.workspaces !== undefined;
@@ -78,6 +118,7 @@ healthRouter.get('/ready', async (c) => {
       selectOneQuery: dbHealthy ? 'passed' : 'failed',
       tablesVerified,
       healthy: dbHealthy,
+      tasksTable: tasksTableDiagnostic,
     },
     database_ok: dbHealthy,
     email: emailHealth.status,

@@ -51,6 +51,20 @@ healthRouter.get('/ready', async (c) => {
       dbHealthy = true;
       tablesVerified = [...coreTables];
 
+      // Safe Schema Synchronization for Tasks table: Ensure missing columns exist
+      try {
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by TEXT REFERENCES users(id)`);
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL`);
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_message_id TEXT`);
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_conversation_id TEXT`);
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS linked_conversation_id TEXT`);
+        await (db as any).execute?.(sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS linked_message_id TEXT`);
+        await (db as any).execute?.(sql`CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by)`);
+        await (db as any).execute?.(sql`CREATE INDEX IF NOT EXISTS idx_tasks_department_id ON tasks(department_id)`);
+      } catch (syncErr: any) {
+        console.warn('[Tasks Schema Auto-Sync Warning]:', syncErr?.message || syncErr);
+      }
+
       // Safe Diagnostic Probe: check schema and sample task query
       try {
         let taskColumns: any[] = [];

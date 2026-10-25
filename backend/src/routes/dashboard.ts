@@ -111,8 +111,23 @@ const executiveHandler = async (c: any) => {
     const data = await DashboardService.getExecutiveMetrics(workspace.id);
     return c.json(data, 200);
   } catch (err: any) {
-    console.error('[Dashboard API Error] /executive error:', err.message || err);
-    return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
+    const correlationId = err.correlationId || c.req.header('X-Request-ID') || c.req.header('x-request-id') || ('dash-err-' + crypto.randomUUID());
+    const isDbError = err.code === 'DATABASE_ERROR' || (err.message && (err.message.includes('select') || err.message.includes('PostgreSQL')));
+    console.error('[Dashboard API Error] /executive error:', {
+      correlationId,
+      workspaceId: c.get('workspace')?.id,
+      errorCode: err.code || (isDbError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR'),
+      message: err.message || err,
+    });
+    return c.json({
+      error: {
+        code: isDbError ? 'DATABASE_ERROR' : (err.code || 'INTERNAL_ERROR'),
+        message: isDbError
+          ? `Failed to load executive dashboard data from database. Reference correlation ID: ${correlationId}`
+          : (err.message || 'Failed to retrieve executive metrics.'),
+        correlationId,
+      }
+    }, 500);
   }
 };
 

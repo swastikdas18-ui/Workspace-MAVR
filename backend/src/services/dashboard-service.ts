@@ -106,11 +106,27 @@ export class DashboardService {
         documents = docRows;
         projectUpdates = updateRows;
       } catch (err: any) {
-        console.warn('[DashboardService] PostgreSQL query failed, using in-memory store:', err.message);
+        const correlationId = 'dashboard-err-' + crypto.randomUUID();
+        console.error('[DashboardService] PostgreSQL query failed:', {
+          correlationId,
+          workspaceId,
+          sqlState: err?.code || 'UNKNOWN_PG_ERROR',
+          error: err?.message || err,
+        });
+
+        if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+          const customError: any = new Error(
+            `Failed to load executive dashboard data from database. Reference correlation ID: ${correlationId}`
+          );
+          customError.code = 'DATABASE_ERROR';
+          customError.correlationId = correlationId;
+          customError.cause = err;
+          throw customError;
+        }
       }
     }
 
-    if (projects.length === 0 && tasks.length === 0 && members.length === 0) {
+    if (!db && projects.length === 0 && tasks.length === 0 && members.length === 0) {
       projects = Array.from(inMemoryDb.projects.values()).filter((p) => p.workspaceId === workspaceId);
       tasks = Array.from(inMemoryDb.tasks.values()).filter((t) => t.workspaceId === workspaceId);
       members = Array.from(inMemoryDb.workspaceMembers.values()).filter((m) => m.workspaceId === workspaceId);

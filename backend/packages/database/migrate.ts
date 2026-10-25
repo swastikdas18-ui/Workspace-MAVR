@@ -273,6 +273,9 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    // Ensure workspace_id and core foreign keys exist on preexisting tables
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id);`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by TEXT REFERENCES users(id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by);`;
     await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES departments(id) ON DELETE SET NULL;`;
@@ -393,6 +396,10 @@ export async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
       );
     `;
+    await sql`ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE;`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_comments_workspace_id ON task_comments(workspace_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_task_comments_user_id ON task_comments(user_id);`;
 
     // 14. Notifications table
     await sql`

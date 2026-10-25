@@ -142,7 +142,7 @@ taskRouter.post('/', validateBody(createTaskSchema), async (c) => {
 
     return c.json({ task }, 201);
   } catch (err: any) {
-    const correlationId = err.correlationId || c.res.headers.get('X-Request-ID') || ('req-' + crypto.randomUUID());
+    const correlationId = err.correlationId || c.req.header('X-Request-ID') || c.req.header('x-request-id') || c.res.headers.get('X-Request-ID') || ('req-' + crypto.randomUUID());
     const isDbError = err.code === 'DATABASE_ERROR' || (err.message && err.message.includes('insert into'));
     const status = err.status || (err.code === 'WORKSPACE_BOUNDARY_VIOLATION' || err.code === 'FORBIDDEN' ? 403 : (isDbError ? 500 : 400));
 

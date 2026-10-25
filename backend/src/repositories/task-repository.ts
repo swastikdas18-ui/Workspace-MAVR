@@ -140,32 +140,40 @@ export class TaskRepository {
         if (taskRows.length > 0) {
           const taskIds = taskRows.map((t) => t.id);
 
-          // Fetch comment counts
-          const comments = await db
-            .select()
-            .from(schema.taskComments)
-            .where(
-              and(
-                eq(schema.taskComments.workspaceId, workspaceId),
-                inArray(schema.taskComments.taskId, taskIds)
-              )
-            );
-
+          // Fetch comment counts (resilient against subquery/auxiliary schema discrepancy)
           const commentCounts = new Map<string, number>();
-          comments.forEach((c) => {
-            commentCounts.set(c.taskId, (commentCounts.get(c.taskId) || 0) + 1);
-          });
+          try {
+            const comments = await db
+              .select()
+              .from(schema.taskComments)
+              .where(
+                and(
+                  eq(schema.taskComments.workspaceId, workspaceId),
+                  inArray(schema.taskComments.taskId, taskIds)
+                )
+              );
 
-          // Fetch activity counts
-          const updates = await db
-            .select()
-            .from(schema.taskUpdates)
-            .where(inArray(schema.taskUpdates.taskId, taskIds));
+            comments.forEach((c) => {
+              commentCounts.set(c.taskId, (commentCounts.get(c.taskId) || 0) + 1);
+            });
+          } catch (commentErr: any) {
+            console.warn('[TaskRepository.listTasks] Notice: Could not load task comment counts:', commentErr?.message || commentErr);
+          }
 
+          // Fetch activity counts (resilient against subquery/auxiliary schema discrepancy)
           const activityCounts = new Map<string, number>();
-          updates.forEach((u) => {
-            activityCounts.set(u.taskId, (activityCounts.get(u.taskId) || 0) + 1);
-          });
+          try {
+            const updates = await db
+              .select()
+              .from(schema.taskUpdates)
+              .where(inArray(schema.taskUpdates.taskId, taskIds));
+
+            updates.forEach((u) => {
+              activityCounts.set(u.taskId, (activityCounts.get(u.taskId) || 0) + 1);
+            });
+          } catch (updateErr: any) {
+            console.warn('[TaskRepository.listTasks] Notice: Could not load task update counts:', updateErr?.message || updateErr);
+          }
 
           // RBAC Filtering
           const initialCount = taskRows.length;
@@ -284,13 +292,31 @@ export class TaskRepository {
         }
       }
     } catch (err: any) {
+      const correlationId = 'task-list-err-' + crypto.randomUUID();
+      const sqlState = err?.code || err?.routine || 'UNKNOWN_PG_ERROR';
+      const constraint = err?.constraint || null;
+      const relation = err?.table || 'tasks';
+
       console.error('[TaskRepository.listTasks Error]', {
+        operation: 'tasks.list',
+        correlationId,
+        sqlState,
+        constraint,
+        relation,
         workspaceId,
         userId: options?.userId,
         error: err?.message || err,
       });
+
       if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
-        throw new Error(`Failed to query tasks from PostgreSQL: ${err?.message || err}`);
+        const customError: any = new Error(`Failed to query tasks from PostgreSQL: ${err?.message || err}`);
+        customError.code = 'DATABASE_ERROR';
+        customError.sqlState = sqlState;
+        customError.constraint = constraint;
+        customError.table = relation;
+        customError.correlationId = correlationId;
+        customError.cause = err;
+        throw customError;
       }
     }
 
